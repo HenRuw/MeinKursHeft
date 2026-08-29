@@ -218,13 +218,26 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
       });
 
       if (!hCollapsed) {
-        quarterCols.forEach(({ quarter, qCollapsed, cols, width }) => {
+        quarterCols.forEach(({ quarter, qCollapsed, cols, width }, qIdx) => {
           const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
+          // Only the first quarter in a half draws its own left edge — every
+          // later quarter's left edge is already drawn by its predecessor's
+          // right edge (the Q-Note column below). Declaring the same shared
+          // grid line from both sides makes border-collapse arbitrate between
+          // the two accent colors, and the loser's quarter reads as "leaking"
+          // into its neighbor's color instead of being contained in its own.
+          const isFirstQuarter = qIdx === 0;
           r2.push({
             label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
             colSpan: qCollapsed ? 1 : width,
             arrow: { collapsed: qCollapsed, onClick: () => toggleQuarter(quarter.id) },
-            style: frameTh({ background: colors.qBg, fontWeight: 600, borderLeft: `3px solid ${accent}`, borderTop: `3px solid ${accent}` }),
+            style: frameTh({
+              background: colors.qBg,
+              fontWeight: 600,
+              borderTop: `3px solid ${accent}`,
+              ...(isFirstQuarter && { borderLeft: `3px solid ${accent}` }),
+              borderRight: `3px solid ${accent}`,
+            }),
           });
 
           if (!qCollapsed) {
@@ -236,7 +249,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               label: 'MITARBEIT',
               colSpan: lessonCount + 1,
               arrow: { collapsed: mitCollapsed, onClick: () => toggleMit(quarter.id) },
-              style: frameTh({ background: colors.mitBgStrong, borderLeft: `3px solid ${accent}`, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
+              style: frameTh({ background: colors.mitBgStrong, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, ...(isFirstQuarter && { borderLeft: `3px solid ${accent}` }) }),
             });
             r3.push({
               label: 'SCHRIFTLICH',
@@ -250,14 +263,14 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               const c = cols[i];
               if (c.kind === 'lesson') {
                 const { dow, label } = formatShortDate(c.lesson.date);
-                r3b.push({ label: `${dow}\n${label}`, rowSpan: 2, style: th({ background: colors.mitBgStrong, width: 28, borderLeft: i === 0 ? `3px solid ${accent}` : undefined }) });
+                r3b.push({ label: `${dow}\n${label}`, rowSpan: 2, style: th({ background: colors.mitBgStrong, width: 28, borderLeft: isFirstQuarter && i === 0 ? `3px solid ${accent}` : undefined }) });
                 i += 1;
               } else if (c.kind === 'mitAvg') {
                 r3b.push({
                   label: 'Ø MIT.',
                   rowSpan: 2,
                   weight: { value: quarter.weight_mitarbeit, onChange: setQuarterWeight(quarter, 'weightMitarbeit') },
-                  style: th({ background: colors.mitBgStrong, width: 40, color: colors.teal, fontWeight: 600, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: i === 0 ? `3px solid ${accent}` : undefined }),
+                  style: th({ background: colors.mitBgStrong, width: 40, color: colors.teal, fontWeight: 600, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: isFirstQuarter && i === 0 ? `3px solid ${accent}` : undefined }),
                 });
                 i += 1;
               } else if (c.kind === 'exam') {
@@ -334,8 +347,9 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
     const halfVals = [];
     halfColumns.forEach(({ half, hCollapsed, quarterCols }) => {
       const qVals = [];
-      quarterCols.forEach(({ quarter, qCollapsed, cols }) => {
+      quarterCols.forEach(({ quarter, qCollapsed, cols }, qIdx) => {
         const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
+        const isFirstQuarter = qIdx === 0;
         const mitAvg = mitAvgFor(s.id, cols.find((c) => c.kind === 'mitAvg').lessons);
         const schrAvg = schrAvgFor(s.id, cols.find((c) => c.kind === 'schrAvg').works);
         const qn = qNoteFor(s.id, quarter, mitAvg, schrAvg);
@@ -349,13 +363,13 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               cells.push({
                 key: `l${c.lesson.id}`,
                 content: g || '·',
-                style: td({ background: colors.cream, color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderLeft: ci === 0 ? `3px solid ${accent}` : undefined }),
+                style: td({ background: colors.cream, color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderLeft: isFirstQuarter && ci === 0 ? `3px solid ${accent}` : undefined }),
               });
             } else if (c.kind === 'mitAvg') {
               cells.push({
                 key: `mit${quarter.id}`,
                 content: fmt(mitAvg),
-                style: td({ background: colors.mitBgStrong, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: ci === 0 ? `3px solid ${accent}` : undefined }),
+                style: td({ background: colors.mitBgStrong, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: isFirstQuarter && ci === 0 ? `3px solid ${accent}` : undefined }),
               });
             } else if (c.kind === 'exam') {
               const g = gradeOf(c.work.grades, s.id);
