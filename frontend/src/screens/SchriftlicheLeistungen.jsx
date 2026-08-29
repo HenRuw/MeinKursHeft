@@ -108,6 +108,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   };
   const updateRemark = (id, patch) => api.updateRemark(id, patch).then(onRefresh);
   const deleteRemark = (id) => api.deleteRemark(id).then(onRefresh);
+  const deletePreset = (id) => api.deleteRemarkPreset(id).then(onRefreshPresets);
 
   const workAvg = (w) => {
     const pairs = students.map((s) => [num(w.grades.find((g) => g.student_id === s.id)?.grade), 1]);
@@ -117,7 +118,6 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
       <section style={{ width: 330, flex: 'none', borderRight: `1px solid ${colors.border}`, padding: 18, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>SCHRIFTLICHE LEISTUNGEN</div>
         {WRITTEN_WORK_KINDS.map((k) => {
           const worksForKind = allWorks.filter((w) => w.kind === k.value);
           const isCollapsed = !!collapsedKinds[k.value];
@@ -304,6 +304,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                     onAddCustom={addCustom(s.id)}
                     onUpdateRemark={updateRemark}
                     onDeleteRemark={deleteRemark}
+                    onDeletePreset={deletePreset}
                   />
                 </div>
               ))}
