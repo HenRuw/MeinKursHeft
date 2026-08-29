@@ -52,7 +52,7 @@ function EmojiGrid({ onPick }) {
 // already-added remark. Used identically in Stundenerfassung and
 // Schriftliche Leistungen. Popovers are portal-rendered (see Popover.jsx) so
 // they aren't clipped by the scrolling table rows they live in.
-export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCustom, onUpdateRemark, onDeleteRemark }) {
+export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCustom, onUpdateRemark, onDeleteRemark, onDeletePreset }) {
   const menuBtnRef = useRef(null);
   const draftEmojiBtnRef = useRef(null);
   const editAnchorRef = useRef(null);
@@ -174,17 +174,25 @@ export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCusto
             </button>
           </div>
           {presets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                onAddPreset(p);
-                setMenuOpen(false);
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 7, fontSize: 12.5, textAlign: 'left' }}
-            >
-              <span style={{ fontSize: 15, width: 20, textAlign: 'center' }}>{p.emoji}</span>
-              <span>{p.text}</span>
-            </button>
+            <span key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <button
+                onClick={() => {
+                  onAddPreset(p);
+                  setMenuOpen(false);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 7, fontSize: 12.5, textAlign: 'left', flex: 1, minWidth: 0 }}
+              >
+                <span style={{ fontSize: 15, width: 20, flex: 'none', textAlign: 'center' }}>{p.emoji}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.text}</span>
+              </button>
+              <button
+                onClick={() => onDeletePreset(p.id)}
+                title="Bemerkung aus Menü entfernen"
+                style={{ flex: 'none', width: 24, height: 24, borderRadius: 6, fontSize: 12, color: '#c0392b' }}
+              >
+                🗑
+              </button>
+            </span>
           ))}
           <button
             onClick={() => setNewOpen((v) => !v)}

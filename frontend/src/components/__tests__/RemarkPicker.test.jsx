@@ -13,6 +13,7 @@ function setup(overrides = {}) {
     onAddCustom: vi.fn(),
     onUpdateRemark: vi.fn(),
     onDeleteRemark: vi.fn(),
+    onDeletePreset: vi.fn(),
     ...overrides,
   };
   const utils = render(<RemarkPicker {...props} />);
@@ -106,5 +107,16 @@ describe('RemarkPicker', () => {
     await user.click(screen.getByText('Löschen'));
 
     expect(props.onDeleteRemark).toHaveBeenCalledWith(5);
+  });
+
+  test('removing a preset from the menu calls onDeletePreset with its id, not onAddPreset', async () => {
+    const user = userEvent.setup();
+    const { props } = setup();
+
+    await user.click(screen.getByTitle('Bemerkung hinzufügen'));
+    await user.click(screen.getByTitle('Bemerkung aus Menü entfernen'));
+
+    expect(props.onDeletePreset).toHaveBeenCalledWith(1);
+    expect(props.onAddPreset).not.toHaveBeenCalled();
   });
 });

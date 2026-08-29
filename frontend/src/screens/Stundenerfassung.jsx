@@ -189,6 +189,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   };
   const updateRemark = (id, patch) => api.updateRemark(id, patch).then(onRefresh);
   const deleteRemark = (id) => api.deleteRemark(id).then(onRefresh);
+  const deletePreset = (id) => api.deleteRemarkPreset(id).then(onRefreshPresets);
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -526,6 +527,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                     onAddCustom={addCustom(s.id)}
                     onUpdateRemark={updateRemark}
                     onDeleteRemark={deleteRemark}
+                    onDeletePreset={deletePreset}
                   />
                 </div>
               );
