@@ -160,7 +160,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                             <span style={{ font: `500 11px ${fonts.mono}`, opacity: 0.65 }}>{w.date}</span>
                           </span>
                           {w.content && <span style={{ fontSize: 12, color: colors.mutedStrong, lineHeight: 1.45, textAlign: 'left' }}>{w.content}</span>}
-                          <span style={{ fontSize: 11.5, color: colors.muted }}>Ø {fmt(avg)} · Gewicht {w.weight}</span>
+                          <span style={{ fontSize: 11.5, color: colors.muted }}>Ø {fmt(avg)}</span>
                         </button>
                         <button
                           onClick={(e) => openEdit(w, e.currentTarget)}
