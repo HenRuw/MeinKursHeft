@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.log
+npm-debug.*
+.DS_Store
+*.pem
+
+# backend sqlite data
+backend/data/
+
+# frontend env / editor
+frontend/.env*.local
+frontend/.claude/

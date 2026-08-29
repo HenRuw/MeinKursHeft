@@ -1,0 +1,50 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: #e9e6df;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #16211f;
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: #0f5b52;
+}
+a:hover {
+  color: #0b423b;
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid #0f5b52;
+  outline-offset: -1px;
+}
+.wheel::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+/* CSS-only hover (no JS state / re-render) for ScrollWheel rows. */
+.wheel-row:hover {
+  background: rgba(180, 130, 20, 0.08);
+}
