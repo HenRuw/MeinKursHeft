@@ -13,7 +13,7 @@ import {
   GRADE_TYPE_SCALE,
   WRITTEN_WORK_KINDS,
 } from '../lib/gradeMath.js';
-import { formatShortDate, formatDateRange } from '../lib/dates.js';
+import { formatShortDate, formatDateRange, currentQuarter } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import WeightInput from '../components/WeightInput.jsx';
 
@@ -98,6 +98,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
   const halves = [...bundle.halves].sort((a, b) => a.idx - b.idx);
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const students = sortStudents(bundle.students);
+  const currentHalfId = currentQuarter(quarters)?.half_id ?? null;
 
   const visibleHalfIdx = scope === 'h1' ? [1] : scope === 'h2' ? [2] : [1, 2];
   const visHalves = halves.filter((h) => visibleHalfIdx.includes(h.idx));
@@ -160,6 +161,36 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
     return { half, hCollapsed, quarterCols, halfWidth };
   });
   const yearInnerWidth = halfColumns.reduce((a, hc) => a + hc.halfWidth, 0);
+
+  // Pixel-width math for pinning the current half's HJ-Note (and, in year
+  // scope, the Zeugnis) column to the right edge while the rest of the
+  // matrix scrolls underneath. Mirrors each column type's own width+padding
+  // +border exactly as declared in td()/th() below, so the computed `right`
+  // offset lines up with what's actually rendered.
+  const PAD_H = 12; // 6px + 6px horizontal cell padding
+  const quarterPxWidth = (qc) => {
+    if (qc.qCollapsed) return PAD_H + 44 + 3; // just the Q-Note column (3px accent border)
+    const lessonCount = qc.cols.filter((c) => c.kind === 'lesson').length;
+    const examCount = qc.cols.filter((c) => c.kind === 'exam').length;
+    return (
+      lessonCount * (PAD_H + 28 + 1) +
+      (PAD_H + 40 + FRAME.mit.border) + // Ø MIT.
+      examCount * (PAD_H + 46 + 1) +
+      (PAD_H + 40 + FRAME.schr.border) + // Ø SCHR.
+      (PAD_H + 44 + 3) // Q-Note
+    );
+  };
+  const halfPxWidth = (hc) => {
+    const own = PAD_H + 48 + FRAME.half.border; // HJ-Note
+    return hc.hCollapsed ? own : hc.quarterCols.reduce((a, qc) => a + quarterPxWidth(qc), 0) + own;
+  };
+  const ZEUGNIS_PX_WIDTH = PAD_H + 52 + FRAME.year.border;
+
+  const currentHalfIdx = halfColumns.findIndex(({ half }) => half.id === currentHalfId);
+  const currentHalfRight =
+    !collapsed.year && currentHalfIdx !== -1
+      ? halfColumns.slice(currentHalfIdx + 1).reduce((a, hc) => a + halfPxWidth(hc), 0) + (scope === 'year' ? ZEUGNIS_PX_WIDTH : 0)
+      : 0;
 
   const th = (extra) => ({
     padding: '5px 6px',
@@ -320,14 +351,21 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
         label: 'HJ-NOTE',
         rowSpan: 4,
         weight: { value: half.weight, onChange: setHalfWeight(half) },
-        style: th({ background: colors.hBg, width: 48, color: colors.tealDark, fontWeight: 700, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+        style: th({
+          background: colors.hBg,
+          width: 48,
+          color: colors.tealDark,
+          fontWeight: 700,
+          borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
+          ...(half.id === currentHalfId && { position: 'sticky', right: currentHalfRight, zIndex: 2 }),
+        }),
       });
     });
   }
 
   if (scope === 'year') {
     // And Zeugnis is year's own average, pushed after both halves.
-    r1.push({ label: 'ZEUGNIS', rowSpan: 5, style: th({ background: colors.sidebarBg, color: '#fff', width: 52, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }) });
+    r1.push({ label: 'ZEUGNIS', rowSpan: 5, style: th({ background: colors.sidebarBg, color: '#fff', width: 52, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}`, position: 'sticky', right: 0, zIndex: 2 }) });
   }
 
   // --- body rows ---
@@ -404,7 +442,13 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
         cells.push({
           key: `h${half.id}`,
           content: fmt(hn),
-          style: td({ background: colors.hBg, color: hn == null ? '#c4bba6' : gradeColor(hn), ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+          style: td({
+            background: colors.hBg,
+            color: hn == null ? '#c4bba6' : gradeColor(hn),
+            ...GRADE_TYPE_SCALE.summary,
+            borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
+            ...(half.id === currentHalfId && { position: 'sticky', right: currentHalfRight, zIndex: 1 }),
+          }),
         });
       }
     });
@@ -414,7 +458,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
       cells.push({
         key: 'zeugnis',
         content: fmt(zn),
-        style: td({ background: colors.sidebarBg, color: '#fff', ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }),
+        style: td({ background: colors.sidebarBg, color: '#fff', ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}`, position: 'sticky', right: 0, zIndex: 1 }),
       });
     }
 
