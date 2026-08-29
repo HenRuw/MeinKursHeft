@@ -27,6 +27,11 @@ export const colors = {
   schBg: '#fdf7e9',
   qBg: '#e9f0ed',
   hBg: '#dde8e4',
+  // Stronger tints for a frame's own header row + average column, kept
+  // visibly more saturated than the pale individual-grade cells inside it
+  // (see Notenuebersicht's nested-frame border/color scheme).
+  mitBgStrong: '#dcece3',
+  schBgStrong: '#f6e7bd',
 };
 
 export const fonts = {

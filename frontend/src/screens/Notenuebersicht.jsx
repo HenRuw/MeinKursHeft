@@ -19,6 +19,11 @@ import WeightInput from '../components/WeightInput.jsx';
 
 const KIND_BADGE = { klassenarbeit: 'KA', test: 'T', sonstige: 'SO' };
 const KIND_BG = { klassenarbeit: '#fdf7e9', test: '#fbf0da', sonstige: '#f6ead0' };
+// Much paler than KIND_BG: individual exam grades sit a visual step below
+// the kind sub-header, which itself sits a step below the SCHRIFTLICH frame
+// (schBgStrong) — three tiers of the same hue family.
+const KIND_BG_LIGHT = { klassenarbeit: '#fefcf5', test: '#fdfaf2', sonstige: '#fcf7ec' };
+const SECTION_LABELS = { klassenarbeit: 'Klassenarbeiten', test: 'Tests', sonstige: 'Sonstige Leistungen' };
 
 const SCOPES = [
   ['year', 'Schuljahr'],
@@ -26,31 +31,57 @@ const SCOPES = [
   ['h2', '2. Halbjahr'],
 ];
 
-function buildQuarterColumns(quarter, lessons, works, showLessons, showWrittenSingles) {
-  const cols = [];
-  const qLessons = lessons.filter((l) => l.quarter_id === quarter.id).sort((a, b) => a.date.localeCompare(b.date));
-  if (showLessons) qLessons.forEach((lesson) => cols.push({ kind: 'lesson', lesson }));
-  cols.push({ kind: 'mitAvg', lessons: qLessons });
+// Escalating border thickness = escalating nesting depth (outside -> inside):
+// year > half > quarter > mitarbeit/schriftlich. Each frame's own header row
+// gets a matching top border, each frame's own average column a matching
+// right border, so the two together read as one continuous "L" outline.
+const FRAME = {
+  year: { border: 5, color: colors.sidebarBg },
+  half: { border: 4, color: colors.tealDark },
+  mit: { border: 2, color: colors.teal },
+  schr: { border: 2, color: '#a9791f' },
+};
 
-  const kindGroups = WRITTEN_WORK_KINDS.map((k) => ({
-    kind: k.value,
-    works: works.filter((w) => w.quarter_id === quarter.id && w.kind === k.value).sort((a, b) => a.date.localeCompare(b.date)),
-  }));
-  if (showWrittenSingles) {
-    kindGroups.forEach((group) => group.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: group.kind })));
-  }
-  const allWorks = kindGroups.flatMap((g) => g.works);
-  cols.push({ kind: 'schrAvg', works: allWorks });
-  cols.push({ kind: 'qNote', quarter });
+const FRAME_HEADER_BASE = { position: 'relative', overflow: 'hidden', textOverflow: 'ellipsis', paddingBottom: 13 };
 
-  if (cols[0]) cols[0].quarterStart = quarter;
-  return cols;
+function CollapseArrow({ collapsed, onClick, dark }) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={collapsed ? 'Aufklappen' : 'Einklappen'}
+      style={{
+        position: 'absolute',
+        right: 3,
+        bottom: 2,
+        width: 14,
+        height: 14,
+        borderRadius: 4,
+        fontSize: 8,
+        lineHeight: '14px',
+        textAlign: 'center',
+        color: dark ? '#fff' : '#3c4a46',
+        background: dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.08)',
+      }}
+    >
+      {collapsed ? '▾' : '◀'}
+    </button>
+  );
 }
 
 export default function Notenuebersicht({ bundle, onOpenStudent }) {
   const [scope, setScope] = usePersisted(`notenuebersicht:${bundle.course.id}:scope`, 'year');
   const [showLessons, setShowLessons] = usePersisted(`notenuebersicht:${bundle.course.id}:showLessons`, true);
   const [showWrittenSingles, setShowWrittenSingles] = usePersisted(`notenuebersicht:${bundle.course.id}:showWrittenSingles`, true);
+  const [collapsed, setCollapsed] = usePersisted(`notenuebersicht:${bundle.course.id}:collapsed`, {
+    year: false,
+    half: {},
+    quarter: {},
+    mit: {},
+    schr: {},
+  });
   // Row/column highlight is a placeholder (per product decision, real design
   // exploration deferred): a full-row hover highlight only, since aligning a
   // per-column highlight across the multi-row header would need every header
@@ -58,26 +89,76 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
   // rowSpan-based header layout doesn't provide for free.
   const [hoverRow, setHoverRow] = useState(null);
 
+  const toggleYear = () => setCollapsed((c) => ({ ...c, year: !c.year }));
+  const toggleHalf = (id) => setCollapsed((c) => ({ ...c, half: { ...c.half, [id]: !c.half[id] } }));
+  const toggleQuarter = (id) => setCollapsed((c) => ({ ...c, quarter: { ...c.quarter, [id]: !c.quarter[id] } }));
+  const toggleMit = (qid) => setCollapsed((c) => ({ ...c, mit: { ...c.mit, [qid]: !c.mit[qid] } }));
+  const toggleSchr = (qid) => setCollapsed((c) => ({ ...c, schr: { ...c.schr, [qid]: !c.schr[qid] } }));
+
   const halves = [...bundle.halves].sort((a, b) => a.idx - b.idx);
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const students = sortStudents(bundle.students);
 
   const visibleHalfIdx = scope === 'h1' ? [1] : scope === 'h2' ? [2] : [1, 2];
   const visHalves = halves.filter((h) => visibleHalfIdx.includes(h.idx));
-
   const quartersByHalf = (half) => quarters.filter((q) => q.half_id === half.id);
 
   const setQuarterWeight = (quarter, field) => (e) => api.updateQuarter(quarter.id, { [field]: parseWeight(e.target.value) });
   const setHalfWeight = (half) => (e) => api.updateHalf(half.id, { weight: parseWeight(e.target.value) });
 
-  // Shared column model for header + body, half -> quarter -> columns[]
-  const halfColumns = visHalves.map((half) => ({
-    half,
-    quarterCols: quartersByHalf(half).map((quarter) => ({
-      quarter,
-      cols: buildQuarterColumns(quarter, bundle.lessons, bundle.writtenWorks, showLessons, showWrittenSingles),
-    })),
-  }));
+  // --- computation helpers (always run regardless of collapse — collapsing
+  // only hides display cells, roll-up math still needs every value) ---
+  const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
+  function mitAvgFor(studentId, lessons) {
+    const vals = lessons.map((l) => num(gradeOf(l.grades, studentId))).filter((v) => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }
+  function schrAvgFor(studentId, works) {
+    return wavg(works.map((w) => [num(gradeOf(w.grades, studentId)), w.weight]));
+  }
+  function qNoteFor(studentId, quarter, mitAvg, schrAvg) {
+    return wavg([[mitAvg, quarter.weight_mitarbeit], [schrAvg, quarter.weight_schriftlich]]);
+  }
+
+  // Per-quarter display columns: mitAvg/schrAvg are always included (they're
+  // the mitarbeit/schriftlich frame's own average column, hidden only if the
+  // *quarter* itself is collapsed), lessons/exams only if that block isn't
+  // collapsed and the global show/hide toggle is on.
+  function buildQuarterCols(quarter) {
+    const mitCollapsed = !!collapsed.mit[quarter.id];
+    const schrCollapsed = !!collapsed.schr[quarter.id];
+    const qLessonsAll = bundle.lessons.filter((l) => l.quarter_id === quarter.id).sort((a, b) => a.date.localeCompare(b.date));
+    const kindGroupsAll = WRITTEN_WORK_KINDS.map((k) => ({
+      kind: k.value,
+      works: bundle.writtenWorks.filter((w) => w.quarter_id === quarter.id && w.kind === k.value).sort((a, b) => a.date.localeCompare(b.date)),
+    }));
+    const allWorksAll = kindGroupsAll.flatMap((g) => g.works);
+
+    const cols = [];
+    if (!mitCollapsed && showLessons) qLessonsAll.forEach((lesson) => cols.push({ kind: 'lesson', lesson }));
+    cols.push({ kind: 'mitAvg', lessons: qLessonsAll });
+    if (!schrCollapsed && showWrittenSingles) {
+      kindGroupsAll.forEach((g) => g.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: g.kind })));
+    }
+    cols.push({ kind: 'schrAvg', works: allWorksAll });
+
+    return { quarter, mitCollapsed, schrCollapsed, cols, qLessonsAll, allWorksAll };
+  }
+
+  // Bottom-up width computation: each level's width folds in its children's
+  // (already collapse-aware) widths plus its own +1 for its average column.
+  const halfColumns = visHalves.map((half) => {
+    const hCollapsed = !!collapsed.half[half.id];
+    const quarterCols = quartersByHalf(half).map((quarter) => {
+      const qc = buildQuarterCols(quarter);
+      const qCollapsed = !!collapsed.quarter[quarter.id];
+      return { ...qc, qCollapsed, width: qCollapsed ? 1 : qc.cols.length };
+    });
+    const innerWidth = quarterCols.reduce((a, qc) => a + qc.width, 0);
+    const halfWidth = hCollapsed ? 1 : innerWidth + 1;
+    return { half, hCollapsed, quarterCols, halfWidth };
+  });
+  const yearInnerWidth = halfColumns.reduce((a, hc) => a + hc.halfWidth, 0);
 
   const th = (extra) => ({
     padding: '5px 6px',
@@ -99,92 +180,128 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
     whiteSpace: 'nowrap',
     ...extra,
   });
-
-  // --- computation helpers ---
-  const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
-
-  function mitAvgFor(studentId, lessons) {
-    const vals = lessons.map((l) => num(gradeOf(l.grades, studentId))).filter((v) => v != null);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  }
-  function schrAvgFor(studentId, works) {
-    return wavg(works.map((w) => [num(gradeOf(w.grades, studentId)), w.weight]));
-  }
-  function qNoteFor(studentId, quarter, mitAvg, schrAvg) {
-    return wavg([[mitAvg, quarter.weight_mitarbeit], [schrAvg, quarter.weight_schriftlich]]);
-  }
+  const frameTh = (extra) => th({ ...FRAME_HEADER_BASE, ...extra });
 
   // --- header rows ---
-  const r1 = [{ label: 'SCHÜLER:IN', rowSpan: 4, colKey: 'name', style: th({ textAlign: 'left', minWidth: 190, background: '#efece5', position: 'sticky', left: 0, zIndex: 3 }) }];
+  // r0: outermost year frame (only meaningful in Schuljahr scope).
+  // r1: name + half frames (+ Zeugnis, year's own average column).
+  // r2: quarter frames (+ HJ-Note, half's own average column).
+  // r3: Mitarbeit/Schriftlich frames (+ Q-Note, quarter's own average column).
+  // r3b: written-work kind groups + lesson dates/Ø MIT/Ø SCHR (these three
+  //      have no sub-grouping of their own, so they anchor here and span
+  //      down through r4 instead of duplicating a row).
+  // r4: individual written-work titles (one level below their kind group).
+  const r0 = [];
+  const r1 = [{ label: 'SCHÜLER:IN', rowSpan: scope === 'year' ? 6 : 5, colKey: 'name', style: th({ textAlign: 'left', minWidth: 190, background: '#efece5', position: 'sticky', left: 0, zIndex: 3 }) }];
   const r2 = [];
   const r3 = [];
+  const r3b = [];
   const r4 = [];
 
-  halfColumns.forEach(({ half, quarterCols }) => {
-    const halfWidth = quarterCols.reduce((a, qc) => a + qc.cols.length, 0) + 1;
-    r1.push({
-      label: `${half.idx}. HALBJAHR`,
-      colSpan: halfWidth,
-      style: th({ background: colors.hBg, color: colors.tealDark, fontWeight: 700, borderTop: `2px solid ${colors.tealDark}` }),
-    });
-
-    quarterCols.forEach(({ quarter, cols }) => {
-      const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
-      r2.push({
-        label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
-        colSpan: cols.length,
-        style: th({ background: colors.qBg, fontWeight: 600, borderLeft: `3px solid ${accent}` }),
-      });
-
-      const lessonCount = cols.filter((c) => c.kind === 'lesson').length;
-      const examCount = cols.filter((c) => c.kind === 'exam').length;
-      r3.push(
-        { label: 'MITARBEIT', colSpan: lessonCount + 1, style: th({ background: colors.mitBg, borderLeft: `3px solid ${accent}` }) },
-        { label: 'SCHRIFTLICH', colSpan: examCount + 1, style: th({ background: colors.schBg }) },
-        {
-          label: `${quarter.idx}.Q-Note`,
-          rowSpan: 2,
-          weight: { value: quarter.weight_quarter, onChange: setQuarterWeight(quarter, 'weightQuarter') },
-          style: th({ background: colors.qBg, width: 44, color: colors.teal, fontWeight: 700, borderRight: `2px solid #c9a24a` }),
-        }
-      );
-
-      cols.forEach((c) => {
-        if (c.kind === 'lesson') {
-          const { dow, label } = formatShortDate(c.lesson.date);
-          r4.push({ label: `${dow}\n${label}`, style: th({ background: colors.mitBg, width: 28, borderLeft: c.quarterStart ? `3px solid ${accent}` : undefined }) });
-        } else if (c.kind === 'mitAvg') {
-          r4.push({
-            label: 'Ø MIT.',
-            weight: { value: quarter.weight_mitarbeit, onChange: setQuarterWeight(quarter, 'weightMitarbeit') },
-            style: th({ background: colors.mitBg, width: 40, color: colors.teal, fontWeight: 600, borderRight: '2px solid #8fada3', borderLeft: c.quarterStart ? `3px solid ${accent}` : undefined }),
-          });
-        } else if (c.kind === 'exam') {
-          r4.push({
-            label: `${KIND_BADGE[c.examKind]} · ${wrapLabel(c.work.title.length > 16 ? `${c.work.title.slice(0, 15)}…` : c.work.title)}`,
-            weight: { value: c.work.weight, onChange: (e) => api.updateWrittenWork(c.work.id, { weight: parseWeight(e.target.value) }) },
-            style: th({ background: KIND_BG[c.examKind], width: 46, color: colors.gold }),
-          });
-        } else if (c.kind === 'schrAvg') {
-          r4.push({
-            label: 'Ø SCHR.',
-            weight: { value: quarter.weight_schriftlich, onChange: setQuarterWeight(quarter, 'weightSchriftlich') },
-            style: th({ background: colors.schBg, width: 40, color: colors.gold, fontWeight: 600, borderRight: '2px solid #c9a24a' }),
-          });
-        }
-      });
-    });
-
-    r2.push({
-      label: 'HJ-NOTE',
-      rowSpan: 3,
-      weight: { value: half.weight, onChange: setHalfWeight(half) },
-      style: th({ background: colors.hBg, width: 48, color: colors.tealDark, fontWeight: 700, borderRight: `3px solid ${colors.tealDark}` }),
-    });
-  });
-
   if (scope === 'year') {
-    r1.push({ label: 'ZEUGNIS', rowSpan: 4, style: th({ background: colors.sidebarBg, color: '#fff', width: 52 }) });
+    r0.push({
+      label: 'GANZES SCHULJAHR',
+      colSpan: collapsed.year ? 1 : yearInnerWidth + 1,
+      arrow: { collapsed: collapsed.year, onClick: toggleYear, dark: true },
+      style: frameTh({ background: colors.sidebarBg, color: '#fff', fontWeight: 700 }),
+    });
+    r1.push({ label: 'ZEUGNIS', rowSpan: 5, style: th({ background: colors.sidebarBg, color: '#fff', width: 52, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }) });
+  }
+
+  if (!collapsed.year) {
+    halfColumns.forEach(({ half, hCollapsed, quarterCols }) => {
+      r1.push({
+        label: `${half.idx}. HALBJAHR`,
+        colSpan: hCollapsed ? 1 : quarterCols.reduce((a, qc) => a + qc.width, 0) + 1,
+        arrow: { collapsed: hCollapsed, onClick: () => toggleHalf(half.id) },
+        style: frameTh({ background: colors.hBg, color: colors.tealDark, fontWeight: 700, borderTop: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+      });
+      r2.push({
+        label: 'HJ-NOTE',
+        rowSpan: 4,
+        weight: { value: half.weight, onChange: setHalfWeight(half) },
+        style: th({ background: colors.hBg, width: 48, color: colors.tealDark, fontWeight: 700, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+      });
+
+      if (!hCollapsed) {
+        quarterCols.forEach(({ quarter, qCollapsed, cols, width }) => {
+          const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
+          r2.push({
+            label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
+            colSpan: qCollapsed ? 1 : width,
+            arrow: { collapsed: qCollapsed, onClick: () => toggleQuarter(quarter.id) },
+            style: frameTh({ background: colors.qBg, fontWeight: 600, borderLeft: `3px solid ${accent}`, borderTop: `3px solid ${accent}` }),
+          });
+          r3.push({
+            label: `${quarter.idx}.Q-Note`,
+            rowSpan: 3,
+            weight: { value: quarter.weight_quarter, onChange: setQuarterWeight(quarter, 'weightQuarter') },
+            style: th({ background: colors.qBg, width: 44, color: colors.teal, fontWeight: 700, borderRight: `3px solid ${accent}` }),
+          });
+
+          if (!qCollapsed) {
+            const mitCollapsed = !!collapsed.mit[quarter.id];
+            const schrCollapsed = !!collapsed.schr[quarter.id];
+            const lessonCount = cols.filter((c) => c.kind === 'lesson').length;
+            const examCount = cols.filter((c) => c.kind === 'exam').length;
+            r3.push({
+              label: 'MITARBEIT',
+              colSpan: lessonCount + 1,
+              arrow: { collapsed: mitCollapsed, onClick: () => toggleMit(quarter.id) },
+              style: frameTh({ background: colors.mitBgStrong, borderLeft: `3px solid ${accent}`, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
+            });
+            r3.push({
+              label: 'SCHRIFTLICH',
+              colSpan: examCount + 1,
+              arrow: { collapsed: schrCollapsed, onClick: () => toggleSchr(quarter.id) },
+              style: frameTh({ background: colors.schBgStrong, borderTop: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+            });
+
+            let i = 0;
+            while (i < cols.length) {
+              const c = cols[i];
+              if (c.kind === 'lesson') {
+                const { dow, label } = formatShortDate(c.lesson.date);
+                r3b.push({ label: `${dow}\n${label}`, rowSpan: 2, style: th({ background: colors.mitBgStrong, width: 28, borderLeft: i === 0 ? `3px solid ${accent}` : undefined }) });
+                i += 1;
+              } else if (c.kind === 'mitAvg') {
+                r3b.push({
+                  label: 'Ø MIT.',
+                  rowSpan: 2,
+                  weight: { value: quarter.weight_mitarbeit, onChange: setQuarterWeight(quarter, 'weightMitarbeit') },
+                  style: th({ background: colors.mitBgStrong, width: 40, color: colors.teal, fontWeight: 600, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: i === 0 ? `3px solid ${accent}` : undefined }),
+                });
+                i += 1;
+              } else if (c.kind === 'exam') {
+                const kind = c.examKind;
+                let j = i;
+                while (j < cols.length && cols[j].kind === 'exam' && cols[j].examKind === kind) j += 1;
+                const count = j - i;
+                const groupBorderLeft = i === 0 ? `3px solid ${accent}` : `2px solid ${colors.borderStrong}`;
+                r3b.push({ label: SECTION_LABELS[kind], colSpan: count, style: th({ background: KIND_BG[kind], color: colors.gold, fontWeight: 600, borderLeft: groupBorderLeft }) });
+                for (let k = i; k < j; k += 1) {
+                  const work = cols[k].work;
+                  r4.push({
+                    label: `${KIND_BADGE[kind]} · ${wrapLabel(work.title.length > 16 ? `${work.title.slice(0, 15)}…` : work.title)}`,
+                    weight: { value: work.weight, onChange: (e) => api.updateWrittenWork(work.id, { weight: parseWeight(e.target.value) }) },
+                    style: th({ background: KIND_BG[kind], width: 46, color: colors.gold, borderLeft: k === i ? groupBorderLeft : undefined }),
+                  });
+                }
+                i = j;
+              } else if (c.kind === 'schrAvg') {
+                r3b.push({
+                  label: 'Ø SCHR.',
+                  rowSpan: 2,
+                  weight: { value: quarter.weight_schriftlich, onChange: setQuarterWeight(quarter, 'weightSchriftlich') },
+                  style: th({ background: colors.schBgStrong, width: 40, color: colors.gold, fontWeight: 600, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+                });
+                i += 1;
+              }
+            }
+          }
+        });
+      }
+    });
   }
 
   // --- body rows ---
@@ -202,61 +319,67 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
     ];
 
     const halfVals = [];
-    halfColumns.forEach(({ half, quarterCols }) => {
+    halfColumns.forEach(({ half, hCollapsed, quarterCols }) => {
       const qVals = [];
-      quarterCols.forEach(({ quarter, cols }) => {
+      quarterCols.forEach(({ quarter, qCollapsed, cols }) => {
         const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
-        let mitAvg = null;
-        let schrAvg = null;
-        cols.forEach((c) => {
-          if (c.kind === 'lesson') {
-            const g = gradeOf(c.lesson.grades, s.id);
-            const v = num(g);
-            cells.push({
-              key: `l${c.lesson.id}`,
-              content: g || '·',
-              style: td({ background: colors.mitBg, color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderLeft: c.quarterStart ? `3px solid ${accent}` : undefined }),
-            });
-          } else if (c.kind === 'mitAvg') {
-            mitAvg = mitAvgFor(s.id, c.lessons);
-            cells.push({
-              key: `mit${quarter.id}`,
-              content: fmt(mitAvg),
-              style: td({ background: colors.mitBg, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: '2px solid #8fada3', borderLeft: c.quarterStart ? `3px solid ${accent}` : undefined }),
-            });
-          } else if (c.kind === 'exam') {
-            const g = gradeOf(c.work.grades, s.id);
-            const v = num(g);
-            cells.push({
-              key: `e${c.work.id}`,
-              content: g || '·',
-              style: td({ background: KIND_BG[c.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }),
-            });
-          } else if (c.kind === 'schrAvg') {
-            schrAvg = schrAvgFor(s.id, c.works);
-            cells.push({
-              key: `schr${quarter.id}`,
-              content: fmt(schrAvg),
-              style: td({ background: colors.schBg, color: schrAvg == null ? '#c4bba6' : gradeColor(schrAvg), ...GRADE_TYPE_SCALE.average, borderRight: '2px solid #c9a24a' }),
-            });
-          } else if (c.kind === 'qNote') {
-            const qn = qNoteFor(s.id, quarter, mitAvg, schrAvg);
-            qVals.push([qn, quarter.weight_quarter]);
-            cells.push({
-              key: `q${quarter.id}`,
-              content: fmt(qn),
-              style: td({ background: colors.qBg, color: qn == null ? '#c4bba6' : gradeColor(qn), ...GRADE_TYPE_SCALE.summary, borderRight: '2px solid #c9a24a' }),
-            });
-          }
-        });
+        const mitAvg = mitAvgFor(s.id, cols.find((c) => c.kind === 'mitAvg').lessons);
+        const schrAvg = schrAvgFor(s.id, cols.find((c) => c.kind === 'schrAvg').works);
+        const qn = qNoteFor(s.id, quarter, mitAvg, schrAvg);
+        qVals.push([qn, quarter.weight_quarter]);
+
+        if (!collapsed.year && !hCollapsed && !qCollapsed) {
+          cols.forEach((c, ci) => {
+            if (c.kind === 'lesson') {
+              const g = gradeOf(c.lesson.grades, s.id);
+              const v = num(g);
+              cells.push({
+                key: `l${c.lesson.id}`,
+                content: g || '·',
+                style: td({ background: colors.cream, color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderLeft: ci === 0 ? `3px solid ${accent}` : undefined }),
+              });
+            } else if (c.kind === 'mitAvg') {
+              cells.push({
+                key: `mit${quarter.id}`,
+                content: fmt(mitAvg),
+                style: td({ background: colors.mitBgStrong, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: ci === 0 ? `3px solid ${accent}` : undefined }),
+              });
+            } else if (c.kind === 'exam') {
+              const g = gradeOf(c.work.grades, s.id);
+              const v = num(g);
+              cells.push({
+                key: `e${c.work.id}`,
+                content: g || '·',
+                style: td({ background: KIND_BG_LIGHT[c.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }),
+              });
+            } else if (c.kind === 'schrAvg') {
+              cells.push({
+                key: `schr${quarter.id}`,
+                content: fmt(schrAvg),
+                style: td({ background: colors.schBgStrong, color: schrAvg == null ? '#c4bba6' : gradeColor(schrAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+              });
+            }
+          });
+        }
+
+        if (!collapsed.year && !hCollapsed) {
+          cells.push({
+            key: `q${quarter.id}`,
+            content: fmt(qn),
+            style: td({ background: colors.qBg, color: qn == null ? '#c4bba6' : gradeColor(qn), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${accent}` }),
+          });
+        }
       });
+
       const hn = wavg(qVals);
       halfVals.push([hn, half.weight]);
-      cells.push({
-        key: `h${half.id}`,
-        content: fmt(hn),
-        style: td({ background: colors.hBg, color: hn == null ? '#c4bba6' : gradeColor(hn), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${colors.tealDark}` }),
-      });
+      if (!collapsed.year) {
+        cells.push({
+          key: `h${half.id}`,
+          content: fmt(hn),
+          style: td({ background: colors.hBg, color: hn == null ? '#c4bba6' : gradeColor(hn), ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+        });
+      }
     });
 
     if (scope === 'year') {
@@ -264,14 +387,22 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
       cells.push({
         key: 'zeugnis',
         content: fmt(zn),
-        style: td({ background: colors.sidebarBg, color: '#fff', ...GRADE_TYPE_SCALE.summary }),
+        style: td({ background: colors.sidebarBg, color: '#fff', ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }),
       });
     }
 
     return { student: s, cells };
   });
 
-  const colCount = r4.length + 2; // name + r4 leaves + q-notes handled via rowSpan, rough count for hover indexing not required
+  const colCount = r4.length + r3b.length + 2;
+
+  const renderHeaderCell = (c, idx) => (
+    <th key={idx} colSpan={c.colSpan} rowSpan={c.rowSpan} style={c.style}>
+      {c.label}
+      {c.weight && <WeightInput value={c.weight.value} onChange={c.weight.onChange} />}
+      {c.arrow && <CollapseArrow collapsed={c.arrow.collapsed} onClick={c.arrow.onClick} dark={c.arrow.dark} />}
+    </th>
+  );
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -306,37 +437,18 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
         >
           {showWrittenSingles ? 'Einzelne Schriftl. Noten ausblenden' : 'Einzelne Schriftl. Noten einblenden'}
         </button>
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: colors.muted }}>Gewichte im weißen Feld über jeder Note · Quartal = Ø(Mitarbeit, Schriftlich)</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: colors.muted }}>Gewichte im weißen Feld über jeder Note · Pfeil unten rechts klappt einen Rahmen ein/aus</span>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="matrix-scroll" style={{ flex: 1, overflow: 'auto' }}>
         <table style={{ borderCollapse: 'collapse' }} onMouseLeave={() => setHoverRow(null)}>
           <thead>
-            <tr>{r1.map((c, idx) => <th key={idx} colSpan={c.colSpan} rowSpan={c.rowSpan} style={c.style}>{c.label}</th>)}</tr>
-            <tr>
-              {r2.map((c, idx) => (
-                <th key={idx} colSpan={c.colSpan} rowSpan={c.rowSpan} style={c.style}>
-                  {c.label}
-                  {c.weight && <WeightInput value={c.weight.value} onChange={c.weight.onChange} />}
-                </th>
-              ))}
-            </tr>
-            <tr>
-              {r3.map((c, idx) => (
-                <th key={idx} colSpan={c.colSpan} rowSpan={c.rowSpan} style={c.style}>
-                  {c.label}
-                  {c.weight && <WeightInput value={c.weight.value} onChange={c.weight.onChange} />}
-                </th>
-              ))}
-            </tr>
-            <tr>
-              {r4.map((c, idx) => (
-                <th key={idx} style={c.style}>
-                  {c.label}
-                  {c.weight && <WeightInput value={c.weight.value} onChange={c.weight.onChange} />}
-                </th>
-              ))}
-            </tr>
+            {scope === 'year' && <tr>{r0.map(renderHeaderCell)}</tr>}
+            <tr>{r1.map(renderHeaderCell)}</tr>
+            <tr>{r2.map(renderHeaderCell)}</tr>
+            <tr>{r3.map(renderHeaderCell)}</tr>
+            <tr>{r3b.map(renderHeaderCell)}</tr>
+            <tr>{r4.map(renderHeaderCell)}</tr>
           </thead>
           <tbody>
             {bodyRows.map(({ student, cells }, rowIdx) => (
