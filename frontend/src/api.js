@@ -32,6 +32,10 @@ export const api = {
   updateStudent: (id, data) => patch(`/api/students/${id}`, data),
   deleteStudent: (id) => del(`/api/students/${id}`),
 
+  // klassen
+  listKlassen: () => get('/api/klassen'),
+  createKlasse: (data) => post('/api/klassen', data),
+
   // courses
   listCourses: () => get('/api/courses'),
   createCourse: (data) => post('/api/courses', data),

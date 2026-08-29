@@ -13,15 +13,22 @@
 const API_URL = process.env.API_URL || 'http://localhost:4000';
 const COURSE_NAME = 'Demo-Kurs (Beispieldaten)';
 
+// Each student lists which demo Klasse they belong to (created below if
+// missing); klasse also carries the Jahrgang it belongs to.
+const KLASSEN = [
+  { name: '9a', jahrgang: 9 },
+  { name: '9b', jahrgang: 9 },
+];
+
 const STUDENTS = [
-  ['Amelie', 'Brandt'],
-  ['Jonas', 'Krüger'],
-  ['Lea', 'Hoffmann'],
-  ['Emir', 'Yildiz'],
-  ['Marie', 'Schuster'],
-  ['Ben', 'Lorenz'],
-  ['Sophie', 'Wagner'],
-  ['Noah', 'Petrov'],
+  ['Amelie', 'Brandt', '9a'],
+  ['Jonas', 'Krüger', '9a'],
+  ['Lea', 'Hoffmann', '9a'],
+  ['Emir', 'Yildiz', '9a'],
+  ['Marie', 'Schuster', '9b'],
+  ['Ben', 'Lorenz', '9b'],
+  ['Sophie', 'Wagner', '9b'],
+  ['Noah', 'Petrov', '9b'],
 ];
 
 const GRADES = ['1', '1+', '1-', '2', '2+', '2-', '3', '3+', '3-', '4', '4+', '4-', '5', '5-', '6'];
@@ -55,11 +62,21 @@ async function main() {
   const course = await api('POST', '/api/courses', { name: COURSE_NAME, hoursPerWeek: 3 });
   console.log(`Created course "${course.name}" (id ${course.id}).`);
 
+  const existingKlassen = await api('GET', '/api/klassen');
+  const klasseIdByName = {};
+  for (const k of KLASSEN) {
+    let klasse = existingKlassen.find((x) => x.name === k.name);
+    if (!klasse) klasse = await api('POST', '/api/klassen', k);
+    klasseIdByName[k.name] = klasse.id;
+  }
+
   const allStudents = await api('GET', '/api/students');
   const studentIds = [];
-  for (const [firstName, lastName] of STUDENTS) {
+  for (const [firstName, lastName, klasseName] of STUDENTS) {
+    const klasseId = klasseIdByName[klasseName];
     let s = allStudents.find((x) => x.first_name === firstName && x.last_name === lastName);
-    if (!s) s = await api('POST', '/api/students', { firstName, lastName });
+    if (!s) s = await api('POST', '/api/students', { firstName, lastName, klasseId });
+    else if (s.klasse_id !== klasseId) s = await api('PATCH', `/api/students/${s.id}`, { klasseId });
     await api('POST', `/api/courses/${course.id}/students`, { studentId: s.id });
     studentIds.push(s.id);
   }

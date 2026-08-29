@@ -4,6 +4,7 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 const db = require('./db');
 const studentsRouter = require('./routes/students');
+const klassenRouter = require('./routes/klassen');
 const coursesRouter = require('./routes/courses');
 const lessonsRouter = require('./routes/lessons');
 const writtenWorksRouter = require('./routes/writtenWorks');
@@ -17,6 +18,7 @@ function createApp(notify) {
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
   app.use('/api', studentsRouter(db, notify));
+  app.use('/api', klassenRouter(db, notify));
   app.use('/api', coursesRouter(db, notify));
   app.use('/api', lessonsRouter(db, notify));
   app.use('/api', writtenWorksRouter(db, notify));

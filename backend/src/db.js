@@ -22,10 +22,17 @@ let db = null;
 let dbPath = null;
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS klassen (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  jahrgang INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS students (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   first_name TEXT NOT NULL,
-  last_name TEXT NOT NULL
+  last_name TEXT NOT NULL,
+  klasse_id INTEGER REFERENCES klassen(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS courses (
@@ -138,6 +145,14 @@ async function init(customPath) {
   db.run('PRAGMA foreign_keys = ON');
   db.run(SCHEMA);
 
+  // `students` may already exist from before klasse_id was introduced —
+  // CREATE TABLE IF NOT EXISTS above is a no-op for it, so add the column
+  // by hand for databases that predate this change.
+  const studentColumns = all('PRAGMA table_info(students)').map((c) => c.name);
+  if (!studentColumns.includes('klasse_id')) {
+    run('ALTER TABLE students ADD COLUMN klasse_id INTEGER REFERENCES klassen(id) ON DELETE SET NULL');
+  }
+
   if (!all('SELECT id FROM remark_presets').length) {
     DEFAULT_PRESETS.forEach((p) => run('INSERT INTO remark_presets (emoji, text) VALUES (?, ?)', [p.emoji, p.text]));
   }
@@ -190,22 +205,28 @@ function close() {
 // ---------- students ----------
 
 function listStudents() {
-  return all('SELECT * FROM students ORDER BY last_name ASC, first_name ASC');
+  return all(
+    `SELECT s.*, k.name AS klasse_name, k.jahrgang AS klasse_jahrgang
+     FROM students s
+     LEFT JOIN klassen k ON k.id = s.klasse_id
+     ORDER BY s.last_name ASC, s.first_name ASC`
+  );
 }
 
-function createStudent({ firstName, lastName }) {
-  run('INSERT INTO students (first_name, last_name) VALUES (?, ?)', [firstName, lastName]);
+function createStudent({ firstName, lastName, klasseId }) {
+  run('INSERT INTO students (first_name, last_name, klasse_id) VALUES (?, ?, ?)', [firstName, lastName, klasseId ?? null]);
   const id = lastId();
   persist();
   return get('SELECT * FROM students WHERE id = ?', [id]);
 }
 
-function updateStudent(id, { firstName, lastName }) {
+function updateStudent(id, { firstName, lastName, klasseId }) {
   const cur = get('SELECT * FROM students WHERE id = ?', [id]);
   if (!cur) return null;
-  run('UPDATE students SET first_name = ?, last_name = ? WHERE id = ?', [
+  run('UPDATE students SET first_name = ?, last_name = ?, klasse_id = ? WHERE id = ?', [
     firstName !== undefined ? firstName : cur.first_name,
     lastName !== undefined ? lastName : cur.last_name,
+    klasseId !== undefined ? klasseId : cur.klasse_id,
     id,
   ]);
   persist();
@@ -215,6 +236,19 @@ function updateStudent(id, { firstName, lastName }) {
 function deleteStudent(id) {
   run('DELETE FROM students WHERE id = ?', [id]);
   persist();
+}
+
+// ---------- klassen ----------
+
+function listKlassen() {
+  return all('SELECT * FROM klassen ORDER BY jahrgang ASC, name ASC');
+}
+
+function createKlasse({ name, jahrgang }) {
+  run('INSERT INTO klassen (name, jahrgang) VALUES (?, ?)', [name, jahrgang]);
+  const id = lastId();
+  persist();
+  return get('SELECT * FROM klassen WHERE id = ?', [id]);
 }
 
 // ---------- courses ----------
@@ -593,6 +627,9 @@ module.exports = {
   createStudent,
   updateStudent,
   deleteStudent,
+  // klassen
+  listKlassen,
+  createKlasse,
   // courses
   listCourses,
   getCourse,

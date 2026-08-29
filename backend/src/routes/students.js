@@ -8,11 +8,11 @@ function studentsRouter(db, notify) {
   });
 
   router.post('/students', (req, res) => {
-    const { firstName, lastName } = req.body || {};
+    const { firstName, lastName, klasseId } = req.body || {};
     if (!firstName || !lastName) {
       return res.status(400).json({ error: 'firstName and lastName are required' });
     }
-    const student = db.createStudent({ firstName, lastName });
+    const student = db.createStudent({ firstName, lastName, klasseId });
     notify('students');
     res.status(201).json(student);
   });
