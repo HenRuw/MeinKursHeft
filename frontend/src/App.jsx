@@ -8,7 +8,7 @@ import SchriftlicheLeistungen from './screens/SchriftlicheLeistungen.jsx';
 import Notenuebersicht from './screens/Notenuebersicht.jsx';
 import Schueleransicht from './screens/Schueleransicht.jsx';
 import Schuelerverwaltung from './screens/Schuelerverwaltung.jsx';
-import Einstellungen from './screens/Einstellungen.jsx';
+import Quartalsdaten from './screens/Quartalsdaten.jsx';
 
 const menuPanel = {
   background: '#fff',
@@ -33,6 +33,8 @@ const TABS = [
   ['matrix', 'Notenübersicht'],
 ];
 
+const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten'];
+
 export default function App() {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState(null);
@@ -50,10 +52,14 @@ export default function App() {
 
   const editAnchorRef = useRef(null);
   const [editMenuCourseId, setEditMenuCourseId] = useState(null);
-  const [editMenuMode, setEditMenuMode] = useState('menu'); // 'menu' | 'rename' | 'students'
+  const [editMenuMode, setEditMenuMode] = useState('menu'); // 'menu' | 'rename' | 'hours' | 'students' | 'delete'
   const [renameValue, setRenameValue] = useState('');
+  const [hoursValue, setHoursValue] = useState('');
   const [editCourseStudentIds, setEditCourseStudentIds] = useState(new Set());
   const [editCourseOriginalIds, setEditCourseOriginalIds] = useState(new Set());
+
+  const verwaltungBtnRef = useRef(null);
+  const [verwaltungMenuOpen, setVerwaltungMenuOpen] = useState(false);
 
   const refreshCourses = useCallback(async () => {
     const list = await api.listCourses();
@@ -146,6 +152,7 @@ export default function App() {
     setEditMenuCourseId(course.id);
     setEditMenuMode('menu');
     setRenameValue(course.name);
+    setHoursValue(String(course.hours_per_week));
   };
 
   const closeCourseMenu = () => {
@@ -188,7 +195,28 @@ export default function App() {
     closeCourseMenu();
   };
 
+  const saveHours = async () => {
+    const hours = parseFloat(hoursValue.replace(',', '.')) || 1;
+    await api.updateCourse(editMenuCourseId, { hoursPerWeek: hours });
+    await refreshCourses();
+    if (editMenuCourseId === courseId) await refreshBundle(courseId);
+    closeCourseMenu();
+  };
+
+  const deleteCourseFromMenu = async () => {
+    const targetId = editMenuCourseId;
+    await api.deleteCourse(targetId);
+    const list = await refreshCourses();
+    if (targetId === courseId) setCourseId(list.length ? list[0].id : null);
+    closeCourseMenu();
+  };
+
   const onRefreshBundle = () => refreshBundle(courseId);
+
+  const openVerwaltungScreen = (key) => {
+    setScreen(key);
+    setVerwaltungMenuOpen(false);
+  };
 
   return (
     <div style={{ display: 'flex', height: '100%', background: colors.panelBg, fontFamily: fonts.sans, color: colors.ink }}>
@@ -347,37 +375,34 @@ export default function App() {
           }}
         >
           <button
-            onClick={() => setScreen('schuelerverwaltung')}
+            ref={verwaltungBtnRef}
+            onClick={() => setVerwaltungMenuOpen((v) => !v)}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 9,
               padding: '8px 10px',
               borderRadius: 7,
-              color: screen === 'schuelerverwaltung' ? '#fff' : '#9fb0ab',
-              background: screen === 'schuelerverwaltung' ? 'rgba(255,255,255,.06)' : 'transparent',
+              color: VERWALTUNG_SCREENS.includes(screen) ? '#fff' : '#9fb0ab',
+              background: VERWALTUNG_SCREENS.includes(screen) ? 'rgba(255,255,255,.06)' : 'transparent',
               fontSize: 12.5,
             }}
           >
-            Schülerverwaltung
-          </button>
-          <button
-            onClick={() => setScreen('einstellungen')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 9,
-              padding: '8px 10px',
-              borderRadius: 7,
-              color: screen === 'einstellungen' ? '#fff' : '#9fb0ab',
-              background: screen === 'einstellungen' ? 'rgba(255,255,255,.06)' : 'transparent',
-              fontSize: 12.5,
-            }}
-          >
-            Gewichtung &amp; Einstellungen
+            Verwaltung
           </button>
         </div>
       </aside>
+
+      <Popover open={verwaltungMenuOpen} anchorRef={verwaltungBtnRef} onClose={() => setVerwaltungMenuOpen(false)} align="left" width={200}>
+        <div style={menuPanel}>
+          <button onClick={() => openVerwaltungScreen('schuelerverwaltung')} style={menuOptionBtn}>
+            Schülerdaten
+          </button>
+          <button onClick={() => openVerwaltungScreen('quartalsdaten')} style={menuOptionBtn}>
+            Quartalsdaten
+          </button>
+        </div>
+      </Popover>
 
       <Popover open={newCourseStudentsOpen} anchorRef={newCourseStudentsBtnRef} onClose={() => setNewCourseStudentsOpen(false)} align="left" width={260}>
         <div style={menuPanel}>
@@ -407,8 +432,14 @@ export default function App() {
               <button onClick={() => setEditMenuMode('rename')} style={menuOptionBtn}>
                 Titel ändern
               </button>
+              <button onClick={() => setEditMenuMode('hours')} style={menuOptionBtn}>
+                Std/Woche ändern
+              </button>
               <button onClick={openStudentsEdit} style={menuOptionBtn}>
                 Schüler bearbeiten
+              </button>
+              <button onClick={() => setEditMenuMode('delete')} style={{ ...menuOptionBtn, color: colors.red, borderColor: colors.redBorder, background: colors.redBg }}>
+                Kurs löschen
               </button>
             </>
           )}
@@ -423,6 +454,25 @@ export default function App() {
               <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} style={menuInput} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={saveRename} style={menuPrimaryBtn}>
+                  Speichern
+                </button>
+                <button onClick={() => setEditMenuMode('menu')} style={menuSecondaryBtn}>
+                  Zurück
+                </button>
+              </div>
+            </>
+          )}
+          {editMenuMode === 'hours' && (
+            <>
+              <div style={menuHeader}>
+                <span style={menuLabel}>STD/WOCHE ÄNDERN</span>
+                <button onClick={closeCourseMenu} style={{ fontSize: 13, color: colors.muted }}>
+                  ✕
+                </button>
+              </div>
+              <input autoFocus value={hoursValue} onChange={(e) => setHoursValue(e.target.value)} style={menuInput} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={saveHours} style={menuPrimaryBtn}>
                   Speichern
                 </button>
                 <button onClick={() => setEditMenuMode('menu')} style={menuSecondaryBtn}>
@@ -450,39 +500,58 @@ export default function App() {
               </div>
             </>
           )}
+          {editMenuMode === 'delete' && (
+            <>
+              <div style={menuHeader}>
+                <span style={menuLabel}>KURS LÖSCHEN</span>
+                <button onClick={closeCourseMenu} style={{ fontSize: 13, color: colors.muted }}>
+                  ✕
+                </button>
+              </div>
+              <div style={{ fontSize: 12.5, color: colors.red }}>
+                „{courses.find((c) => c.id === editMenuCourseId)?.name}“ inkl. aller Daten wirklich löschen?
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={deleteCourseFromMenu} style={{ flex: 1, padding: '8px 0', borderRadius: 7, background: colors.red, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
+                  Ja, löschen
+                </button>
+                <button onClick={() => setEditMenuMode('menu')} style={menuSecondaryBtn}>
+                  Abbrechen
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </Popover>
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        {screen !== 'schuelerverwaltung' && (
+        {!VERWALTUNG_SCREENS.includes(screen) && (
           <header style={{ padding: '18px 24px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border }}>
             <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>
               {bundle ? bundle.course.name : courses.length ? '…' : 'Noch kein Kurs angelegt'}
             </div>
-            {screen !== 'einstellungen' && (
-              <nav style={{ display: 'flex', gap: 2, marginTop: 16 }}>
-                {TABS.map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setScreen(key)}
-                    style={{
-                      padding: '10px 15px',
-                      fontSize: 13,
-                      fontWeight: screen === key ? 600 : 500,
-                      color: screen === key ? colors.teal : colors.mutedStrong,
-                      borderBottom: screen === key ? `2px solid ${colors.teal}` : '2px solid transparent',
-                      marginBottom: -1,
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </nav>
-            )}
+            <nav style={{ display: 'flex', gap: 2, marginTop: 16 }}>
+              {TABS.map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setScreen(key)}
+                  style={{
+                    padding: '10px 15px',
+                    fontSize: 13,
+                    fontWeight: screen === key ? 600 : 500,
+                    color: screen === key ? colors.teal : colors.mutedStrong,
+                    borderBottom: screen === key ? `2px solid ${colors.teal}` : '2px solid transparent',
+                    marginBottom: -1,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
           </header>
         )}
 
-        {!bundle && screen !== 'schuelerverwaltung' ? (
+        {!bundle && !VERWALTUNG_SCREENS.includes(screen) ? (
           <div style={{ padding: 40, color: colors.mutedStrong, fontSize: 13 }}>
             {courses.length ? 'Kurs wird geladen …' : 'Lege links einen Kurs an, um loszulegen.'}
           </div>
@@ -498,17 +567,10 @@ export default function App() {
             {screen === 'student' && (
               <Schueleransicht bundle={bundle} studentId={studentId} onBack={() => setScreen(fromScreen)} />
             )}
-            {screen === 'einstellungen' && <Einstellungen bundle={bundle} onRefresh={onRefreshBundle} />}
           </>
         )}
-        {screen === 'schuelerverwaltung' && (
-          <Schuelerverwaltung
-            allStudents={allStudents}
-            onRefreshAllStudents={refreshAllStudents}
-            bundle={bundle}
-            onRefreshBundle={onRefreshBundle}
-          />
-        )}
+        {screen === 'schuelerverwaltung' && <Schuelerverwaltung allStudents={allStudents} onRefreshAllStudents={refreshAllStudents} />}
+        {screen === 'quartalsdaten' && <Quartalsdaten courses={courses} />}
       </main>
     </div>
   );

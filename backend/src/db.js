@@ -219,13 +219,29 @@ function deleteStudent(id) {
 
 // ---------- courses ----------
 
+// Quarter date ranges are meant to be the same across every course (set once
+// in the school-wide "Quartalsdaten" screen), so a newly created course
+// should inherit whatever ranges are already in use rather than resetting
+// everyone back to the hardcoded defaults.
+function referenceQuarterRanges(excludeCourseId) {
+  const rows = all(
+    `SELECT idx, start_date, end_date FROM quarters
+     WHERE course_id = (SELECT id FROM courses WHERE id != ? ORDER BY id ASC LIMIT 1)
+     ORDER BY idx ASC`,
+    [excludeCourseId]
+  );
+  if (rows.length === 4) return rows.map((r) => [r.start_date, r.end_date]);
+  return DEFAULT_QUARTER_RANGES;
+}
+
 function seedQuartersAndHalves(courseId) {
+  const ranges = referenceQuarterRanges(courseId);
   for (let hi = 1; hi <= 2; hi++) {
     run('INSERT INTO halves (course_id, idx, weight) VALUES (?, ?, 1)', [courseId, hi]);
     const halfId = lastId();
     const qIndices = hi === 1 ? [1, 2] : [3, 4];
     qIndices.forEach((qi) => {
-      const [start, end] = DEFAULT_QUARTER_RANGES[qi - 1];
+      const [start, end] = ranges[qi - 1];
       run(
         `INSERT INTO quarters (course_id, half_id, idx, start_date, end_date, weight_mitarbeit, weight_schriftlich, weight_quarter)
          VALUES (?, ?, ?, ?, ?, 1, 1, 1)`,
