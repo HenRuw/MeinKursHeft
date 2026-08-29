@@ -152,7 +152,8 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
     const quarterCols = quartersByHalf(half).map((quarter) => {
       const qc = buildQuarterCols(quarter);
       const qCollapsed = !!collapsed.quarter[quarter.id];
-      return { ...qc, qCollapsed, width: qCollapsed ? 1 : qc.cols.length };
+      // +1 for the quarter's own Q-Note column, same reasoning as halfWidth's +1 below.
+      return { ...qc, qCollapsed, width: qCollapsed ? 1 : qc.cols.length + 1 };
     });
     const innerWidth = quarterCols.reduce((a, qc) => a + qc.width, 0);
     const halfWidth = hCollapsed ? 1 : innerWidth + 1;
@@ -205,7 +206,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
       arrow: { collapsed: collapsed.year, onClick: toggleYear, dark: true },
       style: frameTh({ background: colors.sidebarBg, color: '#fff', fontWeight: 700 }),
     });
-    r1.push({ label: 'ZEUGNIS', rowSpan: 5, style: th({ background: colors.sidebarBg, color: '#fff', width: 52, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }) });
   }
 
   if (!collapsed.year) {
@@ -216,12 +216,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
         arrow: { collapsed: hCollapsed, onClick: () => toggleHalf(half.id) },
         style: frameTh({ background: colors.hBg, color: colors.tealDark, fontWeight: 700, borderTop: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
       });
-      r2.push({
-        label: 'HJ-NOTE',
-        rowSpan: 4,
-        weight: { value: half.weight, onChange: setHalfWeight(half) },
-        style: th({ background: colors.hBg, width: 48, color: colors.tealDark, fontWeight: 700, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
-      });
 
       if (!hCollapsed) {
         quarterCols.forEach(({ quarter, qCollapsed, cols, width }) => {
@@ -231,12 +225,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
             colSpan: qCollapsed ? 1 : width,
             arrow: { collapsed: qCollapsed, onClick: () => toggleQuarter(quarter.id) },
             style: frameTh({ background: colors.qBg, fontWeight: 600, borderLeft: `3px solid ${accent}`, borderTop: `3px solid ${accent}` }),
-          });
-          r3.push({
-            label: `${quarter.idx}.Q-Note`,
-            rowSpan: 3,
-            weight: { value: quarter.weight_quarter, onChange: setQuarterWeight(quarter, 'weightQuarter') },
-            style: th({ background: colors.qBg, width: 44, color: colors.teal, fontWeight: 700, borderRight: `3px solid ${accent}` }),
           });
 
           if (!qCollapsed) {
@@ -299,9 +287,34 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               }
             }
           }
+
+          // Q-Note is this quarter's own average column, so it must come
+          // after (to the right of) everything it's computed from — pushed
+          // here, once the quarter's children are already in r3/r3b/r4,
+          // matching the body row's push order exactly.
+          r3.push({
+            label: `${quarter.idx}.Q-Note`,
+            rowSpan: 3,
+            weight: { value: quarter.weight_quarter, onChange: setQuarterWeight(quarter, 'weightQuarter') },
+            style: th({ background: colors.qBg, width: 44, color: colors.teal, fontWeight: 700, borderRight: `3px solid ${accent}` }),
+          });
         });
       }
+
+      // Same reasoning as Q-Note above: HJ-Note is half's own average,
+      // pushed after all of this half's quarters.
+      r2.push({
+        label: 'HJ-NOTE',
+        rowSpan: 4,
+        weight: { value: half.weight, onChange: setHalfWeight(half) },
+        style: th({ background: colors.hBg, width: 48, color: colors.tealDark, fontWeight: 700, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+      });
     });
+  }
+
+  if (scope === 'year') {
+    // And Zeugnis is year's own average, pushed after both halves.
+    r1.push({ label: 'ZEUGNIS', rowSpan: 5, style: th({ background: colors.sidebarBg, color: '#fff', width: 52, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }) });
   }
 
   // --- body rows ---
