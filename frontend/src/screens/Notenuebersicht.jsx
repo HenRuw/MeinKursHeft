@@ -42,6 +42,17 @@ const FRAME = {
   schr: { border: 2, color: '#a9791f' },
 };
 
+// A frame's left edge often lands on a grid line a sibling frame also wants
+// to border (e.g. quarter 2 touching quarter 1, or SCHRIFTLICH touching
+// MITARBEIT). Declaring that edge as a real `border-left` next to the
+// neighbor's same-width `border-right` leaves the color border-collapse
+// picks between the two up to the browser — which is exactly how a frame
+// ends up "recolored" by its neighbor. An inset box-shadow paints entirely
+// inside this cell's own box instead, so neighboring frames never contest
+// it and every frame's outline stays its own single color all the way
+// around (top + left via shadow + right via a real border).
+const edgeShadow = (width, color) => ({ boxShadow: `inset ${width}px 0 0 ${color}` });
+
 const FRAME_HEADER_BASE = { position: 'relative', overflow: 'hidden', textOverflow: 'ellipsis', paddingBottom: 13 };
 
 function CollapseArrow({ collapsed, onClick, dark }) {
@@ -142,6 +153,14 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
       kindGroupsAll.forEach((g) => g.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: g.kind })));
     }
     cols.push({ kind: 'schrAvg', works: allWorksAll });
+
+    // Every quarter's own left edge lands on its first column (a lesson, or
+    // Ø MIT. if lessons are hidden); SCHRIFTLICH's own left edge lands on
+    // its first column, which is Ø SCHR. itself whenever this quarter has
+    // no exams to show. Both continue that frame's border down through the
+    // header sub-rows and every student row — see edgeShadow above.
+    cols[0].isQuarterEdge = true;
+    cols[cols.findIndex((c) => c.kind === 'exam' || c.kind === 'schrAvg')].isSchrEdge = true;
 
     return { quarter, mitCollapsed, schrCollapsed, cols, qLessonsAll, allWorksAll };
   }
@@ -245,19 +264,18 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
         label: `${half.idx}. HALBJAHR`,
         colSpan: hCollapsed ? 1 : quarterCols.reduce((a, qc) => a + qc.width, 0) + 1,
         arrow: { collapsed: hCollapsed, onClick: () => toggleHalf(half.id) },
-        style: frameTh({ background: colors.hBg, color: colors.tealDark, fontWeight: 700, borderTop: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+        style: frameTh({
+          background: colors.hBg,
+          color: colors.tealDark,
+          fontWeight: 700,
+          borderTop: `${FRAME.half.border}px solid ${FRAME.half.color}`,
+          borderLeft: `${FRAME.half.border}px solid ${FRAME.half.color}`,
+        }),
       });
 
       if (!hCollapsed) {
-        quarterCols.forEach(({ quarter, qCollapsed, cols, width }, qIdx) => {
+        quarterCols.forEach(({ quarter, qCollapsed, cols, width }) => {
           const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
-          // Only the first quarter in a half draws its own left edge — every
-          // later quarter's left edge is already drawn by its predecessor's
-          // right edge (the Q-Note column below). Declaring the same shared
-          // grid line from both sides makes border-collapse arbitrate between
-          // the two accent colors, and the loser's quarter reads as "leaking"
-          // into its neighbor's color instead of being contained in its own.
-          const isFirstQuarter = qIdx === 0;
           r2.push({
             label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
             colSpan: qCollapsed ? 1 : width,
@@ -266,8 +284,8 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               background: colors.qBg,
               fontWeight: 600,
               borderTop: `3px solid ${accent}`,
-              ...(isFirstQuarter && { borderLeft: `3px solid ${accent}` }),
               borderRight: `3px solid ${accent}`,
+              ...edgeShadow(3, accent),
             }),
           });
 
@@ -280,13 +298,17 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               label: 'MITARBEIT',
               colSpan: lessonCount + 1,
               arrow: { collapsed: mitCollapsed, onClick: () => toggleMit(quarter.id) },
-              style: frameTh({ background: colors.mitBgStrong, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, ...(isFirstQuarter && { borderLeft: `3px solid ${accent}` }) }),
+              // MITARBEIT always opens the quarter, so its own left edge IS
+              // the quarter's left edge — continue the quarter's accent
+              // border down onto this row rather than drawing MITARBEIT's
+              // own (differently-colored) frame there.
+              style: frameTh({ background: colors.mitBgStrong, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, ...edgeShadow(3, accent) }),
             });
             r3.push({
               label: 'SCHRIFTLICH',
               colSpan: examCount + 1,
               arrow: { collapsed: schrCollapsed, onClick: () => toggleSchr(quarter.id) },
-              style: frameTh({ background: colors.schBgStrong, borderTop: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+              style: frameTh({ background: colors.schBgStrong, borderTop: `${FRAME.schr.border}px solid ${FRAME.schr.color}`, ...edgeShadow(FRAME.schr.border, FRAME.schr.color) }),
             });
 
             let i = 0;
@@ -294,14 +316,14 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               const c = cols[i];
               if (c.kind === 'lesson') {
                 const { dow, label } = formatShortDate(c.lesson.date);
-                r3b.push({ label: `${dow}\n${label}`, rowSpan: 2, style: th({ background: colors.mitBgStrong, width: 28, borderLeft: isFirstQuarter && i === 0 ? `3px solid ${accent}` : undefined }) });
+                r3b.push({ label: `${dow}\n${label}`, rowSpan: 2, style: th({ background: colors.mitBgStrong, width: 28, ...(c.isQuarterEdge && edgeShadow(3, accent)) }) });
                 i += 1;
               } else if (c.kind === 'mitAvg') {
                 r3b.push({
                   label: 'Ø MIT.',
                   rowSpan: 2,
                   weight: { value: quarter.weight_mitarbeit, onChange: setQuarterWeight(quarter, 'weightMitarbeit') },
-                  style: th({ background: colors.mitBgStrong, width: 40, color: colors.teal, fontWeight: 600, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: isFirstQuarter && i === 0 ? `3px solid ${accent}` : undefined }),
+                  style: th({ background: colors.mitBgStrong, width: 40, color: colors.teal, fontWeight: 600, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, ...(c.isQuarterEdge && edgeShadow(3, accent)) }),
                 });
                 i += 1;
               } else if (c.kind === 'exam') {
@@ -309,14 +331,18 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
                 let j = i;
                 while (j < cols.length && cols[j].kind === 'exam' && cols[j].examKind === kind) j += 1;
                 const count = j - i;
-                const groupBorderLeft = i === 0 ? `3px solid ${accent}` : `2px solid ${colors.borderStrong}`;
-                r3b.push({ label: SECTION_LABELS[kind], colSpan: count, style: th({ background: KIND_BG[kind], color: colors.gold, fontWeight: 600, borderLeft: groupBorderLeft }) });
+                // The first kind-group continues SCHRIFTLICH's own left edge
+                // down (own color, via shadow so it can't be recolored by
+                // Ø MIT.'s real border-right next door); later kind-groups
+                // are separated from each other by a plain neutral divider.
+                const groupEdge = c.isSchrEdge ? edgeShadow(FRAME.schr.border, FRAME.schr.color) : { borderLeft: `2px solid ${colors.borderStrong}` };
+                r3b.push({ label: SECTION_LABELS[kind], colSpan: count, style: th({ background: KIND_BG[kind], color: colors.gold, fontWeight: 600, ...groupEdge }) });
                 for (let k = i; k < j; k += 1) {
                   const work = cols[k].work;
                   r4.push({
                     label: `${KIND_BADGE[kind]} · ${wrapLabel(work.title.length > 16 ? `${work.title.slice(0, 15)}…` : work.title)}`,
                     weight: { value: work.weight, onChange: (e) => api.updateWrittenWork(work.id, { weight: parseWeight(e.target.value) }) },
-                    style: th({ background: KIND_BG[kind], width: 46, color: colors.gold, borderLeft: k === i ? groupBorderLeft : undefined }),
+                    style: th({ background: KIND_BG[kind], width: 46, color: colors.gold, ...(k === i && groupEdge) }),
                   });
                 }
                 i = j;
@@ -325,7 +351,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
                   label: 'Ø SCHR.',
                   rowSpan: 2,
                   weight: { value: quarter.weight_schriftlich, onChange: setQuarterWeight(quarter, 'weightSchriftlich') },
-                  style: th({ background: colors.schBgStrong, width: 40, color: colors.gold, fontWeight: 600, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+                  style: th({ background: colors.schBgStrong, width: 40, color: colors.gold, fontWeight: 600, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`, ...(c.isSchrEdge && edgeShadow(FRAME.schr.border, FRAME.schr.color)) }),
                 });
                 i += 1;
               }
@@ -385,29 +411,28 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
     const halfVals = [];
     halfColumns.forEach(({ half, hCollapsed, quarterCols }) => {
       const qVals = [];
-      quarterCols.forEach(({ quarter, qCollapsed, cols }, qIdx) => {
+      quarterCols.forEach(({ quarter, qCollapsed, cols }) => {
         const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
-        const isFirstQuarter = qIdx === 0;
         const mitAvg = mitAvgFor(s.id, cols.find((c) => c.kind === 'mitAvg').lessons);
         const schrAvg = schrAvgFor(s.id, cols.find((c) => c.kind === 'schrAvg').works);
         const qn = qNoteFor(s.id, quarter, mitAvg, schrAvg);
         qVals.push([qn, quarter.weight_quarter]);
 
         if (!collapsed.year && !hCollapsed && !qCollapsed) {
-          cols.forEach((c, ci) => {
+          cols.forEach((c) => {
             if (c.kind === 'lesson') {
               const g = gradeOf(c.lesson.grades, s.id);
               const v = num(g);
               cells.push({
                 key: `l${c.lesson.id}`,
                 content: g || '·',
-                style: td({ background: colors.cream, color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderLeft: isFirstQuarter && ci === 0 ? `3px solid ${accent}` : undefined }),
+                style: td({ background: colors.cream, color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, ...(c.isQuarterEdge && edgeShadow(3, accent)) }),
               });
             } else if (c.kind === 'mitAvg') {
               cells.push({
                 key: `mit${quarter.id}`,
                 content: fmt(mitAvg),
-                style: td({ background: colors.mitBgStrong, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderLeft: isFirstQuarter && ci === 0 ? `3px solid ${accent}` : undefined }),
+                style: td({ background: colors.mitBgStrong, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, ...(c.isQuarterEdge && edgeShadow(3, accent)) }),
               });
             } else if (c.kind === 'exam') {
               const g = gradeOf(c.work.grades, s.id);
@@ -415,13 +440,13 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
               cells.push({
                 key: `e${c.work.id}`,
                 content: g || '·',
-                style: td({ background: KIND_BG_LIGHT[c.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }),
+                style: td({ background: KIND_BG_LIGHT[c.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, ...(c.isSchrEdge && edgeShadow(FRAME.schr.border, FRAME.schr.color)) }),
               });
             } else if (c.kind === 'schrAvg') {
               cells.push({
                 key: `schr${quarter.id}`,
                 content: fmt(schrAvg),
-                style: td({ background: colors.schBgStrong, color: schrAvg == null ? '#c4bba6' : gradeColor(schrAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+                style: td({ background: colors.schBgStrong, color: schrAvg == null ? '#c4bba6' : gradeColor(schrAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`, ...(c.isSchrEdge && edgeShadow(FRAME.schr.border, FRAME.schr.color)) }),
               });
             }
           });
@@ -525,7 +550,13 @@ export default function Notenuebersicht({ bundle, onOpenStudent }) {
             {bodyRows.map(({ student, cells }, rowIdx) => (
               <tr key={student.id} onMouseEnter={() => setHoverRow(rowIdx)}>
                 {cells.map((c) => (
-                  <td key={c.key} style={{ ...c.style, boxShadow: hoverRow === rowIdx ? 'inset 0 0 0 999px rgba(15,91,82,.07)' : undefined }}>
+                  <td
+                    key={c.key}
+                    style={{
+                      ...c.style,
+                      boxShadow: [c.style.boxShadow, hoverRow === rowIdx && 'inset 0 0 0 999px rgba(15,91,82,.07)'].filter(Boolean).join(', ') || undefined,
+                    }}
+                  >
                     {c.content}
                   </td>
                 ))}
