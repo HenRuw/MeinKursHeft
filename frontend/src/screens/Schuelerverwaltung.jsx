@@ -147,7 +147,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24 }}>
       <section style={{ maxWidth: 680 }}>
         <div style={{ font: `500 24px/1.1 ${fonts.serif}`, marginBottom: 16 }}>Schülerdaten</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <form onSubmit={(e) => { e.preventDefault(); addStudent(); }} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <input placeholder="Vorname" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <input placeholder="Nachname" value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <input
@@ -157,10 +157,10 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
             onChange={(e) => setKlasseName(e.target.value)}
             style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
           />
-          <button onClick={addStudent} style={{ padding: '8px 15px', borderRadius: 7, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
+          <button type="submit" style={{ padding: '8px 15px', borderRadius: 7, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
             Hinzufügen
           </button>
-        </div>
+        </form>
         <datalist id="klassen-list">
           {sortedKlassen.map((k) => (
             <option key={k.id} value={k.name} />
@@ -230,7 +230,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
               <tr key={s.id}>
                 {editingId === s.id ? (
                   <td style={td} colSpan={3}>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} style={{ display: 'flex', gap: 8 }}>
                       <input value={editLast} onChange={(e) => setEditLast(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
                       <input value={editFirst} onChange={(e) => setEditFirst(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
                       <input
@@ -240,13 +240,13 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
                         onChange={(e) => setEditKlasseName(e.target.value)}
                         style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }}
                       />
-                      <button onClick={saveEdit} style={{ padding: '6px 12px', borderRadius: 6, background: colors.teal, color: '#fff', fontSize: 12 }}>
+                      <button type="submit" style={{ padding: '6px 12px', borderRadius: 6, background: colors.teal, color: '#fff', fontSize: 12 }}>
                         Speichern
                       </button>
-                      <button onClick={() => setEditingId(null)} style={{ padding: '6px 10px', borderRadius: 6, border: `1px solid ${colors.borderStrong}`, fontSize: 12 }}>
+                      <button type="button" onClick={() => setEditingId(null)} style={{ padding: '6px 10px', borderRadius: 6, border: `1px solid ${colors.borderStrong}`, fontSize: 12 }}>
                         Abbrechen
                       </button>
-                    </div>
+                    </form>
                   </td>
                 ) : (
                   <>
