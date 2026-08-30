@@ -507,7 +507,11 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <NarrowGroupLabel label={l.narrowGroupLabel} />
-          <span>Ø MIT.</span>
+          {/* Collapsed down to just its own average column (narrowGroupLabel
+              set): the vertical MITARBEIT/... heading above replaces this
+              "Ø MIT." sub-label -- weight and the per-student value below
+              stay exactly as in the expanded state. */}
+          {!l.narrowGroupLabel && <span>Ø MIT.</span>}
         </div>
       );
     }
@@ -525,7 +529,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <NarrowGroupLabel label={l.narrowGroupLabel} />
-          <span>Ø SCHR.</span>
+          {!l.narrowGroupLabel && <span>Ø KLASSENARBEITEN</span>}
         </div>
       );
     }
@@ -543,7 +547,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <NarrowGroupLabel label={l.narrowGroupLabel} />
-          <span>{l.quarter.idx}.Q-Note</span>
+          {!l.narrowGroupLabel && <span>{l.quarter.idx}.Q-Note</span>}
         </div>
       );
     }
@@ -566,7 +570,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <NarrowGroupLabel label={l.narrowGroupLabel} />
-          <span>{l.half.idx}.HJ-Note</span>
+          {!l.narrowGroupLabel && <span>{l.half.idx}.HJ-Note</span>}
         </div>
       );
     }
