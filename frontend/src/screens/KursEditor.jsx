@@ -30,14 +30,13 @@ function sortedFiltered(students, sortBy, filterKlasseId, filterJahrgang) {
 }
 
 // Full-screen course creator/editor: same layout for both — a name (and, in
-// edit mode, hours-per-week + delete) at the top, and the whole-school
-// student roster below with sort/filter/select-all to build the course's
-// enrollment. Opens for both "Kurs anlegen" and the sidebar's per-course
-// edit icon, per how the teacher actually works: naming a course and
-// picking its roster are one task, not two separate menus.
+// edit mode, delete) at the top, and the whole-school student roster below
+// with sort/filter/select-all to build the course's enrollment. Opens for
+// both "Kurs anlegen" and the sidebar's per-course edit icon, per how the
+// teacher actually works: naming a course and picking its roster are one
+// task, not two separate menus.
 export default function KursEditor({ mode, course, allStudents, klassen, initialSelectedIds, onSubmit, onDelete, onCancel }) {
   const [name, setName] = useState(course?.name || '');
-  const [hours, setHours] = useState(String(course?.hours_per_week ?? '1'));
   const [selectedIds, setSelectedIds] = useState(new Set(initialSelectedIds));
   const [sortBy, setSortBy] = useState('name');
   const [filterKlasseId, setFilterKlasseId] = useState('');
@@ -66,20 +65,16 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
 
   const submit = () => {
     if (!name.trim()) return;
-    onSubmit({
-      name: name.trim(),
-      hoursPerWeek: mode === 'edit' ? parseFloat(hours.replace(',', '.')) || 1 : undefined,
-      studentIds: selectedIds,
-    });
+    onSubmit({ name: name.trim(), studentIds: selectedIds });
   };
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>{mode === 'create' ? 'Neuer Kurs' : 'Kurs bearbeiten'}</div>
         {mode === 'edit' &&
           (confirmDelete ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12.5, color: colors.red }}>Kurs wirklich löschen?</span>
               <button onClick={onDelete} style={{ padding: '8px 14px', borderRadius: 7, background: colors.red, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
                 Ja, löschen
@@ -103,12 +98,6 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           <label style={label}>KURSNAME</label>
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} style={field} />
         </div>
-        {mode === 'edit' && (
-          <div style={{ width: 140 }}>
-            <label style={label}>STD/WOCHE</label>
-            <input value={hours} onChange={(e) => setHours(e.target.value)} style={field} />
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
@@ -155,8 +144,9 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: `1px solid ${colors.divider}`, fontSize: 13, cursor: 'pointer' }}
           >
             <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleStudent(s.id)} />
-            <span style={{ flex: 1, fontWeight: 500 }}>{studentDisplayName(s)}</span>
+            <span style={{ fontWeight: 500 }}>{studentDisplayName(s)}</span>
             <span style={{ fontSize: 11.5, color: colors.muted }}>{s.klasse_name ? `${s.klasse_name} · Jg. ${s.klasse_jahrgang}` : '–'}</span>
+            <span style={{ flex: 1 }} />
           </label>
         ))}
         {!visible.length && <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>Keine Schüler:innen gefunden.</div>}
