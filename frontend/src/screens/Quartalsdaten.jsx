@@ -44,6 +44,7 @@ export default function Quartalsdaten({ courses }) {
       {!courses.length ? (
         <div style={{ fontSize: 13, color: colors.mutedStrong }}>Lege zuerst einen Kurs an.</div>
       ) : (
+        <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', fontSize: 12.5 }}>
           <thead>
             <tr>
@@ -68,6 +69,7 @@ export default function Quartalsdaten({ courses }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

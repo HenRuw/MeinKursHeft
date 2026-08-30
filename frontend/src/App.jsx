@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, subscribeSync } from './api.js';
 import { colors, fonts } from './theme.js';
+import { useViewport } from './lib/useViewport.js';
 import Popover from './components/Popover.jsx';
 import Stundenerfassung from './screens/Stundenerfassung.jsx';
 import SchriftlicheLeistungen from './screens/SchriftlicheLeistungen.jsx';
@@ -9,6 +10,7 @@ import Schueleransicht from './screens/Schueleransicht.jsx';
 import Schuelerverwaltung from './screens/Schuelerverwaltung.jsx';
 import Quartalsdaten from './screens/Quartalsdaten.jsx';
 import KursEditor from './screens/KursEditor.jsx';
+import Export from './screens/Export.jsx';
 
 const menuPanel = {
   background: '#fff',
@@ -23,15 +25,17 @@ const menuPanel = {
 const menuOptionBtn = { textAlign: 'left', padding: '9px 10px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, fontSize: 12.5 };
 
 const TABS = [
-  ['stunde', 'Stundenerfassung'],
+  ['stunde', 'Mündliche Mitarbeit'],
   ['ka', 'Schriftliche Leistungen'],
   ['matrix', 'Notenübersicht'],
 ];
 
-const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten'];
+const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten', 'export'];
 const NO_HEADER_SCREENS = [...VERWALTUNG_SCREENS, 'kurs-editor'];
 
 export default function App() {
+  const { isDesktop } = useViewport();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState(null);
   const [screen, setScreen] = useState('stunde');
@@ -41,6 +45,20 @@ export default function App() {
   const [allStudents, setAllStudents] = useState([]);
   const [klassen, setKlassen] = useState([]);
   const [presets, setPresets] = useState([]);
+
+  // Clicking an individual grade — in the course-wide Notenübersicht, or in a
+  // single student's own grade table on their Schueleransicht page — jumps
+  // straight to the lesson/written-work it belongs to so it can be edited
+  // there. Bundling the id with an incrementing token (rather than passing
+  // the id alone) means clicking the *same* entry twice in a row still
+  // re-triggers the focus effect on the target screen — a plain id wouldn't
+  // change and the effect wouldn't rerun. returnScreen tracks that this was
+  // a drill-down (not an ordinary tab switch) and which screen it started
+  // from, which is when and where the "Zurück" button should send you.
+  const [focusLesson, setFocusLesson] = useState(null);
+  const [focusWork, setFocusWork] = useState(null);
+  const [returnScreen, setReturnScreen] = useState(null); // 'matrix' | 'student' | null
+  const focusTokenRef = useRef(0);
 
   const [courseEditorMode, setCourseEditorMode] = useState('create'); // 'create' | 'edit'
   const [courseEditorCourse, setCourseEditorCourse] = useState(null); // the course being edited, or null when creating
@@ -107,11 +125,46 @@ export default function App() {
     [courseId, refreshCourses, refreshAllStudents, refreshKlassen, refreshBundle, refreshPresets]
   );
 
+  // On mobile/tablet the sidebar is an off-canvas drawer (see the aside's
+  // own responsive styles below) — any navigation action taken inside it
+  // should close it again, the same way a mobile nav drawer normally works.
+  const closeSidebarOnNavigate = () => setSidebarOpen(false);
+
   const TAB_SCREENS = ['stunde', 'ka', 'matrix'];
   const selectCourse = (id) => {
     setCourseId(id);
+    setReturnScreen(null);
     if (screen === 'student') setScreen(fromScreen);
     else if (!TAB_SCREENS.includes(screen)) setScreen('stunde');
+    closeSidebarOnNavigate();
+  };
+
+  const selectTab = (key) => {
+    setScreen(key);
+    setReturnScreen(null);
+  };
+
+  // `from` is 'matrix' when a grade was clicked in the course-wide
+  // Notenübersicht, or 'student' when clicked in a student's own grade table
+  // on their Schueleransicht page — studentId itself doesn't need touching
+  // either way, since it's already whatever it was set to get there.
+  const openLessonForEditing = (lessonId, from) => {
+    focusTokenRef.current += 1;
+    setFocusLesson({ id: lessonId, token: focusTokenRef.current });
+    setReturnScreen(from);
+    setScreen('stunde');
+  };
+
+  const openWorkForEditing = (workId, from) => {
+    focusTokenRef.current += 1;
+    setFocusWork({ id: workId, token: focusTokenRef.current });
+    setReturnScreen(from);
+    setScreen('ka');
+  };
+
+  const backFromEditing = () => {
+    setScreen(returnScreen);
+    setReturnScreen(null);
   };
 
   const openStudent = (id, from) => {
@@ -126,6 +179,7 @@ export default function App() {
     setCourseEditorEnrolledIds(new Set());
     setPreEditorScreen(screen);
     setScreen('kurs-editor');
+    closeSidebarOnNavigate();
   };
 
   const openCourseEditor = async (course) => {
@@ -135,11 +189,12 @@ export default function App() {
     setCourseEditorEnrolledIds(new Set((target?.students || []).map((s) => s.id)));
     setPreEditorScreen(screen);
     setScreen('kurs-editor');
+    closeSidebarOnNavigate();
   };
 
   const closeCourseEditor = () => setScreen(preEditorScreen);
 
-  const submitCourseEditor = async ({ name, hoursPerWeek, studentIds }) => {
+  const submitCourseEditor = async ({ name, studentIds }) => {
     if (courseEditorMode === 'create') {
       const course = await api.createCourse({ name });
       for (const id of studentIds) await api.enrollStudent(course.id, id);
@@ -148,7 +203,7 @@ export default function App() {
       setScreen('stunde');
     } else {
       const targetId = courseEditorCourse.id;
-      await api.updateCourse(targetId, { name, hoursPerWeek });
+      await api.updateCourse(targetId, { name });
       const added = [...studentIds].filter((id) => !courseEditorEnrolledIds.has(id));
       const removed = [...courseEditorEnrolledIds].filter((id) => !studentIds.has(id));
       for (const id of added) await api.enrollStudent(targetId, id);
@@ -172,10 +227,17 @@ export default function App() {
   const openVerwaltungScreen = (key) => {
     setScreen(key);
     setVerwaltungMenuOpen(false);
+    closeSidebarOnNavigate();
   };
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: colors.panelBg, fontFamily: fonts.sans, color: colors.ink }}>
+    <div style={{ display: 'flex', height: '100%', background: colors.panelBg, fontFamily: fonts.sans, color: colors.ink, position: 'relative', overflow: 'hidden' }}>
+      {!isDesktop && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 40 }}
+        />
+      )}
       <aside
         style={{
           width: 232,
@@ -183,13 +245,35 @@ export default function App() {
           background: colors.sidebarBg,
           display: 'flex',
           flexDirection: 'column',
+          ...(isDesktop
+            ? {}
+            : {
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                bottom: 0,
+                zIndex: 50,
+                transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+                transition: 'transform 220ms ease',
+              }),
         }}
       >
-        <div style={{ padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
-          <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>Notenbuch</div>
-          <div style={{ font: `400 11px ${fonts.mono}`, color: '#7f918c', marginTop: 6, letterSpacing: '.06em' }}>
-            SCHULJAHR 2026/27
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
+          <div>
+            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>Notenbuch</div>
+            <div style={{ font: `400 11px ${fonts.mono}`, color: '#7f918c', marginTop: 6, letterSpacing: '.06em' }}>
+              SCHULJAHR 2026/27
+            </div>
           </div>
+          {!isDesktop && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Menü schließen"
+              style={{ width: 32, height: 32, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#9fb0ab', fontSize: 16 }}
+            >
+              ✕
+            </button>
+          )}
         </div>
         <div style={{ padding: '16px 12px 8px', flex: 1, overflow: 'auto' }}>
           <div style={{ font: `500 10px ${fonts.mono}`, color: '#6f817c', letterSpacing: '.1em', padding: '0 6px 8px' }}>
@@ -224,7 +308,6 @@ export default function App() {
                   <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.name}
                   </span>
-                  <span style={{ fontSize: 11, opacity: 0.6 }}>{c.hours_per_week} Std/Woche</span>
                 </span>
                 <span
                   style={{
@@ -311,32 +394,71 @@ export default function App() {
           <button onClick={() => openVerwaltungScreen('quartalsdaten')} style={menuOptionBtn}>
             Quartalsdaten
           </button>
+          <button onClick={() => openVerwaltungScreen('export')} style={menuOptionBtn}>
+            Export
+          </button>
         </div>
       </Popover>
 
-      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {!isDesktop && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: colors.panelBg, borderBottom: `1px solid ${colors.border}`, flex: 'none' }}>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Menü öffnen"
+              style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, background: '#fff', fontSize: 16 }}
+            >
+              ☰
+            </button>
+            <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {bundle ? bundle.course.name : 'Notenbuch'}
+            </span>
+          </div>
+        )}
         {!NO_HEADER_SCREENS.includes(screen) && (
-          <header style={{ padding: '18px 24px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border }}>
-            <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>
-              {bundle ? bundle.course.name : courses.length ? '…' : 'Noch kein Kurs angelegt'}
-            </div>
-            <nav style={{ display: 'flex', gap: 2, marginTop: 16 }}>
+          <header style={{ padding: isDesktop ? '18px 24px 0' : '14px 16px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border, flex: 'none' }}>
+            {isDesktop && (
+              <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>
+                {bundle ? bundle.course.name : courses.length ? '…' : 'Noch kein Kurs angelegt'}
+              </div>
+            )}
+            <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: isDesktop ? 16 : 8, alignItems: 'center', rowGap: 8 }}>
               {TABS.map(([key, label]) => (
                 <button
                   key={key}
-                  onClick={() => setScreen(key)}
+                  onClick={() => selectTab(key)}
                   style={{
-                    padding: '10px 15px',
-                    fontSize: 13,
+                    padding: isDesktop ? '10px 15px' : '8px 10px',
+                    fontSize: isDesktop ? 13 : 12.5,
                     fontWeight: screen === key ? 600 : 500,
                     color: screen === key ? colors.teal : colors.mutedStrong,
                     borderBottom: screen === key ? `2px solid ${colors.teal}` : '2px solid transparent',
                     marginBottom: -1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {label}
                 </button>
               ))}
+              {returnScreen && (screen === 'stunde' || screen === 'ka') && (
+                <button
+                  onClick={backFromEditing}
+                  style={{
+                    marginLeft: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '7px 12px 7px 9px',
+                    border: `1px solid ${colors.borderStrong}`,
+                    borderRadius: 8,
+                    background: '#fff',
+                    color: colors.mutedStrong,
+                    fontSize: 12.5,
+                  }}
+                >
+                  ‹ {returnScreen === 'student' ? 'Zurück zum Schüler' : 'Zurück zur Notenübersicht'}
+                </button>
+              )}
             </nav>
           </header>
         )}
@@ -348,14 +470,42 @@ export default function App() {
         ) : (
           <>
             {screen === 'stunde' && (
-              <Stundenerfassung bundle={bundle} onRefresh={onRefreshBundle} onOpenStudent={openStudent} presets={presets} onRefreshPresets={refreshPresets} />
+              <Stundenerfassung
+                bundle={bundle}
+                onRefresh={onRefreshBundle}
+                onOpenStudent={openStudent}
+                presets={presets}
+                onRefreshPresets={refreshPresets}
+                initialLesson={focusLesson}
+              />
             )}
             {screen === 'ka' && (
-              <SchriftlicheLeistungen bundle={bundle} onRefresh={onRefreshBundle} onOpenStudent={openStudent} presets={presets} onRefreshPresets={refreshPresets} />
+              <SchriftlicheLeistungen
+                bundle={bundle}
+                onRefresh={onRefreshBundle}
+                onOpenStudent={openStudent}
+                presets={presets}
+                onRefreshPresets={refreshPresets}
+                initialWork={focusWork}
+              />
             )}
-            {screen === 'matrix' && <Notenuebersicht bundle={bundle} onRefresh={onRefreshBundle} onOpenStudent={openStudent} />}
+            {screen === 'matrix' && (
+              <Notenuebersicht
+                bundle={bundle}
+                onRefresh={onRefreshBundle}
+                onOpenStudent={openStudent}
+                onOpenLesson={(id) => openLessonForEditing(id, 'matrix')}
+                onOpenWork={(id) => openWorkForEditing(id, 'matrix')}
+              />
+            )}
             {screen === 'student' && (
-              <Schueleransicht bundle={bundle} studentId={studentId} onBack={() => setScreen(fromScreen)} />
+              <Schueleransicht
+                bundle={bundle}
+                studentId={studentId}
+                onBack={() => setScreen(fromScreen)}
+                onOpenLesson={(id) => openLessonForEditing(id, 'student')}
+                onOpenWork={(id) => openWorkForEditing(id, 'student')}
+              />
             )}
           </>
         )}
@@ -363,6 +513,7 @@ export default function App() {
           <Schuelerverwaltung allStudents={allStudents} onRefreshAllStudents={refreshAllStudents} klassen={klassen} onRefreshKlassen={refreshKlassen} />
         )}
         {screen === 'quartalsdaten' && <Quartalsdaten courses={courses} />}
+        {screen === 'export' && <Export courses={courses} allStudents={allStudents} klassen={klassen} />}
         {screen === 'kurs-editor' && (
           <KursEditor
             mode={courseEditorMode}
