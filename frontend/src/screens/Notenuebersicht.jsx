@@ -79,7 +79,7 @@ function CollapseArrow({ collapsed, onClick, dark }) {
         background: dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.08)',
       }}
     >
-      {collapsed ? '▾' : '◀'}
+      {collapsed ? '+' : '◀'}
     </button>
   );
 }
@@ -287,14 +287,16 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
 
   // --- shared cell styles ---
   // Frame group headers (year/half/quarter/mitarbeit/klassenarbeiten) are
-  // left-aligned, not centered: their own left edge is where the frame
-  // *starts*, and that position never moves when the frame's own collapse
-  // toggle fires (only content before it can shift it) -- centering across
-  // the full, collapse-dependent width would instead fling the arrow to a
-  // new spot on every click.
+  // left/top-aligned, not centered: their own left edge is where the frame
+  // *starts* and their own top edge is where their row *starts*, and neither
+  // position moves when the frame's own collapse toggle fires (only content
+  // before/above it can shift those) -- centering across the full,
+  // collapse-dependent width or height would instead fling the arrow to a
+  // new spot on every click (width when the label wraps onto more lines,
+  // height once a too-narrow label switches to vertical text below).
   const groupBaseStyle = {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 4,
     padding: '5px 8px',
     font: `500 8.5px ${fonts.mono}`,
@@ -400,18 +402,18 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             on how the label ends up wrapping. */}
         <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
         {/* Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
-            average column's width (~40-44px) -- whether from being manually
+            average column's width (~44-52px) -- whether from being manually
             collapsed, or simply because there's no lesson/exam data for
-            them to show -- past the arrow and padding, too little room for
-            even a single letter per line to stay readable, so word-break
-            there degenerates into one character per line instead of real
-            words. The arrow alone is enough to convey "collapsed/empty,
-            click to toggle" at that width; the label comes back the moment
-            there's a real word's worth of room (year never shrinks this far
-            -- it still spans Name+Zeugnis -- so it always keeps its
-            label). */}
-        {(g.end - g.start > 1 || g.level === 'year') && (
+            them to show -- too narrow for the label to stay readable
+            wrapped horizontally (word-break degenerates into one character
+            per line at that width). The label must still be there next to
+            the +, though, so it switches to vertical (reads top-to-bottom)
+            instead of disappearing -- the row just grows taller to fit one
+            upright line instead of wider. */}
+        {g.end - g.start > 1 || g.level === 'year' ? (
           <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
+        ) : (
+          <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', whiteSpace: 'nowrap' }}>{g.label}</span>
         )}
       </div>
     );
