@@ -133,6 +133,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isDesktop ? 'row' : 'column' }}>
       <section
+        className="scroll-panel"
         style={{
           width: isDesktop ? 330 : '100%',
           flex: 'none',
@@ -322,7 +323,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 the grade/remark columns scroll sideways on a narrow screen
                 — sticky's `left` accounts for the row's own 24px padding,
                 same reasoning as Stundenerfassung's roster. */}
-            <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
+            <div className="scroll-panel" style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
               {students.map((s, i) => (
                 <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '26px 200px 286px 1fr', alignItems: 'center', gap: 14, padding: '7px 24px', borderBottom: `1px solid ${colors.divider}`, minWidth: 'max-content' }}>
                   <span style={{ position: 'sticky', left: 24, background: colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>

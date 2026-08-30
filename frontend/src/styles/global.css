@@ -49,31 +49,37 @@ select:focus {
   background: rgba(180, 130, 20, 0.08);
 }
 
-/* Always-visible, classic (non-overlay) scrollbars for the Notenübersicht
-   matrix: overlay scrollbars only draw while actively hovered/dragged,
-   which made the horizontal bar effectively invisible/unreachable at the
-   bottom of a wide table. Giving it explicit track/thumb styling forces
-   browsers to render it as a permanent, clickable strip that reserves its
-   own layout space instead of overlapping the last row of grades. */
-.matrix-scroll {
+/* Always-visible, classic (non-overlay) scrollbars for every wide/tall
+   scrollable panel (Notenübersicht's matrix, the Mündliche
+   Mitarbeit/Schriftliche Leistungen rosters and work list): overlay
+   scrollbars only draw while actively hovered/dragged, which made the
+   horizontal bar effectively invisible/unreachable at the bottom. Giving
+   it explicit track/thumb styling forces browsers to render it as a
+   permanent, clickable strip that reserves its own layout space instead
+   of overlapping the last row of content — on every device, not just
+   ones with classic (non-overlay) OS scrollbar settings. Native wheel
+   scrolling (vertical) and Shift+wheel (horizontal) already work on any
+   overflow:auto element without extra JS; this only makes the resulting
+   scrollbar visible and consistent everywhere.  */
+.scroll-panel {
   scrollbar-width: auto;
   scrollbar-color: #0f5b52 #e0dbd1;
 }
-.matrix-scroll::-webkit-scrollbar {
+.scroll-panel::-webkit-scrollbar {
   width: 14px;
   height: 14px;
 }
-.matrix-scroll::-webkit-scrollbar-track {
+.scroll-panel::-webkit-scrollbar-track {
   background: #e0dbd1;
 }
-.matrix-scroll::-webkit-scrollbar-thumb {
+.scroll-panel::-webkit-scrollbar-thumb {
   background: #0f5b52;
   border-radius: 8px;
   border: 3px solid #e0dbd1;
 }
-.matrix-scroll::-webkit-scrollbar-thumb:hover {
+.scroll-panel::-webkit-scrollbar-thumb:hover {
   background: #0b423b;
 }
-.matrix-scroll::-webkit-scrollbar-corner {
+.scroll-panel::-webkit-scrollbar-corner {
   background: #e0dbd1;
 }

@@ -138,7 +138,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 9, padding: '16px 24px', borderBottom: `1px solid ${colors.border}`, overflowX: 'auto' }}>
+      <div className="scroll-panel" style={{ display: 'flex', alignItems: 'stretch', gap: 9, padding: '16px 24px', borderBottom: `1px solid ${colors.border}`, overflowX: 'auto' }}>
         {allLessons.map((l) => {
           const { dow, label: dayLabel } = formatShortDate(l.date);
           const on = l.id === activeLessonId;
@@ -297,7 +297,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         // since sticky's `left` is measured from the scrollport edge, not
         // from the row's padding box) so a student stays identifiable while
         // swiping right to reach attendance/grade/remarks.
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
           <div
             style={{
               display: 'grid',

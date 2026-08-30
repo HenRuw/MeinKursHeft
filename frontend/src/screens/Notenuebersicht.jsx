@@ -740,7 +740,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         </Popover>
       )}
 
-      <div className="matrix-scroll" style={{ flex: 1, overflow: 'auto' }}>
+      <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
         <table style={{ borderCollapse: 'collapse' }} onMouseLeave={() => setHoverRow(null)}>
           <thead>
             {scope === 'year' && <tr>{r0.map(renderHeaderCell)}</tr>}
