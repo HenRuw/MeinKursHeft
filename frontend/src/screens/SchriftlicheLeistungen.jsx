@@ -334,7 +334,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 // The row a grade was clicked for, coming from the
                 // Notenübersicht — see highlightedStudentId's own comment.
                 const highlighted = s.id === highlightedStudentId;
-                const rowBg = highlighted ? colors.goldBg : undefined;
+                const rowBg = highlighted ? colors.highlightBg : undefined;
                 return (
                   <div
                     key={s.id}
@@ -345,7 +345,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       gap: 14,
                       padding: '7px 24px',
                       borderBottom: `1px solid ${colors.divider}`,
-                      borderLeft: `3px solid ${highlighted ? colors.gold : 'transparent'}`,
+                      borderLeft: `4px solid ${highlighted ? colors.highlight : 'transparent'}`,
                       background: rowBg,
                       minWidth: 'max-content',
                     }}

@@ -23,6 +23,13 @@ export const colors = {
   redBorder: '#edd3d0',
   redBg: '#fdf3f2',
   green: '#1f7a4d',
+  // A color that appears nowhere else in the app -- teal is the primary
+  // brand color, gold is Klassenarbeiten's, red/green are attendance/error
+  // semantics, so none of them read as a neutral "you navigated here"
+  // pointer. Blue never collides with any of that, and reads as a strong,
+  // unambiguous accent against this otherwise warm (cream/gold/teal) palette.
+  highlight: '#2554c7',
+  highlightBg: '#e4ecfc',
   mitBg: '#f3f7f5',
   schBg: '#fdf7e9',
   qBg: '#e9f0ed',
