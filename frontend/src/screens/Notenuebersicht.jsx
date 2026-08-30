@@ -391,6 +391,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     }
     const borderColor = g.level === 'quarter' ? g.accent : FRAME[g.level].color;
     const borderWidth = g.level === 'quarter' ? 3 : FRAME[g.level].border;
+    const narrow = g.end - g.start <= 1 && g.level !== 'year';
     return (
       <div
         key={g.key}
@@ -404,6 +405,9 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           borderTop: `${borderWidth}px solid ${borderColor}`,
           borderRight: `${borderWidth}px solid ${borderColor}`,
           ...(g.level === 'half' ? { borderLeft: `${borderWidth}px solid ${borderColor}` } : null),
+          // Only needed as the vertical label's positioning anchor below,
+          // but harmless to always set.
+          position: 'relative',
         }}
       >
         {/* Arrow *before* the label, not after: the label wraps onto
@@ -413,19 +417,34 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             arrow at frameStart+padding -- a fixed offset that never depends
             on how the label ends up wrapping. */}
         <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
-        {/* Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
-            average column's width (~44-52px) -- whether from being manually
-            collapsed, or simply because there's no lesson/exam data for
-            them to show -- too narrow for the label to stay readable
-            wrapped horizontally (word-break degenerates into one character
-            per line at that width). The label must still be there next to
-            the +, though, so it switches to vertical (reads top-to-bottom)
-            instead of disappearing -- the row just grows taller to fit one
-            upright line instead of wider. */}
-        {g.end - g.start > 1 || g.level === 'year' ? (
-          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
+        {narrow ? (
+          // Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
+          // average column's width (~44-52px) -- too narrow for the label to
+          // wrap horizontally, so it reads top-to-bottom instead (see the
+          // non-narrow branch's comment for why it can't just disappear).
+          // Positioned absolutely (out of flow) rather than a normal flex
+          // child: this row almost always shares its row *track* with a
+          // sibling column that's already taller for unrelated reasons (a
+          // lesson list, a long exam title, ...), so there's already free
+          // vertical space below the arrow -- an in-flow vertical label would
+          // demand that same height a second time, over on top of it,
+          // pushing every row below (down through the student rows) that
+          // much further. Out of flow, it just reads down into whatever
+          // space is already there instead of adding to it.
+          <span
+            style={{
+              position: 'absolute',
+              top: 5,
+              left: 26, // padding-left(8) + arrow width(14) + gap(4)
+              whiteSpace: 'nowrap',
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+            }}
+          >
+            {g.label}
+          </span>
         ) : (
-          <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', whiteSpace: 'nowrap' }}>{g.label}</span>
+          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
         )}
       </div>
     );
