@@ -496,6 +496,7 @@ export default function App() {
                 onOpenStudent={openStudent}
                 onOpenLesson={(id) => openLessonForEditing(id, 'matrix')}
                 onOpenWork={(id) => openWorkForEditing(id, 'matrix')}
+                allowGradeOverride
               />
             )}
             {screen === 'student' && (
