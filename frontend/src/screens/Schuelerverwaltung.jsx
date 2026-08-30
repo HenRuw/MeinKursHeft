@@ -3,9 +3,8 @@ import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
 import { studentDisplayName } from '../lib/gradeMath.js';
 import { parseStudentsFile } from '../lib/studentImport.js';
+import { useViewport } from '../lib/useViewport.js';
 
-const th = { font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em', textAlign: 'left', padding: '8px 12px' };
-const td = { padding: '9px 12px', borderTop: `1px solid ${colors.divider}`, fontSize: 13 };
 const selectStyle = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, background: '#fff' };
 
 const SORT_OPTIONS = [
@@ -31,6 +30,7 @@ function sortStudentsBy(students, sortBy) {
 }
 
 export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, klassen, onRefreshKlassen }) {
+  const { isMobile } = useViewport();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [klasseName, setKlasseName] = useState('');
@@ -147,7 +147,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24 }}>
       <section style={{ maxWidth: 680 }}>
         <div style={{ font: `500 24px/1.1 ${fonts.serif}`, marginBottom: 16 }}>Schülerdaten</div>
-        <form onSubmit={(e) => { e.preventDefault(); addStudent(); }} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <form onSubmit={(e) => { e.preventDefault(); addStudent(); }} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, marginBottom: 10 }}>
           <input placeholder="Vorname" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <input placeholder="Nachname" value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <input
@@ -217,62 +217,44 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
           </select>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: colors.cardBg, border: `1px solid ${colors.borderCard}`, borderRadius: 11, overflow: 'hidden' }}>
-          <thead>
-            <tr style={{ background: '#faf8f4' }}>
-              <th style={th}>NACHNAME, VORNAME</th>
-              <th style={th}>KLASSE</th>
-              <th style={{ ...th, width: 120 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((s) => (
-              <tr key={s.id}>
-                {editingId === s.id ? (
-                  <td style={td} colSpan={3}>
-                    <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} style={{ display: 'flex', gap: 8 }}>
-                      <input value={editLast} onChange={(e) => setEditLast(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
-                      <input value={editFirst} onChange={(e) => setEditFirst(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
-                      <input
-                        list="klassen-list"
-                        placeholder="Klasse, z. B. 9a"
-                        value={editKlasseName}
-                        onChange={(e) => setEditKlasseName(e.target.value)}
-                        style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }}
-                      />
-                      <button type="submit" style={{ padding: '6px 12px', borderRadius: 6, background: colors.teal, color: '#fff', fontSize: 12 }}>
-                        Speichern
-                      </button>
-                      <button type="button" onClick={() => setEditingId(null)} style={{ padding: '6px 10px', borderRadius: 6, border: `1px solid ${colors.borderStrong}`, fontSize: 12 }}>
-                        Abbrechen
-                      </button>
-                    </form>
-                  </td>
-                ) : (
-                  <>
-                    <td style={{ ...td, fontWeight: 500 }}>{studentDisplayName(s)}</td>
-                    <td style={td}>{s.klasse_name || '–'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>
-                      <button onClick={() => startEdit(s)} style={{ fontSize: 12, color: colors.teal, marginRight: 12 }}>
-                        Bearbeiten
-                      </button>
-                      <button onClick={() => removeStudent(s.id)} style={{ fontSize: 12, color: colors.red }}>
-                        Löschen
-                      </button>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-            {!sorted.length && (
-              <tr>
-                <td style={td} colSpan={3}>
-                  Noch keine Schüler:innen angelegt.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div style={{ border: `1px solid ${colors.borderCard}`, borderRadius: 11, background: colors.cardBg }}>
+          {sorted.map((s) =>
+            editingId === s.id ? (
+              <div key={s.id} style={{ padding: '9px 14px', borderTop: `1px solid ${colors.divider}` }}>
+                <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
+                  <input value={editLast} onChange={(e) => setEditLast(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
+                  <input value={editFirst} onChange={(e) => setEditFirst(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
+                  <input
+                    list="klassen-list"
+                    placeholder="Klasse, z. B. 9a"
+                    value={editKlasseName}
+                    onChange={(e) => setEditKlasseName(e.target.value)}
+                    style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }}
+                  />
+                  <button type="submit" style={{ padding: '6px 12px', borderRadius: 6, background: colors.teal, color: '#fff', fontSize: 12 }}>
+                    Speichern
+                  </button>
+                  <button type="button" onClick={() => setEditingId(null)} style={{ padding: '6px 10px', borderRadius: 6, border: `1px solid ${colors.borderStrong}`, fontSize: 12 }}>
+                    Abbrechen
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: `1px solid ${colors.divider}`, fontSize: 13, flexWrap: 'wrap' }}>
+                <span style={{ width: isMobile ? 140 : 200, flex: 'none', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
+                <span style={{ fontSize: 11.5, color: colors.muted }}>{s.klasse_name || '–'}</span>
+                <span style={{ flex: 1 }} />
+                <button onClick={() => startEdit(s)} style={{ fontSize: 12, color: colors.teal, marginRight: 12 }}>
+                  Bearbeiten
+                </button>
+                <button onClick={() => removeStudent(s.id)} style={{ fontSize: 12, color: colors.red }}>
+                  Löschen
+                </button>
+              </div>
+            )
+          )}
+          {!sorted.length && <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>Noch keine Schüler:innen angelegt.</div>}
+        </div>
       </section>
     </div>
   );
