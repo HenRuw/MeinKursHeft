@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts, QUARTER_ACCENTS } from '../theme.js';
 import {
@@ -27,20 +27,12 @@ import Popover from '../components/Popover.jsx';
 
 // Klassenarbeiten sit in the KLASSENARBEITEN (amber) frame; Tests and
 // Sonstige Leistungen count toward MITARBEIT, so they get a tint from that
-// (teal) family instead — same hue as mitBgStrong/Ø MIT., one step lighter
-// per kind.
+// (teal) family instead.
 const KIND_BG = { klassenarbeit: '#fdf7e9', test: '#e6f0ea', sonstige: '#d9ebe1' };
-// Much paler than KIND_BG: individual exam grades sit a visual step below
-// the kind sub-header, which itself sits a step below its frame's own
-// strong header/average color — three tiers of the same hue family.
 const KIND_BG_LIGHT = { klassenarbeit: '#fefcf5', test: '#f3f8f5', sonstige: '#eef6f1' };
 const KIND_TEXT = { klassenarbeit: colors.gold, test: colors.teal, sonstige: colors.teal };
 const SECTION_LABELS = { klassenarbeit: 'Klassenarbeiten', test: 'Tests', sonstige: 'Sonst. Leist.' };
 
-// Escalating border thickness = escalating nesting depth (outside -> inside):
-// year > half > quarter > mitarbeit/schriftlich. Each frame's own header row
-// gets a matching top border, each frame's own average column a matching
-// right border, so the two together read as one continuous "L" outline.
 const FRAME = {
   year: { border: 5, color: colors.sidebarBg },
   half: { border: 4, color: colors.tealDark },
@@ -48,33 +40,22 @@ const FRAME = {
   schr: { border: 2, color: '#a9791f' },
 };
 
-// No single data/average column should be wider than any other — capped at
-// the widest of them, N.Q-Note, so a long written-work title can't drag its
-// own column (and with it, the whole table) wider than the rest.
-const COL_MAX_WIDTH = 44;
-
-// The name column's own right edge — a clearly visible line the names sit
-// behind, distinct from every frame's more subtle internal dividers. This is
-// a real positioned element rather than a plain CSS border: the name column
-// is sticky (position: sticky; left: 0) so it can stay in view while
-// scrolling, and a sticky cell's *border* — like its background, per the
-// stickyMask cells below — isn't reliably repainted on every scroll frame
-// under border-collapse, so a `borderRight` here would flicker in and out
-// while scrolling instead of just sitting there.
-const NAME_BORDER_WIDTH = 2;
+// Every column's width is fixed and known up front instead of measured from
+// the DOM -- that's what lets the two sticky columns (Name / Zeugnis) use
+// plain `left:0`/`right:0` instead of a ResizeObserver + a layout effect
+// recomputing offsets on every render, and what lets the frame borders below
+// be plain per-cell CSS instead of the overlay-mask workaround a table would
+// need: a CSS Grid item's border is always its own, self-contained box --
+// unlike an HTML table's border-collapse, nothing merges it with a
+// neighbor's border, so nothing can knock it a subpixel out of alignment
+// while a sticky cell scrolls past.
+const COL_WIDTH = { name: 190, lesson: 36, exam: 44, mitAvg: 40, schrAvg: 40, qNote: 44, hjNote: 44, zeugnis: 44 };
 const NAME_BORDER_COLOR = colors.tealDark;
-const NameRightEdge = () => <span style={{ position: 'absolute', top: -2, bottom: -2, right: 0, width: NAME_BORDER_WIDTH, background: NAME_BORDER_COLOR }} />;
 
-// Every frame label row (GANZES SCHULJAHR, HALBJAHR, QUARTAL, MITARBEIT,
-// KLASSENARBEITEN) already draws its own colored top border (or, for the
-// outermost year frame, a solid background) to connect into whatever it
-// nests around next. th()'s neutral 1px borderBottom would otherwise leave
-// a thin, differently-colored hairline wedged between that label and its
-// own border below it — killing borderBottom here lets the two meet with
-// no seam in between. overflow/textOverflow already come from th()'s own
-// default now, so this only needs the properties that are actually
-// different here.
-const FRAME_HEADER_BASE = { position: 'relative', paddingBottom: 13, borderBottom: 'none' };
+// Header grid rows, top to bottom; body rows start right after.
+const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6 };
+const HEADER_ROWS = 6;
+const BODY_START = HEADER_ROWS + 1;
 
 function CollapseArrow({ collapsed, onClick, dark }) {
   return (
@@ -101,11 +82,142 @@ function CollapseArrow({ collapsed, onClick, dark }) {
   );
 }
 
+// Builds the flat, collapse-aware column list the whole grid is laid out
+// from: `leaves` is one entry per actual data/average column, in on-screen
+// order (Name is always grid column 1 and handled separately, not a leaf).
+// `groups` is one entry per collapsible frame header (year/half/quarter/
+// mitarbeit/klassenarbeiten) plus the written-work kind sub-headers -- each
+// just a {start, end} range over `leaves`, so its on-screen position is pure
+// index arithmetic, never a DOM measurement.
+//
+// Collapsing a frame only ever removes its own *detail* leaves -- its own
+// average/summary leaf (mitAvg, qNote, hjNote, ...) is always still pushed,
+// same as its underlying value is always still calculated regardless of
+// what's currently visible (see calcAverages below).
+function buildColumns(bundle, collapsed, toggles) {
+  const halves = [...bundle.halves].sort((a, b) => a.idx - b.idx);
+  const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
+  const quartersByHalf = (half) => quarters.filter((q) => q.half_id === half.id);
+
+  const leaves = [];
+  const groups = [];
+
+  if (!collapsed.year) {
+    halves.forEach((half) => {
+      const hCollapsed = !!collapsed.half[half.id];
+      const halfStart = leaves.length;
+      if (!hCollapsed) {
+        quartersByHalf(half).forEach((quarter) => {
+          const qCollapsed = !!collapsed.quarter[quarter.id];
+          const quarterStart = leaves.length;
+          const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
+          if (!qCollapsed) {
+            const mitCollapsed = !!collapsed.mit[quarter.id];
+            const schrCollapsed = !!collapsed.schr[quarter.id];
+            const kindGroups = WRITTEN_WORK_KINDS.map((k) => ({
+              kind: k.value,
+              works: bundle.writtenWorks.filter((w) => w.quarter_id === quarter.id && w.kind === k.value).sort((a, b) => a.date.localeCompare(b.date)),
+            }));
+            const mitKindGroups = kindGroups.filter((g) => WRITTEN_WORK_GROUP[g.kind] === 'mitarbeit');
+            const schrKindGroups = kindGroups.filter((g) => WRITTEN_WORK_GROUP[g.kind] === 'schriftlich');
+
+            const mitStart = leaves.length;
+            if (!mitCollapsed) {
+              // A lesson nobody has been graded in yet would just be an
+              // empty column -- leave it off until at least one grade is
+              // entered (calcAverages below ignores ungraded lessons either
+              // way, so this filter never changes an average, only display).
+              bundle.lessons
+                .filter((l) => l.quarter_id === quarter.id && l.grades.some((g) => g.grade))
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .forEach((lesson) => leaves.push({ kind: 'lesson', width: COL_WIDTH.lesson, lesson, quarter }));
+              mitKindGroups.forEach((g) => {
+                if (!g.works.length) return;
+                const kindStart = leaves.length;
+                g.works.forEach((work, idx) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, firstInKind: idx === 0 }));
+                groups.push({ level: 'kind', examKind: g.kind, label: SECTION_LABELS[g.kind], start: kindStart, end: leaves.length });
+              });
+            }
+            leaves.push({ kind: 'mitAvg', width: COL_WIDTH.mitAvg, quarter });
+            groups.push({ level: 'mit', label: 'MITARBEIT', quarter, start: mitStart, end: leaves.length, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
+
+            const schrStart = leaves.length;
+            if (!schrCollapsed) {
+              // Klassenarbeiten are the only kind in this frame (now
+              // labelled KLASSENARBEITEN itself), so each title is anchored
+              // directly -- no separate kind sub-header, unlike Tests/
+              // Sonstige above.
+              schrKindGroups.forEach((g) => g.works.forEach((work) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, direct: true })));
+            }
+            leaves.push({ kind: 'schrAvg', width: COL_WIDTH.schrAvg, quarter });
+            groups.push({ level: 'schr', label: 'KLASSENARBEITEN', quarter, start: schrStart, end: leaves.length, collapsed: schrCollapsed, onToggle: () => toggles.schr(quarter.id) });
+          }
+          leaves.push({ kind: 'qNote', width: COL_WIDTH.qNote, quarter, accent });
+          groups.push({
+            level: 'quarter',
+            label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
+            start: quarterStart,
+            end: leaves.length,
+            collapsed: qCollapsed,
+            onToggle: () => toggles.quarter(quarter.id),
+            accent,
+          });
+        });
+      }
+      leaves.push({ kind: 'hjNote', width: COL_WIDTH.hjNote, half });
+      groups.push({ level: 'half', label: `${half.idx}. HALBJAHR`, start: halfStart, end: leaves.length, collapsed: hCollapsed, onToggle: () => toggles.half(half.id) });
+    });
+  }
+  leaves.push({ kind: 'zeugnis', width: COL_WIDTH.zeugnis });
+  // start:-1 makes this group's grid-column begin at column 1 (Name's own
+  // column), not column 2 -- unlike every other frame, the year frame has no
+  // separate Name cell of its own to cover that column in its header row, so
+  // its background has to reach one column further left to avoid a gap.
+  groups.push({ level: 'year', label: 'GANZES SCHULJAHR', start: -1, end: leaves.length, collapsed: collapsed.year, onToggle: toggles.year });
+
+  return { leaves, groups };
+}
+
+// Calculates every average for one student across the *entire* bundle,
+// independent of collapse state -- collapsing a frame only hides its detail
+// columns from the grid buildColumns produces above, it must never change a
+// roll-up value derived from those columns.
+function calcAverages(bundle, overrides, studentId, courseId) {
+  const mitByQuarter = new Map();
+  const schrByQuarter = new Map();
+  bundle.quarters.forEach((quarter) => {
+    const lessons = bundle.lessons.filter((l) => l.quarter_id === quarter.id);
+    const works = bundle.writtenWorks.filter((w) => w.quarter_id === quarter.id);
+    mitByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'mitAvg', quarter.id, mitarbeitAverage(studentId, lessons, works)));
+    schrByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'schrAvg', quarter.id, schriftlichAverage(studentId, works)));
+  });
+  const qNoteByQuarter = new Map();
+  bundle.quarters.forEach((quarter) => {
+    const mit = mitByQuarter.get(quarter.id);
+    const schr = schrByQuarter.get(quarter.id);
+    const calc = wavg([
+      [mit.value, quarter.weight_mitarbeit],
+      [schr.value, quarter.weight_schriftlich],
+    ]);
+    qNoteByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'qNote', quarter.id, calc));
+  });
+  const hjByHalf = new Map();
+  bundle.halves.forEach((half) => {
+    const qVals = bundle.quarters.filter((q) => q.half_id === half.id).map((q) => [qNoteByQuarter.get(q.id).value, q.weight_quarter]);
+    hjByHalf.set(half.id, resolveAverage(overrides, studentId, 'hjNote', half.id, wavg(qVals)));
+  });
+  const zeugnisCalc = wavg(bundle.halves.map((h) => [hjByHalf.get(h.id).value, h.weight]));
+  const zeugnis = resolveAverage(overrides, studentId, 'zeugnis', courseId, zeugnisCalc);
+  return { mitByQuarter, schrByQuarter, qNoteByQuarter, hjByHalf, zeugnis };
+}
+
+const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
+
 export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride }) {
   // Schueleransicht embeds this component with a bundle.course.id swapped
-  // for a synthetic one (so its collapse/scope preferences below don't leak
-  // into the real course-wide Notenübersicht) — realCourseId is the actual
-  // id grade-override API calls need to hit.
+  // for a synthetic one (so its collapse preferences below don't leak into
+  // the real course-wide Notenübersicht) -- realCourseId is the actual id
+  // grade-override API calls and the Zeugnis average need to hit.
   const courseId = bundle.realCourseId ?? bundle.course.id;
   const overrides = bundle.gradeOverrides || [];
   const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade }
@@ -120,8 +232,8 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     setOverrideEdit(null);
   };
   // Same content whether the cell is plain text (read elsewhere) or an
-  // editable button (only in the Schueleransicht) — a manual override always
-  // gets the little pencil badge, everywhere it's shown.
+  // editable button (only in the Schueleransicht) -- a manual override
+  // always gets the little pencil badge, everywhere it's shown.
   const renderAvg = (value, overridden, onClick) => {
     const inner = (
       <>
@@ -142,16 +254,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     );
   };
 
-  const scope = 'year';
-  // On a phone-width screen, pinning the name column on the left *and*
-  // HJ-Note/Zeugnis on the right leaves barely any width for the
-  // scrollable quarter data sandwiched between them — often none at all,
-  // since both sticky edges alone can exceed the viewport (tablet and up
-  // have enough room for both, so this only kicks in below that). Those
-  // right-hand columns fall back to normal scrolling instead, the same as
-  // everything else in the middle; only the name column stays pinned,
-  // exactly like Stundenerfassung's and Schriftliche Leistungen' own
-  // single-sided sticky roster column.
   const { isMobile } = useViewport();
   const [collapsed, setCollapsed] = usePersisted(`notenuebersicht:${bundle.course.id}:collapsed`, {
     year: false,
@@ -160,597 +262,421 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     mit: {},
     schr: {},
   });
-  // Row/column highlight is a placeholder (per product decision, real design
-  // exploration deferred): a full-row hover highlight only, since aligning a
-  // per-column highlight across the multi-row header would need every header
-  // row and every body row to share one column index, which the current
-  // rowSpan-based header layout doesn't provide for free.
-  const [hoverRow, setHoverRow] = useState(null);
+  const toggles = {
+    year: () => setCollapsed((c) => ({ ...c, year: !c.year })),
+    half: (id) => setCollapsed((c) => ({ ...c, half: { ...c.half, [id]: !c.half[id] } })),
+    quarter: (id) => setCollapsed((c) => ({ ...c, quarter: { ...c.quarter, [id]: !c.quarter[id] } })),
+    mit: (qid) => setCollapsed((c) => ({ ...c, mit: { ...c.mit, [qid]: !c.mit[qid] } })),
+    schr: (qid) => setCollapsed((c) => ({ ...c, schr: { ...c.schr, [qid]: !c.schr[qid] } })),
+  };
 
-  const toggleYear = () => setCollapsed((c) => ({ ...c, year: !c.year }));
-  const toggleHalf = (id) => setCollapsed((c) => ({ ...c, half: { ...c.half, [id]: !c.half[id] } }));
-  const toggleQuarter = (id) => setCollapsed((c) => ({ ...c, quarter: { ...c.quarter, [id]: !c.quarter[id] } }));
-  const toggleMit = (qid) => setCollapsed((c) => ({ ...c, mit: { ...c.mit, [qid]: !c.mit[qid] } }));
-  const toggleSchr = (qid) => setCollapsed((c) => ({ ...c, schr: { ...c.schr, [qid]: !c.schr[qid] } }));
-
-  const halves = [...bundle.halves].sort((a, b) => a.idx - b.idx);
-  const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const students = sortStudents(bundle.students);
-
-  const visibleHalfIdx = scope === 'h1' ? [1] : scope === 'h2' ? [2] : [1, 2];
-  const visHalves = halves.filter((h) => visibleHalfIdx.includes(h.idx));
-  const quartersByHalf = (half) => quarters.filter((q) => q.half_id === half.id);
+  const { leaves, groups } = buildColumns(bundle, collapsed, toggles);
 
   const setQuarterWeight = (quarter, field) => (e) => api.updateQuarter(quarter.id, { [field]: parseWeight(e.target.value) });
   const setHalfWeight = (half) => (e) => api.updateHalf(half.id, { weight: parseWeight(e.target.value) });
 
-  // --- computation helpers (always run regardless of collapse — collapsing
-  // only hides display cells, roll-up math still needs every value) ---
-  const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
-  function qNoteFor(studentId, quarter, mitAvg, schrAvg) {
-    return wavg([[mitAvg, quarter.weight_mitarbeit], [schrAvg, quarter.weight_schriftlich]]);
-  }
+  // Leaf index (0-based, Name excluded) -> grid column *line*: column 1 is
+  // Name, so leaf 0 starts at line 2.
+  const colLine = (leafIdx) => leafIdx + 2;
+  const totalCols = leaves.length + 1;
+  const gridTemplateColumns = `${COL_WIDTH.name}px ${leaves.map((l) => `${l.width}px`).join(' ')}`;
 
-  // Per-quarter display columns: mitAvg/schrAvg are always included (they're
-  // the mitarbeit/schriftlich frame's own average column, hidden only if the
-  // *quarter* itself is collapsed), lessons/exams only if that block isn't
-  // collapsed and the global show/hide toggle is on. Tests and Sonstige
-  // Leistungen count toward Mitarbeit (see WRITTEN_WORK_GROUP), so their
-  // columns sit alongside the lessons, before Ø MIT.; only Klassenarbeiten
-  // sit in the KLASSENARBEITEN block, before Ø SCHR.
-  function buildQuarterCols(quarter) {
-    const mitCollapsed = !!collapsed.mit[quarter.id];
-    const schrCollapsed = !!collapsed.schr[quarter.id];
-    // A lesson nobody has been graded in yet would just be an empty column
-    // on the overview — leave it off until at least one grade is entered
-    // (the wavg() calls below already ignore ungraded lessons either way, so
-    // filtering here doesn't change any average).
-    const qLessonsAll = bundle.lessons
-      .filter((l) => l.quarter_id === quarter.id && l.grades.some((g) => g.grade))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    const kindGroupsAll = WRITTEN_WORK_KINDS.map((k) => ({
-      kind: k.value,
-      works: bundle.writtenWorks.filter((w) => w.quarter_id === quarter.id && w.kind === k.value).sort((a, b) => a.date.localeCompare(b.date)),
-    }));
-    const mitKindGroupsAll = kindGroupsAll.filter((g) => WRITTEN_WORK_GROUP[g.kind] === 'mitarbeit');
-    const schrKindGroupsAll = kindGroupsAll.filter((g) => WRITTEN_WORK_GROUP[g.kind] === 'schriftlich');
-    const mitWorksAll = mitKindGroupsAll.flatMap((g) => g.works);
-    const schrWorksAll = schrKindGroupsAll.flatMap((g) => g.works);
-
-    const cols = [];
-    if (!mitCollapsed) qLessonsAll.forEach((lesson) => cols.push({ kind: 'lesson', lesson }));
-    if (!mitCollapsed) {
-      mitKindGroupsAll.forEach((g) => g.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: g.kind })));
-    }
-    cols.push({ kind: 'mitAvg', lessons: qLessonsAll, works: mitWorksAll });
-    if (!schrCollapsed) {
-      schrKindGroupsAll.forEach((g) => g.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: g.kind })));
-    }
-    cols.push({ kind: 'schrAvg', works: schrWorksAll });
-
-    return { quarter, mitCollapsed, schrCollapsed, cols, qLessonsAll, mitWorksAll, schrWorksAll };
-  }
-
-  // Bottom-up width computation: each level's width folds in its children's
-  // (already collapse-aware) widths plus its own +1 for its average column.
-  const halfColumns = visHalves.map((half) => {
-    const hCollapsed = !!collapsed.half[half.id];
-    const quarterCols = quartersByHalf(half).map((quarter) => {
-      const qc = buildQuarterCols(quarter);
-      const qCollapsed = !!collapsed.quarter[quarter.id];
-      // +1 for the quarter's own Q-Note column, same reasoning as halfWidth's +1 below.
-      return { ...qc, qCollapsed, width: qCollapsed ? 1 : qc.cols.length + 1 };
-    });
-    const innerWidth = quarterCols.reduce((a, qc) => a + qc.width, 0);
-    const halfWidth = hCollapsed ? 1 : innerWidth + 1;
-    return { half, hCollapsed, quarterCols, halfWidth };
-  });
-  const yearInnerWidth = halfColumns.reduce((a, hc) => a + hc.halfWidth, 0);
-
-  // Every half's own HJ-Note is pinned to the right edge — not just the
-  // current half's — each parked immediately to the left of whatever is
-  // already pinned there (a later half's HJ-Note, then Zeugnis in year
-  // scope). Native position:sticky already does the "don't move until you'd
-  // be covered" behavior on its own: a half's HJ-Note only actually sticks
-  // once ordinary scrolling would carry it past its own right-offset, i.e.
-  // exactly the point it would otherwise slide under whatever's already
-  // sitting there. So 1.HJ-Note only stops moving once 2.HJ-Note (pinned
-  // right of it) would start to cover it — never earlier.
-  //
-  // The offset for each half is the *rendered* width of every later half's
-  // own HJ-Note column plus Zeugnis's, not their nominal column widths —
-  // labels, fonts, and zoom all shift real width away from nominal, so the
-  // only reliable source is measuring the actual header cells and
-  // recomputing on every render and on resize.
-  const hjNoteHeaderRefs = useRef({});
-  const zeugnisHeaderRef = useRef(null);
-  const resizeObserverRef = useRef(null);
-  const [halfRightOffsets, setHalfRightOffsets] = useState({});
-
-  // This effect has no dependency array (it needs to re-measure after every
-  // render, same as the layout it's tracking), so the state update below
-  // must bail out itself once the numbers actually settle — a fresh object
-  // every time, even with identical values, would otherwise re-render
-  // forever.
-  const sameOffsets = (a, b) => {
-    const keysA = Object.keys(a);
-    return keysA.length === Object.keys(b).length && keysA.every((k) => a[k] === b[k]);
+  // --- shared cell styles ---
+  // Frame group headers (year/half/quarter/mitarbeit/klassenarbeiten) are
+  // left-aligned, not centered: their own left edge is where the frame
+  // *starts*, and that position never moves when the frame's own collapse
+  // toggle fires (only content before it can shift it) -- centering across
+  // the full, collapse-dependent width would instead fling the arrow to a
+  // new spot on every click.
+  const groupBaseStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '5px 8px',
+    font: `500 8.5px ${fonts.mono}`,
+    letterSpacing: '.06em',
+    justifyContent: 'flex-start',
+    textAlign: 'left',
+    overflow: 'hidden',
+    // 'pre' (not 'pre-wrap'): honors wrapLabel's one deliberate \n (the
+    // quarter date-range break) but never wraps at any other space. That
+    // matters most once a frame collapses down to a single narrow column --
+    // 'pre-wrap' would let a long label like "1. HALBJAHR" reflow across
+    // several lines in that squeezed width, which shifts the row's height
+    // and moves the collapse arrow right after you click it.
+    whiteSpace: 'pre',
+    textOverflow: 'ellipsis',
   };
-
-  useLayoutEffect(() => {
-    const measure = () => {
-      if (collapsed.year) {
-        setHalfRightOffsets((cur) => (sameOffsets(cur, {}) ? cur : {}));
-        return;
-      }
-      let running = scope === 'year' ? zeugnisHeaderRef.current?.getBoundingClientRect().width ?? 0 : 0;
-      const next = {};
-      for (let i = halfColumns.length - 1; i >= 0; i -= 1) {
-        const { half } = halfColumns[i];
-        next[half.id] = running;
-        running += hjNoteHeaderRefs.current[half.id]?.getBoundingClientRect().width ?? 0;
-      }
-      setHalfRightOffsets((cur) => (sameOffsets(cur, next) ? cur : next));
-    };
-
-    measure();
-
-    const observedEls = [...halfColumns.map(({ half }) => hjNoteHeaderRefs.current[half.id]), zeugnisHeaderRef.current].filter(Boolean);
-    if (!resizeObserverRef.current) resizeObserverRef.current = new ResizeObserver(measure);
-    resizeObserverRef.current.disconnect();
-    observedEls.forEach((el) => resizeObserverRef.current.observe(el));
-
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  });
-
-  useLayoutEffect(() => () => resizeObserverRef.current?.disconnect(), []);
-
-  // overflow/textOverflow here mean wrapLabel's one explicit break is the
-  // *only* break a header ever gets: with white-space staying 'pre' (so it
-  // still honors that one \n and nothing else), any line that's still too
-  // wide for its column — long words, a long single-line label — gets
-  // clipped with an ellipsis instead of spilling into neighboring columns.
-  // The handful of cells with their own negative-offset overlay (stickyMask,
-  // NameRightEdge) that need to paint outside their own box override this
-  // back to 'visible'.
-  const th = (extra) => ({
-    padding: '5px 6px',
-    borderRight: `1px solid ${colors.border}`,
-    borderBottom: `1px solid ${colors.border}`,
+  // Leaf headers (individual columns): label + optional weight input,
+  // bottom-anchored so every weight field -- regardless of how tall its own
+  // column header is (Zeugnis spans far more rows than a lesson date) --
+  // lines up in the same strip directly above the first student row.
+  const leafHeaderStyle = (extra) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 2,
+    padding: '5px 4px 6px',
     font: `500 8.5px ${fonts.mono}`,
     color: colors.mutedStrong,
     letterSpacing: '.06em',
     textAlign: 'center',
-    verticalAlign: 'middle',
     whiteSpace: 'pre',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    borderBottom: `1px solid ${colors.border}`,
     ...extra,
   });
   const td = (extra) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: '6px 6px',
-    borderRight: `1px solid ${colors.divider}`,
     borderBottom: `1px solid ${colors.divider}`,
     textAlign: 'center',
     whiteSpace: 'nowrap',
     ...extra,
   });
-  const frameTh = (extra) => th({ ...FRAME_HEADER_BASE, ...extra });
 
-  // --- header rows ---
-  // r0: outermost year frame (only meaningful in Schuljahr scope).
-  // r1: name + half frames (+ Zeugnis, year's own average column).
-  // r2: quarter frames (+ HJ-Note, half's own average column).
-  // r3: Mitarbeit/Klassenarbeiten frames (+ Q-Note, quarter's own average column).
-  // r3b: written-work kind groups + lesson dates/Ø MIT/Ø SCHR (these three
-  //      have no sub-grouping of their own, so they anchor here and span
-  //      down through r4 instead of duplicating a row).
-  // r4: individual written-work titles (one level below their kind group).
-  const r0 = [];
-  const r1 = [{ label: 'SCHÜLER:IN', rowSpan: scope === 'year' ? 6 : 5, colKey: 'name', style: th({ textAlign: 'left', minWidth: 190, background: '#efece5', position: 'sticky', left: 0, zIndex: 3, overflow: 'visible' }) }];
-  const r2 = [];
-  const r3 = [];
-  const r3b = [];
-  const r4 = [];
+  // --- group (frame) header rendering ---
+  const GROUP_ROW = { year: ROW.year, half: ROW.half, quarter: ROW.quarter, mit: ROW.mitSchr, schr: ROW.mitSchr, kind: ROW.kindOrKlassen };
+  const GROUP_BG = { year: colors.sidebarBg, half: colors.hBg, quarter: colors.qBg, mit: colors.mitBgStrong, schr: colors.schBgStrong };
+  const GROUP_COLOR = { year: '#fff', half: colors.tealDark, quarter: colors.mutedStrong, mit: colors.mutedStrong, schr: colors.mutedStrong };
+  const GROUP_WEIGHT = { year: 700, half: 700, quarter: 600, mit: 500, schr: 500 };
 
-  if (scope === 'year') {
-    // r0 is the only cell in its row — unlike every frame below it, it has
-    // no separate SCHÜLER:IN entry of its own to cover that column, so its
-    // span has to include both that leftmost column *and* the year's own
-    // average column (Zeugnis) at the right, or the row falls one column
-    // short and leaves a gap over Zeugnis where the year frame's dark
-    // background should continue. Collapsed, the body shrinks to just
-    // SCHÜLER:IN + Zeugnis (2 columns), so the same reasoning caps out at 2
-    // instead of 1.
-    r0.push({
-      label: 'GANZES SCHULJAHR',
-      colSpan: collapsed.year ? 2 : yearInnerWidth + 2,
-      arrow: { collapsed: collapsed.year, onClick: toggleYear, dark: true },
-      style: frameTh({ background: colors.sidebarBg, color: '#fff', fontWeight: 700 }),
-    });
-  }
-
-  if (!collapsed.year) {
-    halfColumns.forEach(({ half, hCollapsed, quarterCols }) => {
-      r1.push({
-        label: `${half.idx}. HALBJAHR`,
-        colSpan: hCollapsed ? 1 : quarterCols.reduce((a, qc) => a + qc.width, 0) + 1,
-        arrow: { collapsed: hCollapsed, onClick: () => toggleHalf(half.id) },
-        style: frameTh({
-          background: colors.hBg,
-          color: colors.tealDark,
-          fontWeight: 700,
-          borderTop: `${FRAME.half.border}px solid ${FRAME.half.color}`,
-          borderLeft: `${FRAME.half.border}px solid ${FRAME.half.color}`,
-          // Matches HJ-Note's own borderRight below (same color/thickness) so
-          // the top border doesn't dead-end above it — without this, the
-          // frame's right edge would only start one row down, at HJ-Note
-          // itself, leaving the top-right corner open instead of closed.
-          borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
-        }),
-      });
-
-      if (!hCollapsed) {
-        quarterCols.forEach(({ quarter, qCollapsed, cols, width }) => {
-          const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
-          r2.push({
-            label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
-            colSpan: qCollapsed ? 1 : width,
-            arrow: { collapsed: qCollapsed, onClick: () => toggleQuarter(quarter.id) },
-            style: frameTh({
-              background: colors.qBg,
-              fontWeight: 600,
-              borderTop: `3px solid ${accent}`,
-              borderRight: `3px solid ${accent}`,
-            }),
-          });
-
-          if (!qCollapsed) {
-            const mitCollapsed = !!collapsed.mit[quarter.id];
-            const schrCollapsed = !!collapsed.schr[quarter.id];
-            const lessonCount = cols.filter((c) => c.kind === 'lesson').length;
-            const mitExamCount = cols.filter((c) => c.kind === 'exam' && WRITTEN_WORK_GROUP[c.examKind] === 'mitarbeit').length;
-            const schrExamCount = cols.filter((c) => c.kind === 'exam' && WRITTEN_WORK_GROUP[c.examKind] === 'schriftlich').length;
-            r3.push({
-              label: 'MITARBEIT',
-              colSpan: lessonCount + mitExamCount + 1,
-              arrow: { collapsed: mitCollapsed, onClick: () => toggleMit(quarter.id) },
-              // borderRight matches Ø MIT.'s own borderRight (same
-              // color/thickness) one row down, so the frame's right edge
-              // runs unbroken from this header straight through to the
-              // average column instead of only starting below it.
-              style: frameTh({ background: colors.mitBgStrong, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
-            });
-            r3.push({
-              label: 'KLASSENARBEITEN',
-              colSpan: schrExamCount + 1,
-              arrow: { collapsed: schrCollapsed, onClick: () => toggleSchr(quarter.id) },
-              // Same reasoning as MITARBEIT above, matching Ø SCHR.'s border.
-              style: frameTh({ background: colors.schBgStrong, borderTop: `${FRAME.schr.border}px solid ${FRAME.schr.color}`, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
-            });
-
-            let i = 0;
-            while (i < cols.length) {
-              const c = cols[i];
-              if (c.kind === 'lesson') {
-                const { dow, label } = formatShortDate(c.lesson.date);
-                r3b.push({
-                  label: `${dow}\n${label}`,
-                  rowSpan: 2,
-                  weight: { value: c.lesson.weight, onChange: (e) => api.updateLesson(c.lesson.id, { weight: parseWeight(e.target.value) }) },
-                  style: th({ background: colors.mitBgStrong, width: 36 }),
-                });
-                i += 1;
-              } else if (c.kind === 'mitAvg') {
-                r3b.push({
-                  label: 'Ø MIT.',
-                  rowSpan: 2,
-                  weight: { value: quarter.weight_mitarbeit, onChange: setQuarterWeight(quarter, 'weightMitarbeit') },
-                  style: th({ background: colors.mitBgStrong, width: 40, color: colors.teal, fontWeight: 600, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
-                });
-                i += 1;
-              } else if (c.kind === 'exam') {
-                const kind = c.examKind;
-                let j = i;
-                while (j < cols.length && cols[j].kind === 'exam' && cols[j].examKind === kind) j += 1;
-                const count = j - i;
-                // A title can be arbitrarily long — capping the column at
-                // COL_MAX_WIDTH (matching every other column, including the
-                // quarter's own N.Q-Note) keeps a long one from dragging it
-                // wider than the rest; wrapLabel's own single break plus
-                // th()'s overflow/ellipsis (not more wrapping) handle
-                // whatever doesn't fit after that.
-                const titleStyle = { width: COL_MAX_WIDTH, maxWidth: COL_MAX_WIDTH };
-                if (kind === 'klassenarbeit') {
-                  // Klassenarbeiten are the only kind in this frame (now
-                  // labelled KLASSENARBEITEN itself), so a kind sub-header
-                  // here would just repeat that label — anchor each title
-                  // directly, the same way lessons/Ø MIT./Ø SCHR. do.
-                  for (let k = i; k < j; k += 1) {
-                    const work = cols[k].work;
-                    r3b.push({
-                      label: wrapLabel(work.title.length > 16 ? `${work.title.slice(0, 15)}…` : work.title),
-                      rowSpan: 2,
-                      weight: { value: work.weight, onChange: (e) => api.updateWrittenWork(work.id, { weight: parseWeight(e.target.value) }) },
-                      style: th({ background: KIND_BG[kind], color: KIND_TEXT[kind], ...titleStyle }),
-                    });
-                  }
-                } else {
-                  // Tests and Sonstige Leistungen share the MITARBEIT frame
-                  // with lessons, so each kind-group still needs its own
-                  // label — separated from its neighbors by a plain neutral
-                  // divider, kept off the data columns in between.
-                  const groupEdge = { borderLeft: `2px solid ${colors.borderStrong}` };
-                  r3b.push({
-                    label: wrapLabel(SECTION_LABELS[kind]),
-                    colSpan: count,
-                    // Unlike every other header, this one's allowed to break
-                    // mid-word (not just at wrapLabel's own word-boundary
-                    // break) instead of ellipsis-truncating — the group label
-                    // sits above a whole block of narrow columns, so there's
-                    // no single column width to truncate against.
-                    style: th({ background: KIND_BG[kind], color: KIND_TEXT[kind], fontWeight: 600, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflow: 'visible', ...groupEdge }),
-                  });
-                  for (let k = i; k < j; k += 1) {
-                    const work = cols[k].work;
-                    r4.push({
-                      label: wrapLabel(work.title.length > 16 ? `${work.title.slice(0, 15)}…` : work.title),
-                      weight: { value: work.weight, onChange: (e) => api.updateWrittenWork(work.id, { weight: parseWeight(e.target.value) }) },
-                      style: th({ background: KIND_BG[kind], color: KIND_TEXT[kind], ...titleStyle, ...(k === i && groupEdge) }),
-                    });
-                  }
-                }
-                i = j;
-              } else if (c.kind === 'schrAvg') {
-                r3b.push({
-                  label: 'Ø SCHR.',
-                  rowSpan: 2,
-                  weight: { value: quarter.weight_schriftlich, onChange: setQuarterWeight(quarter, 'weightSchriftlich') },
-                  style: th({ background: colors.schBgStrong, width: 40, color: colors.gold, fontWeight: 600, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
-                });
-                i += 1;
-              }
-            }
-          }
-
-          // Q-Note is this quarter's own average column, so it must come
-          // after (to the right of) everything it's computed from — pushed
-          // here, once the quarter's children are already in r3/r3b/r4,
-          // matching the body row's push order exactly.
-          r3.push({
-            label: `${quarter.idx}.Q-Note`,
-            rowSpan: 3,
-            weight: { value: quarter.weight_quarter, onChange: setQuarterWeight(quarter, 'weightQuarter') },
-            style: th({ background: colors.qBg, width: COL_MAX_WIDTH, color: colors.teal, fontWeight: 700, borderRight: `3px solid ${accent}` }),
-          });
-        });
-      }
-
-      // Same reasoning as Q-Note above: HJ-Note is half's own average,
-      // pushed after all of this half's quarters.
-      const lastQuarterInHalf = quarterCols[quarterCols.length - 1]?.quarter;
-      const hjNoteLeftAccent = lastQuarterInHalf ? QUARTER_ACCENTS[(lastQuarterInHalf.idx - 1) % QUARTER_ACCENTS.length] : colors.hBg;
-      r2.push({
-        label: `${half.idx}.HJ-Note`,
-        rowSpan: 4,
-        weight: { value: half.weight, onChange: setHalfWeight(half) },
-        stickyMask: colors.hBg,
-        // The last quarter's own accent-colored borderRight sits directly to
-        // the left of this cell — the plain stickyMask above would otherwise
-        // paint straight over it for this cell's entire height (it's sized
-        // to hide a sub-pixel hairline, not a deliberately colored 3px
-        // border), breaking that quarter's frame outline exactly like
-        // Klassenarbeiten's did. Redraw it in the matching accent color
-        // instead of the half's own background, same fix, different corner.
-        stickyMaskLeftColor: hjNoteLeftAccent,
-        ref: (el) => {
-          hjNoteHeaderRefs.current[half.id] = el;
-        },
-        style: th({
-          background: colors.hBg,
-          width: COL_MAX_WIDTH,
-          color: colors.tealDark,
-          fontWeight: 700,
-          borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
-          position: isMobile ? 'static' : 'sticky',
-          right: isMobile ? undefined : halfRightOffsets[half.id] ?? 0,
-          zIndex: 2,
-          overflow: 'visible',
-        }),
-      });
-    });
-  }
-
-  if (scope === 'year') {
-    // And Zeugnis is year's own average, pushed after both halves.
-    r1.push({
-      label: 'ZEUGNIS',
-      rowSpan: 5,
-      ref: zeugnisHeaderRef,
-      stickyMask: colors.sidebarBg,
-      // Same fix as HJ-Note's stickyMaskLeftColor above: the second half's
-      // own borderRight (FRAME.half, same color either half) sits right
-      // next to this cell and would otherwise be painted over.
-      stickyMaskLeftColor: FRAME.half.color,
-      style: th({
-        background: colors.sidebarBg,
-        color: '#fff',
-        width: COL_MAX_WIDTH,
-        borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}`,
-        position: isMobile ? 'static' : 'sticky',
-        right: isMobile ? undefined : 0,
-        zIndex: 2,
-        overflow: 'visible',
-      }),
-    });
-  }
-
-  // --- body rows ---
-  const bodyRows = students.map((s, i) => {
-    const cells = [
-      {
-        key: 'name',
-        content: (
-          <>
-            <NameRightEdge />
-            <button onClick={() => onOpenStudent(s.id, 'matrix')} style={{ textAlign: 'left', fontWeight: 500, fontSize: 13 }}>
-              {i + 1}. {studentDisplayName(s)}
-              {studentKlasseLabel(s) && <span style={{ marginLeft: 6, fontWeight: 500, fontSize: 10.5, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
-            </button>
-          </>
-        ),
-        style: td({ textAlign: 'left', background: i % 2 ? colors.cream : '#fff', position: 'sticky', left: 0, zIndex: 1 }),
-      },
-    ];
-
-    const halfVals = [];
-    halfColumns.forEach(({ half, hCollapsed, quarterCols }) => {
-      const qVals = [];
-      quarterCols.forEach(({ quarter, qCollapsed, cols }) => {
-        const accent = QUARTER_ACCENTS[(quarter.idx - 1) % QUARTER_ACCENTS.length];
-        const mitAvgCol = cols.find((c) => c.kind === 'mitAvg');
-        const mit = resolveAverage(overrides, s.id, 'mitAvg', quarter.id, mitarbeitAverage(s.id, mitAvgCol.lessons, mitAvgCol.works));
-        const schr = resolveAverage(overrides, s.id, 'schrAvg', quarter.id, schriftlichAverage(s.id, cols.find((c) => c.kind === 'schrAvg').works));
-        const mitAvg = mit.value;
-        const schrAvg = schr.value;
-        const q = resolveAverage(overrides, s.id, 'qNote', quarter.id, qNoteFor(s.id, quarter, mitAvg, schrAvg));
-        const qn = q.value;
-        qVals.push([qn, quarter.weight_quarter]);
-
-        if (!collapsed.year && !hCollapsed && !qCollapsed) {
-          cols.forEach((c) => {
-            if (c.kind === 'lesson') {
-              const g = gradeOf(c.lesson.grades, s.id);
-              const v = num(g);
-              // An absence has no grade of its own — show who was missing and
-              // whether it was excused right in the grade cell instead: a red
-              // "F" for unentschuldigt, a green "E" for entschuldigt.
-              const att = c.lesson.attendance.find((a) => a.student_id === s.id);
-              const absent = att?.status === 'fehlt';
-              const label = absent ? (att.excused ? 'E' : 'F') : g || '·';
-              const color = absent ? (att.excused ? colors.green : colors.red) : g ? gradeColor(v) : '#c4bba6';
-              cells.push({
-                key: `l${c.lesson.id}`,
-                content: (
-                  <button onClick={() => onOpenLesson(c.lesson.id)} title="Zur Mündlichen Mitarbeit" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
-                    {label}
-                  </button>
-                ),
-                style: td({ background: colors.cream, color, ...GRADE_TYPE_SCALE.single, fontWeight: absent ? 700 : GRADE_TYPE_SCALE.single.fontWeight }),
-              });
-            } else if (c.kind === 'mitAvg') {
-              cells.push({
-                key: `mit${quarter.id}`,
-                content: renderAvg(mitAvg, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', quarter.id, mit.grade, e.currentTarget))),
-                style: td({ background: colors.mitBgStrong, color: mitAvg == null ? '#c4bba6' : gradeColor(mitAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
-              });
-            } else if (c.kind === 'exam') {
-              const g = gradeOf(c.work.grades, s.id);
-              const v = num(g);
-              cells.push({
-                key: `e${c.work.id}`,
-                content: (
-                  <button onClick={() => onOpenWork(c.work.id)} title="Zu den Schriftlichen Leistungen" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
-                    {g || '·'}
-                  </button>
-                ),
-                style: td({ background: KIND_BG_LIGHT[c.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }),
-              });
-            } else if (c.kind === 'schrAvg') {
-              cells.push({
-                key: `schr${quarter.id}`,
-                content: renderAvg(schrAvg, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', quarter.id, schr.grade, e.currentTarget))),
-                style: td({ background: colors.schBgStrong, color: schrAvg == null ? '#c4bba6' : gradeColor(schrAvg), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
-              });
-            }
-          });
-        }
-
-        if (!collapsed.year && !hCollapsed) {
-          cells.push({
-            key: `q${quarter.id}`,
-            content: renderAvg(qn, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', quarter.id, q.grade, e.currentTarget))),
-            style: td({ background: colors.qBg, color: qn == null ? '#c4bba6' : gradeColor(qn), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${accent}` }),
-          });
-        }
-      });
-
-      const h = resolveAverage(overrides, s.id, 'hjNote', half.id, wavg(qVals));
-      const hn = h.value;
-      halfVals.push([hn, half.weight]);
-      if (!collapsed.year) {
-        cells.push({
-          key: `h${half.id}`,
-          content: renderAvg(hn, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', half.id, h.grade, e.currentTarget))),
-          style: td({
-            background: colors.hBg,
-            color: hn == null ? '#c4bba6' : gradeColor(hn),
-            ...GRADE_TYPE_SCALE.summary,
-            borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
-            position: isMobile ? 'static' : 'sticky',
-            right: isMobile ? undefined : halfRightOffsets[half.id] ?? 0,
-            zIndex: 1,
-          }),
-        });
-      }
-    });
-
-    if (scope === 'year') {
-      const z = resolveAverage(overrides, s.id, 'zeugnis', courseId, wavg(halfVals));
-      const zn = z.value;
-      cells.push({
-        key: 'zeugnis',
-        content: renderAvg(zn, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, e.currentTarget))),
-        style: td({ background: colors.sidebarBg, color: '#fff', ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}`, position: isMobile ? 'static' : 'sticky', right: isMobile ? undefined : 0, zIndex: 1 }),
-      });
+  const renderGroup = (g, i) => {
+    const row = GROUP_ROW[g.level];
+    const gridColumn = `${colLine(g.start)} / ${colLine(g.end)}`;
+    const gridRow = `${row} / ${row + 1}`;
+    if (g.level === 'kind') {
+      return (
+        <div
+          key={`g${i}`}
+          style={{
+            ...groupBaseStyle,
+            gridColumn,
+            gridRow,
+            background: KIND_BG[g.examKind],
+            color: KIND_TEXT[g.examKind],
+            fontWeight: 600,
+            borderLeft: `2px solid ${colors.borderStrong}`,
+            borderBottom: `1px solid ${colors.border}`,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {g.label}
+        </div>
+      );
     }
+    const borderColor = g.level === 'quarter' ? g.accent : FRAME[g.level].color;
+    const borderWidth = g.level === 'quarter' ? 3 : FRAME[g.level].border;
+    return (
+      <div
+        key={`g${i}`}
+        style={{
+          ...groupBaseStyle,
+          gridColumn,
+          gridRow,
+          background: GROUP_BG[g.level],
+          color: GROUP_COLOR[g.level],
+          fontWeight: GROUP_WEIGHT[g.level],
+          borderTop: `${borderWidth}px solid ${borderColor}`,
+          borderRight: `${borderWidth}px solid ${borderColor}`,
+          ...(g.level === 'half' ? { borderLeft: `${borderWidth}px solid ${borderColor}` } : null),
+        }}
+      >
+        {/* Arrow *before* the label, not after: the label's own rendered
+            width shrinks once its frame collapses to a single narrow
+            column (long ones truncate with an ellipsis), which would drag
+            a trailing arrow along with it. Leading the label instead pins
+            the arrow at frameStart+padding -- a fixed offset that never
+            depends on how wide the label ends up rendering. */}
+        <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</span>
+      </div>
+    );
+  };
 
-    return { student: s, cells };
-  });
+  // --- leaf header rendering ---
+  const renderLeafHeader = (l, i) => {
+    const gridColumn = `${colLine(i)} / ${colLine(i) + 1}`;
+    if (l.kind === 'lesson') {
+      const { dow, label } = formatShortDate(l.lesson.date);
+      return (
+        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${BODY_START}`, background: colors.mitBgStrong })}>
+          <span>{`${dow}\n${label}`}</span>
+          <WeightInput value={l.lesson.weight} onChange={(e) => api.updateLesson(l.lesson.id, { weight: parseWeight(e.target.value) })} />
+        </div>
+      );
+    }
+    if (l.kind === 'exam') {
+      const rowStart = l.direct ? ROW.kindOrKlassen : ROW.examTitle;
+      const title = l.work.title.length > 16 ? `${l.work.title.slice(0, 15)}…` : l.work.title;
+      return (
+        <div
+          key={`e${i}`}
+          style={leafHeaderStyle({
+            gridColumn,
+            gridRow: `${rowStart} / ${BODY_START}`,
+            background: KIND_BG[l.examKind],
+            color: KIND_TEXT[l.examKind],
+            ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null),
+          })}
+        >
+          <span>{wrapLabel(title)}</span>
+          <WeightInput value={l.work.weight} onChange={(e) => api.updateWrittenWork(l.work.id, { weight: parseWeight(e.target.value) })} />
+        </div>
+      );
+    }
+    if (l.kind === 'mitAvg') {
+      return (
+        <div
+          key={`ma${i}`}
+          style={leafHeaderStyle({
+            gridColumn,
+            gridRow: `${ROW.kindOrKlassen} / ${BODY_START}`,
+            background: colors.mitBgStrong,
+            color: colors.teal,
+            fontWeight: 600,
+            borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`,
+          })}
+        >
+          <span>Ø MIT.</span>
+          <WeightInput value={l.quarter.weight_mitarbeit} onChange={setQuarterWeight(l.quarter, 'weightMitarbeit')} />
+        </div>
+      );
+    }
+    if (l.kind === 'schrAvg') {
+      return (
+        <div
+          key={`sa${i}`}
+          style={leafHeaderStyle({
+            gridColumn,
+            gridRow: `${ROW.kindOrKlassen} / ${BODY_START}`,
+            background: colors.schBgStrong,
+            color: colors.gold,
+            fontWeight: 600,
+            borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`,
+          })}
+        >
+          <span>Ø SCHR.</span>
+          <WeightInput value={l.quarter.weight_schriftlich} onChange={setQuarterWeight(l.quarter, 'weightSchriftlich')} />
+        </div>
+      );
+    }
+    if (l.kind === 'qNote') {
+      return (
+        <div
+          key={`q${i}`}
+          style={leafHeaderStyle({
+            gridColumn,
+            gridRow: `${ROW.mitSchr} / ${BODY_START}`,
+            background: colors.qBg,
+            color: colors.teal,
+            fontWeight: 700,
+            borderRight: `3px solid ${l.accent}`,
+          })}
+        >
+          <span>{l.quarter.idx}.Q-Note</span>
+          <WeightInput value={l.quarter.weight_quarter} onChange={setQuarterWeight(l.quarter, 'weightQuarter')} />
+        </div>
+      );
+    }
+    if (l.kind === 'hjNote') {
+      // No `position: sticky` here (unlike Zeugnis below) -- the
+      // Halbjahresnote columns scroll away with the rest of the table now,
+      // by request, since keeping every half's own note pinned was the main
+      // source of both the ResizeObserver-driven lag and the border
+      // continuity bugs.
+      return (
+        <div
+          key={`h${i}`}
+          style={leafHeaderStyle({
+            gridColumn,
+            gridRow: `${ROW.quarter} / ${BODY_START}`,
+            background: colors.hBg,
+            color: colors.tealDark,
+            fontWeight: 700,
+            borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
+          })}
+        >
+          <span>{l.half.idx}.HJ-Note</span>
+          <WeightInput value={l.half.weight} onChange={setHalfWeight(l.half)} />
+        </div>
+      );
+    }
+    // zeugnis -- the only column besides Name that stays pinned while
+    // scrolling horizontally.
+    return (
+      <div
+        key="zeugnis"
+        style={leafHeaderStyle({
+          gridColumn,
+          gridRow: `${ROW.half} / ${BODY_START}`,
+          background: colors.sidebarBg,
+          color: '#fff',
+          fontWeight: 700,
+          borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}`,
+          position: isMobile ? 'static' : 'sticky',
+          right: isMobile ? undefined : 0,
+          zIndex: 2,
+        })}
+      >
+        ZEUGNIS
+      </div>
+    );
+  };
 
-  const colCount = r4.length + r3b.length + 2;
+  // --- body rendering ---
+  const renderBodyRow = (s, rowIdx) => {
+    const row = BODY_START + rowIdx;
+    const avgs = calcAverages(bundle, overrides, s.id, courseId);
 
-  // Weight fields sit at the bottom of their (often row-spanning) header
-  // cell, so every one of them — regardless of how many header rows its
-  // column spans — lines up in the same strip directly above the first
-  // student row instead of floating at whatever height vertical-centering
-  // would otherwise land it at.
-  const renderHeaderCell = (c, idx) => (
-    <th key={idx} ref={c.ref} colSpan={c.colSpan} rowSpan={c.rowSpan} style={c.weight ? { ...c.style, verticalAlign: 'bottom', paddingBottom: 6 } : c.style}>
-      {c.colKey === 'name' && <NameRightEdge />}
-      {c.stickyMask && (
-        // A sticky cell's box can land a subpixel off from its non-sticky
-        // neighbors once the table's been scrolled, showing as a hairline
-        // gap the whole length of its top and/or left edge. box-shadow can't
-        // paper over this — table cells under border-collapse don't paint it
-        // at all — so these are real, generously oversized elements in the
-        // same color instead, one banding the full top edge and one the
-        // full left edge. The left band defaults to this cell's own
-        // background, but stickyMaskLeftColor overrides it when a
-        // differently-colored, deliberately-drawn border (a quarter's own
-        // accent, say) runs along that exact edge and needs to keep
-        // showing instead of being painted over.
-        <>
-          <span style={{ position: 'absolute', top: -4, left: -4, right: -4, height: 8, background: c.stickyMask }} />
-          <span style={{ position: 'absolute', top: -4, left: -4, bottom: -4, width: 8, background: c.stickyMaskLeftColor ?? c.stickyMask }} />
-        </>
-      )}
-      {c.arrow ? (
-        // Arrow sits right next to the label, not pinned to the cell's own
-        // far corner — for a wide colSpan (a half or the whole year) that
-        // corner can land a column or more away from the label, right next
-        // to whatever frame happens to follow (e.g. Zeugnis).
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          {c.label}
-          <CollapseArrow collapsed={c.arrow.collapsed} onClick={c.arrow.onClick} dark={c.arrow.dark} />
-        </span>
-      ) : (
-        c.label
-      )}
-      {c.weight && <WeightInput value={c.weight.value} onChange={c.weight.onChange} />}
-    </th>
-  );
+    const nameCell = (
+      <div
+        key="name"
+        style={{
+          ...td({
+            justifyContent: 'flex-start',
+            textAlign: 'left',
+            background: rowIdx % 2 ? colors.cream : '#fff',
+            borderRight: `${2}px solid ${NAME_BORDER_COLOR}`,
+          }),
+          gridColumn: '1 / 2',
+          gridRow: `${row} / ${row + 1}`,
+          position: 'sticky',
+          left: 0,
+          zIndex: 1,
+        }}
+      >
+        <button onClick={() => onOpenStudent(s.id, 'matrix')} style={{ textAlign: 'left', fontWeight: 500, fontSize: 13 }}>
+          {rowIdx + 1}. {studentDisplayName(s)}
+          {studentKlasseLabel(s) && <span style={{ marginLeft: 6, fontWeight: 500, fontSize: 10.5, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
+        </button>
+      </div>
+    );
+
+    const leafCells = leaves.map((l, i) => {
+      const gridColumn = `${colLine(i)} / ${colLine(i) + 1}`;
+      const gridRow = `${row} / ${row + 1}`;
+      const key = `${l.kind}${i}`;
+
+      if (l.kind === 'lesson') {
+        const g = gradeOf(l.lesson.grades, s.id);
+        const v = num(g);
+        // An absence has no grade of its own -- show who was missing and
+        // whether it was excused right in the grade cell instead: a red "F"
+        // for unentschuldigt, a green "E" for entschuldigt.
+        const att = l.lesson.attendance.find((a) => a.student_id === s.id);
+        const absent = att?.status === 'fehlt';
+        const label = absent ? (att.excused ? 'E' : 'F') : g || '·';
+        const color = absent ? (att.excused ? colors.green : colors.red) : g ? gradeColor(v) : '#c4bba6';
+        return (
+          <div key={key} style={{ ...td({ background: colors.cream, color, ...GRADE_TYPE_SCALE.single, fontWeight: absent ? 700 : GRADE_TYPE_SCALE.single.fontWeight }), gridColumn, gridRow }}>
+            <button onClick={() => onOpenLesson(l.lesson.id)} title="Zur Mündlichen Mitarbeit" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
+              {label}
+            </button>
+          </div>
+        );
+      }
+      if (l.kind === 'exam') {
+        const g = gradeOf(l.work.grades, s.id);
+        const v = num(g);
+        return (
+          <div key={key} style={{ ...td({ background: KIND_BG_LIGHT[l.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }), gridColumn, gridRow }}>
+            <button onClick={() => onOpenWork(l.work.id)} title="Zu den Schriftlichen Leistungen" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
+              {g || '·'}
+            </button>
+          </div>
+        );
+      }
+      if (l.kind === 'mitAvg') {
+        const mit = avgs.mitByQuarter.get(l.quarter.id);
+        return (
+          <div
+            key={key}
+            style={{
+              ...td({ background: colors.mitBgStrong, color: mit.value == null ? '#c4bba6' : gradeColor(mit.value), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
+              gridColumn,
+              gridRow,
+            }}
+          >
+            {renderAvg(mit.value, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', l.quarter.id, mit.grade, e.currentTarget)))}
+          </div>
+        );
+      }
+      if (l.kind === 'schrAvg') {
+        const schr = avgs.schrByQuarter.get(l.quarter.id);
+        return (
+          <div
+            key={key}
+            style={{
+              ...td({ background: colors.schBgStrong, color: schr.value == null ? '#c4bba6' : gradeColor(schr.value), ...GRADE_TYPE_SCALE.average, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+              gridColumn,
+              gridRow,
+            }}
+          >
+            {renderAvg(schr.value, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', l.quarter.id, schr.grade, e.currentTarget)))}
+          </div>
+        );
+      }
+      if (l.kind === 'qNote') {
+        const q = avgs.qNoteByQuarter.get(l.quarter.id);
+        return (
+          <div key={key} style={{ ...td({ background: colors.qBg, color: q.value == null ? '#c4bba6' : gradeColor(q.value), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${l.accent}` }), gridColumn, gridRow }}>
+            {renderAvg(q.value, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', l.quarter.id, q.grade, e.currentTarget)))}
+          </div>
+        );
+      }
+      if (l.kind === 'hjNote') {
+        const h = avgs.hjByHalf.get(l.half.id);
+        return (
+          <div
+            key={key}
+            style={{
+              ...td({ background: colors.hBg, color: h.value == null ? '#c4bba6' : gradeColor(h.value), ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` }),
+              gridColumn,
+              gridRow,
+            }}
+          >
+            {renderAvg(h.value, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', l.half.id, h.grade, e.currentTarget)))}
+          </div>
+        );
+      }
+      // zeugnis
+      const z = avgs.zeugnis;
+      return (
+        <div
+          key={key}
+          style={{
+            ...td({ background: colors.sidebarBg, color: '#fff', ...GRADE_TYPE_SCALE.summary, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }),
+            gridColumn,
+            gridRow,
+            position: isMobile ? 'static' : 'sticky',
+            right: isMobile ? undefined : 0,
+            zIndex: 1,
+          }}
+        >
+          {renderAvg(z.value, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, e.currentTarget)))}
+        </div>
+      );
+    });
+
+    // `.ns-row` is `display:contents` (see global.css) -- its children
+    // still lay out as direct grid items via their own gridColumn/gridRow,
+    // but the wrapper lets a single, plain CSS `:hover` rule highlight the
+    // whole logical row without any onMouseEnter/onMouseLeave React state
+    // (and the whole-table re-render that used to cause on every row hover).
+    return (
+      <div className="ns-row" key={s.id}>
+        {nameCell}
+        {leafCells}
+      </div>
+    );
+  };
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -769,40 +695,29 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
       )}
 
       <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse' }} onMouseLeave={() => setHoverRow(null)}>
-          <thead>
-            {scope === 'year' && <tr>{r0.map(renderHeaderCell)}</tr>}
-            <tr>{r1.map(renderHeaderCell)}</tr>
-            <tr>{r2.map(renderHeaderCell)}</tr>
-            <tr>{r3.map(renderHeaderCell)}</tr>
-            <tr>{r3b.map(renderHeaderCell)}</tr>
-            <tr>{r4.map(renderHeaderCell)}</tr>
-          </thead>
-          <tbody>
-            {bodyRows.map(({ student, cells }, rowIdx) => (
-              <tr key={student.id} onMouseEnter={() => setHoverRow(rowIdx)}>
-                {cells.map((c) => (
-                  <td
-                    key={c.key}
-                    style={{
-                      ...c.style,
-                      boxShadow: [c.style.boxShadow, hoverRow === rowIdx && 'inset 0 0 0 999px rgba(15,91,82,.07)'].filter(Boolean).join(', ') || undefined,
-                    }}
-                  >
-                    {c.content}
-                  </td>
-                ))}
-              </tr>
-            ))}
-            {!students.length && (
-              <tr>
-                <td style={td({ textAlign: 'left' })} colSpan={colCount}>
-                  Noch niemand eingeschrieben.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div style={{ display: 'grid', width: 'max-content', gridTemplateColumns }}>
+          <div
+            style={{
+              ...leafHeaderStyle({ background: '#efece5', alignItems: 'flex-start', textAlign: 'left', justifyContent: 'center', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+              gridColumn: '1 / 2',
+              gridRow: `${ROW.half} / ${BODY_START}`,
+              position: isMobile ? 'static' : 'sticky',
+              left: 0,
+              zIndex: 3,
+            }}
+          >
+            SCHÜLER:IN
+          </div>
+
+          {groups.map(renderGroup)}
+          {leaves.map(renderLeafHeader)}
+
+          {students.map(renderBodyRow)}
+
+          {!students.length && (
+            <div style={{ ...td({ justifyContent: 'flex-start' }), gridColumn: `1 / ${totalCols + 1}`, gridRow: `${BODY_START} / ${BODY_START + 1}` }}>Noch niemand eingeschrieben.</div>
+          )}
+        </div>
       </div>
     </div>
   );
