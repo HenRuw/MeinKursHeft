@@ -40,4 +40,7 @@ export const fonts = {
   serif: 'Newsreader, serif',
 };
 
-export const QUARTER_ACCENTS = ['#0f5b52', '#7a5a08', '#5b3fa0', '#2a6f8b'];
+// Only 2 entries on purpose: indexed via (quarter.idx - 1) % length, so
+// quarters 3 and 4 repeat quarter 1 and 2's colors instead of introducing
+// two more.
+export const QUARTER_ACCENTS = ['#0f5b52', '#7a5a08'];

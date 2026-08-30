@@ -64,6 +64,10 @@ export function studentDisplayName(student) {
   return `${student.last_name}, ${student.first_name}`;
 }
 
+export function studentKlasseLabel(student) {
+  return student.klasse_name || null;
+}
+
 export function sortStudents(students) {
   return [...students].sort(
     (a, b) => a.last_name.localeCompare(b.last_name, 'de') || a.first_name.localeCompare(b.first_name, 'de')
@@ -81,6 +85,48 @@ export function writtenWorkKindLabel(kind) {
 }
 
 export { WRITTEN_WORK_KINDS };
+
+// Only Klassenarbeiten count as "schriftlich" — Tests and Sonstige Leistungen
+// are graded work but count toward Mitarbeit, alongside lesson grades.
+export const WRITTEN_WORK_GROUP = {
+  klassenarbeit: 'schriftlich',
+  test: 'mitarbeit',
+  sonstige: 'mitarbeit',
+};
+
+// Mitarbeit average: lesson grades (each weighted 1, i.e. a plain mean among
+// themselves) combined with any Test/Sonstige grades at their own weight.
+export function mitarbeitAverage(studentId, lessons, works) {
+  const pairs = [
+    ...lessons.map((l) => [num(l.grades.find((g) => g.student_id === studentId)?.grade), l.weight]),
+    ...works.filter((w) => WRITTEN_WORK_GROUP[w.kind] === 'mitarbeit').map((w) => [num(w.grades.find((g) => g.student_id === studentId)?.grade), w.weight]),
+  ];
+  return wavg(pairs);
+}
+
+// Schriftlich average: Klassenarbeiten only, weighted.
+export function schriftlichAverage(studentId, works) {
+  return wavg(
+    works.filter((w) => WRITTEN_WORK_GROUP[w.kind] === 'schriftlich').map((w) => [num(w.grades.find((g) => g.student_id === studentId)?.grade), w.weight])
+  );
+}
+
+// A manually-entered average stands in for its calculated counterpart
+// everywhere that average is shown — this is the single lookup both the
+// course-wide Notenübersicht and the embedded per-student one (Schueler-
+// ansicht reuses the same component) go through, so they can never disagree
+// about which averages are overridden.
+export function findOverride(overrides, studentId, kind, refId) {
+  return overrides.find((o) => o.student_id === studentId && o.kind === kind && o.ref_id === refId) || null;
+}
+
+// Resolves an average to its override when one exists, else the calculated
+// value — call sites feed the resolved `value` into anything computed from
+// it (Q-Note from Ø MIT./Ø SCHR., etc.) so an override cascades upward.
+export function resolveAverage(overrides, studentId, kind, refId, calculated) {
+  const override = findOverride(overrides, studentId, kind, refId);
+  return override ? { value: num(override.grade), overridden: true, grade: override.grade } : { value: calculated, overridden: false, grade: null };
+}
 
 // Inserts exactly one line break near the middle of a label, at the nearest
 // word boundary, so column headers wrap to exactly two lines.
