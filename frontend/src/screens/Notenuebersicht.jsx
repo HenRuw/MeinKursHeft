@@ -153,8 +153,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   // exactly like Stundenerfassung's and Schriftliche Leistungen' own
   // single-sided sticky roster column.
   const { isMobile } = useViewport();
-  const [showLessons, setShowLessons] = usePersisted(`notenuebersicht:${bundle.course.id}:showLessons`, true);
-  const [showWrittenSingles, setShowWrittenSingles] = usePersisted(`notenuebersicht:${bundle.course.id}:showWrittenSingles`, true);
   const [collapsed, setCollapsed] = usePersisted(`notenuebersicht:${bundle.course.id}:collapsed`, {
     year: false,
     half: {},
@@ -220,12 +218,12 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     const schrWorksAll = schrKindGroupsAll.flatMap((g) => g.works);
 
     const cols = [];
-    if (!mitCollapsed && showLessons) qLessonsAll.forEach((lesson) => cols.push({ kind: 'lesson', lesson }));
-    if (!mitCollapsed && showWrittenSingles) {
+    if (!mitCollapsed) qLessonsAll.forEach((lesson) => cols.push({ kind: 'lesson', lesson }));
+    if (!mitCollapsed) {
       mitKindGroupsAll.forEach((g) => g.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: g.kind })));
     }
     cols.push({ kind: 'mitAvg', lessons: qLessonsAll, works: mitWorksAll });
-    if (!schrCollapsed && showWrittenSingles) {
+    if (!schrCollapsed) {
       schrKindGroupsAll.forEach((g) => g.works.forEach((work) => cols.push({ kind: 'exam', work, examKind: g.kind })));
     }
     cols.push({ kind: 'schrAvg', works: schrWorksAll });
@@ -729,19 +727,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 24px', borderBottom: `1px solid ${colors.border}`, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setShowLessons((v) => !v)}
-          style={{ padding: '6px 12px', borderRadius: 99, fontSize: 12, fontWeight: 500, border: `1px solid ${colors.borderStrong}`, background: showLessons ? colors.tealTint : '#fff', color: colors.mutedStrong }}
-        >
-          {showLessons ? 'Einzelstunden ausblenden' : 'Einzelstunden einblenden'}
-        </button>
-        <button
-          onClick={() => setShowWrittenSingles((v) => !v)}
-          style={{ padding: '6px 12px', borderRadius: 99, fontSize: 12, fontWeight: 500, border: `1px solid ${colors.borderStrong}`, background: showWrittenSingles ? colors.tealTint : '#fff', color: colors.mutedStrong }}
-        >
-          {showWrittenSingles ? 'Einzelne Schriftl. Noten ausblenden' : 'Einzelne Schriftl. Noten einblenden'}
-        </button>
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: colors.muted }}>Gewichte im weißen Feld über jeder Note · Pfeil unten rechts klappt einen Rahmen ein/aus</span>
+        <span style={{ fontSize: 11.5, color: colors.muted }}>Gewichte im weißen Feld über jeder Note · Pfeil unten rechts klappt einen Rahmen ein/aus</span>
       </div>
 
       {allowGradeOverride && (
