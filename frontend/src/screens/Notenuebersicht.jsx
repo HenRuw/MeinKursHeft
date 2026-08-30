@@ -9,7 +9,6 @@ import {
   fmt,
   wavg,
   gradeColor,
-  parseWeight,
   GRADE_TYPE_SCALE,
   WRITTEN_WORK_KINDS,
   WRITTEN_WORK_GROUP,
@@ -302,8 +301,8 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const students = sortStudents(bundle.students);
   const { leaves, groups } = buildColumns(bundle, collapsed, toggles);
 
-  const setQuarterWeight = (quarter, field) => (e) => api.updateQuarter(quarter.id, { [field]: parseWeight(e.target.value) });
-  const setHalfWeight = (half) => (e) => api.updateHalf(half.id, { weight: parseWeight(e.target.value) });
+  const setQuarterWeight = (quarter, field) => (weight) => api.updateQuarter(quarter.id, { [field]: weight });
+  const setHalfWeight = (half) => (weight) => api.updateHalf(half.id, { weight });
 
   // Leaf index (0-based, Name excluded) -> grid column *line*: column 1 is
   // Name, so leaf 0 starts at line 2.
@@ -613,7 +612,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     if (l.kind === 'lesson') {
       return (
         <div key={`wl${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong })}>
-          <WeightInput value={l.lesson.weight} onChange={(e) => api.updateLesson(l.lesson.id, { weight: parseWeight(e.target.value) })} />
+          <WeightInput value={l.lesson.weight} onChange={(weight) => api.updateLesson(l.lesson.id, { weight })} />
         </div>
       );
     }
@@ -623,7 +622,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`we${i}`}
           style={weightRowStyle({ gridColumn, gridRow, background: KIND_BG[l.examKind], ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) })}
         >
-          <WeightInput value={l.work.weight} onChange={(e) => api.updateWrittenWork(l.work.id, { weight: parseWeight(e.target.value) })} />
+          <WeightInput value={l.work.weight} onChange={(weight) => api.updateWrittenWork(l.work.id, { weight })} />
         </div>
       );
     }
