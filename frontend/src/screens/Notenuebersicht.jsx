@@ -10,7 +10,6 @@ import {
   wavg,
   gradeColor,
   parseWeight,
-  wrapLabel,
   GRADE_TYPE_SCALE,
   WRITTEN_WORK_KINDS,
   WRITTEN_WORK_GROUP,
@@ -135,11 +134,11 @@ function buildColumns(bundle, collapsed, toggles) {
                 if (!g.works.length) return;
                 const kindStart = leaves.length;
                 g.works.forEach((work, idx) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, firstInKind: idx === 0 }));
-                groups.push({ level: 'kind', examKind: g.kind, label: SECTION_LABELS[g.kind], start: kindStart, end: leaves.length });
+                groups.push({ key: `kind-${quarter.id}-${g.kind}`, level: 'kind', examKind: g.kind, label: SECTION_LABELS[g.kind], start: kindStart, end: leaves.length });
               });
             }
             leaves.push({ kind: 'mitAvg', width: COL_WIDTH.mitAvg, quarter });
-            groups.push({ level: 'mit', label: 'MITARBEIT', quarter, start: mitStart, end: leaves.length, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
+            groups.push({ key: `mit-${quarter.id}`, level: 'mit', label: 'MITARBEIT', quarter, start: mitStart, end: leaves.length, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
 
             const schrStart = leaves.length;
             if (!schrCollapsed) {
@@ -150,12 +149,13 @@ function buildColumns(bundle, collapsed, toggles) {
               schrKindGroups.forEach((g) => g.works.forEach((work) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, direct: true })));
             }
             leaves.push({ kind: 'schrAvg', width: COL_WIDTH.schrAvg, quarter });
-            groups.push({ level: 'schr', label: 'KLASSENARBEITEN', quarter, start: schrStart, end: leaves.length, collapsed: schrCollapsed, onToggle: () => toggles.schr(quarter.id) });
+            groups.push({ key: `schr-${quarter.id}`, level: 'schr', label: 'KLASSENARBEITEN', quarter, start: schrStart, end: leaves.length, collapsed: schrCollapsed, onToggle: () => toggles.schr(quarter.id) });
           }
           leaves.push({ kind: 'qNote', width: COL_WIDTH.qNote, quarter, accent });
           groups.push({
+            key: `quarter-${quarter.id}`,
             level: 'quarter',
-            label: wrapLabel(`${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`),
+            label: `${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`,
             start: quarterStart,
             end: leaves.length,
             collapsed: qCollapsed,
@@ -165,7 +165,7 @@ function buildColumns(bundle, collapsed, toggles) {
         });
       }
       leaves.push({ kind: 'hjNote', width: COL_WIDTH.hjNote, half });
-      groups.push({ level: 'half', label: `${half.idx}. HALBJAHR`, start: halfStart, end: leaves.length, collapsed: hCollapsed, onToggle: () => toggles.half(half.id) });
+      groups.push({ key: `half-${half.id}`, level: 'half', label: `${half.idx}. HALBJAHR`, start: halfStart, end: leaves.length, collapsed: hCollapsed, onToggle: () => toggles.half(half.id) });
     });
   }
   leaves.push({ kind: 'zeugnis', width: COL_WIDTH.zeugnis });
@@ -173,7 +173,7 @@ function buildColumns(bundle, collapsed, toggles) {
   // column), not column 2 -- unlike every other frame, the year frame has no
   // separate Name cell of its own to cover that column in its header row, so
   // its background has to reach one column further left to avoid a gap.
-  groups.push({ level: 'year', label: 'GANZES SCHULJAHR', start: -1, end: leaves.length, collapsed: collapsed.year, onToggle: toggles.year });
+  groups.push({ key: 'year', level: 'year', label: 'GANZES SCHULJAHR', start: -1, end: leaves.length, collapsed: collapsed.year, onToggle: toggles.year });
 
   return { leaves, groups };
 }
@@ -298,24 +298,23 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     letterSpacing: '.06em',
     justifyContent: 'flex-start',
     textAlign: 'left',
-    overflow: 'hidden',
-    // 'pre' (not 'pre-wrap'): honors wrapLabel's one deliberate \n (the
-    // quarter date-range break) but never wraps at any other space. That
-    // matters most once a frame collapses down to a single narrow column --
-    // 'pre-wrap' would let a long label like "1. HALBJAHR" reflow across
-    // several lines in that squeezed width, which shifts the row's height
-    // and moves the collapse arrow right after you click it.
-    whiteSpace: 'pre',
-    textOverflow: 'ellipsis',
   };
   // Leaf headers (individual columns): label + optional weight input,
   // bottom-anchored so every weight field -- regardless of how tall its own
   // column header is (Zeugnis spans far more rows than a lesson date) --
   // lines up in the same strip directly above the first student row.
+  //
+  // No `alignItems: 'center'` here (default is 'stretch'): the label span
+  // has no width of its own, so stretching it to the full column width is
+  // what lets it actually wrap within that width instead of shrink-wrapping
+  // to its unbroken text size. WeightInput sets its own explicit width, so
+  // it isn't affected by the stretch and still centers itself via its own
+  // margin:auto. `overflow:hidden` stays only as a last-resort safety net --
+  // the grid row itself grows to fit however many lines a label wraps to,
+  // so it's normally never triggered.
   const leafHeaderStyle = (extra) => ({
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 2,
     padding: '5px 4px 6px',
@@ -323,9 +322,10 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     color: colors.mutedStrong,
     letterSpacing: '.06em',
     textAlign: 'center',
-    whiteSpace: 'pre',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
     borderBottom: `1px solid ${colors.border}`,
     ...extra,
   });
@@ -346,14 +346,14 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const GROUP_COLOR = { year: '#fff', half: colors.tealDark, quarter: colors.mutedStrong, mit: colors.mutedStrong, schr: colors.mutedStrong };
   const GROUP_WEIGHT = { year: 700, half: 700, quarter: 600, mit: 500, schr: 500 };
 
-  const renderGroup = (g, i) => {
+  const renderGroup = (g) => {
     const row = GROUP_ROW[g.level];
     const gridColumn = `${colLine(g.start)} / ${colLine(g.end)}`;
     const gridRow = `${row} / ${row + 1}`;
     if (g.level === 'kind') {
       return (
         <div
-          key={`g${i}`}
+          key={g.key}
           style={{
             ...groupBaseStyle,
             gridColumn,
@@ -365,6 +365,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderBottom: `1px solid ${colors.border}`,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
           }}
         >
           {g.label}
@@ -375,7 +376,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     const borderWidth = g.level === 'quarter' ? 3 : FRAME[g.level].border;
     return (
       <div
-        key={`g${i}`}
+        key={g.key}
         style={{
           ...groupBaseStyle,
           gridColumn,
@@ -388,14 +389,27 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           ...(g.level === 'half' ? { borderLeft: `${borderWidth}px solid ${borderColor}` } : null),
         }}
       >
-        {/* Arrow *before* the label, not after: the label's own rendered
-            width shrinks once its frame collapses to a single narrow
-            column (long ones truncate with an ellipsis), which would drag
-            a trailing arrow along with it. Leading the label instead pins
-            the arrow at frameStart+padding -- a fixed offset that never
-            depends on how wide the label ends up rendering. */}
+        {/* Arrow *before* the label, not after: the label wraps onto
+            further lines (below) rather than truncating once its frame is
+            too narrow to fit it on one line, which would drag a trailing
+            arrow sideways along with it. Leading the label instead pins the
+            arrow at frameStart+padding -- a fixed offset that never depends
+            on how the label ends up wrapping. */}
         <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
-        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</span>
+        {/* Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
+            average column's width (~40-44px) -- whether from being manually
+            collapsed, or simply because there's no lesson/exam data for
+            them to show -- past the arrow and padding, too little room for
+            even a single letter per line to stay readable, so word-break
+            there degenerates into one character per line instead of real
+            words. The arrow alone is enough to convey "collapsed/empty,
+            click to toggle" at that width; the label comes back the moment
+            there's a real word's worth of room (year never shrinks this far
+            -- it still spans Name+Zeugnis -- so it always keeps its
+            label). */}
+        {(g.end - g.start > 1 || g.level === 'year') && (
+          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
+        )}
       </div>
     );
   };
@@ -414,7 +428,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     }
     if (l.kind === 'exam') {
       const rowStart = l.direct ? ROW.kindOrKlassen : ROW.examTitle;
-      const title = l.work.title.length > 16 ? `${l.work.title.slice(0, 15)}…` : l.work.title;
       return (
         <div
           key={`e${i}`}
@@ -426,7 +439,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null),
           })}
         >
-          <span>{wrapLabel(title)}</span>
+          <span>{l.work.title}</span>
           <WeightInput value={l.work.weight} onChange={(e) => api.updateWrittenWork(l.work.id, { weight: parseWeight(e.target.value) })} />
         </div>
       );
