@@ -434,9 +434,15 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           background: GROUP_BG[g.level],
           color: GROUP_COLOR[g.level],
           fontWeight: GROUP_WEIGHT[g.level],
+          // No borderLeft, even for half (unlike an earlier version of
+          // this): it only ever existed on this one row, so where a half's
+          // left edge meets Name's own (thinner, but genuinely continuous
+          // top-to-bottom) border, that extra 4px only on the header row
+          // read as thicker there than everywhere below it. Name's own
+          // border is already the consistent divider; this would just
+          // double it up unevenly.
           borderTop: `${borderWidth}px solid ${borderColor}`,
           borderRight: `${borderWidth}px solid ${borderColor}`,
-          ...(g.level === 'half' ? { borderLeft: `${borderWidth}px solid ${borderColor}` } : null),
         }}
       >
         {/* Arrow *before* the label, not after: the label wraps onto
