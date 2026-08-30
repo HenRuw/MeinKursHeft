@@ -1,14 +1,33 @@
 import { useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
-import { sortStudents, studentDisplayName } from '../lib/gradeMath.js';
+import { studentDisplayName } from '../lib/gradeMath.js';
 import { parseStudentsFile } from '../lib/studentImport.js';
 
 const th = { font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em', textAlign: 'left', padding: '8px 12px' };
 const td = { padding: '9px 12px', borderTop: `1px solid ${colors.divider}`, fontSize: 13 };
+const selectStyle = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, background: '#fff' };
 
-function klasseLabel(k) {
-  return `${k.name} (Jg. ${k.jahrgang})`;
+const SORT_OPTIONS = [
+  { value: 'lastName', label: 'Nachname' },
+  { value: 'firstName', label: 'Vorname' },
+  { value: 'klasse', label: 'Klasse' },
+];
+
+function sortStudentsBy(students, sortBy) {
+  return [...students].sort((a, b) => {
+    if (sortBy === 'firstName') {
+      return a.first_name.localeCompare(b.first_name, 'de') || a.last_name.localeCompare(b.last_name, 'de');
+    }
+    if (sortBy === 'klasse') {
+      return (
+        (a.klasse_name || '').localeCompare(b.klasse_name || '', 'de') ||
+        a.last_name.localeCompare(b.last_name, 'de') ||
+        a.first_name.localeCompare(b.first_name, 'de')
+      );
+    }
+    return a.last_name.localeCompare(b.last_name, 'de') || a.first_name.localeCompare(b.first_name, 'de');
+  });
 }
 
 export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, klassen, onRefreshKlassen }) {
@@ -20,12 +39,13 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
   const [editFirst, setEditFirst] = useState('');
   const [editLast, setEditLast] = useState('');
   const [editKlasseName, setEditKlasseName] = useState('');
+  const [sortBy, setSortBy] = useState('lastName');
   const [importPreview, setImportPreview] = useState(null); // [{ firstName, lastName, skip }]
   const [importError, setImportError] = useState('');
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
 
-  const sorted = sortStudents(allStudents);
+  const sorted = sortStudentsBy(allStudents, sortBy);
   const sortedKlassen = [...klassen].sort((a, b) => a.jahrgang - b.jahrgang || a.name.localeCompare(b.name, 'de'));
 
   // Resolves a typed class name to a klasseId, creating the class on the fly
@@ -186,6 +206,17 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
           </div>
         )}
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 12, color: colors.mutedStrong }}>Sortieren nach:</span>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={selectStyle}>
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <table style={{ width: '100%', borderCollapse: 'collapse', background: colors.cardBg, border: `1px solid ${colors.borderCard}`, borderRadius: 11, overflow: 'hidden' }}>
           <thead>
             <tr style={{ background: '#faf8f4' }}>
@@ -220,7 +251,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
                 ) : (
                   <>
                     <td style={{ ...td, fontWeight: 500 }}>{studentDisplayName(s)}</td>
-                    <td style={td}>{s.klasse_name ? klasseLabel({ name: s.klasse_name, jahrgang: s.klasse_jahrgang }) : '–'}</td>
+                    <td style={td}>{s.klasse_name || '–'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>
                       <button onClick={() => startEdit(s)} style={{ fontSize: 12, color: colors.teal, marginRight: 12 }}>
                         Bearbeiten
