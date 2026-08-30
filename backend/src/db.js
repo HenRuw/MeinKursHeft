@@ -1,8 +1,29 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 const initSqlJs = require('sql.js');
 
 const DEFAULT_DB_PATH = path.join(__dirname, '..', 'data', 'scorespace.sqlite');
+
+// Feature branches get their own on-disk database, so schema experiments on
+// one branch (e.g. an ALTER TABLE that isn't a clean no-op on `main`) can
+// never bleed into another branch's local dev data. `main`/`master` keep the
+// original, suffix-less filename so existing setups/scripts are unaffected;
+// git failures (no repo, detached worktree, git not installed) fall back to
+// that same default rather than breaking startup.
+function defaultDbPathForBranch() {
+  let branch;
+  try {
+    branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: __dirname, stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+  } catch {
+    return DEFAULT_DB_PATH;
+  }
+  if (!branch || branch === 'main' || branch === 'master' || branch === 'HEAD') return DEFAULT_DB_PATH;
+  const slug = branch.replace(/[^a-zA-Z0-9._-]+/g, '-');
+  return path.join(__dirname, '..', 'data', `scorespace.${slug}.sqlite`);
+}
 
 const DEFAULT_PRESETS = [
   { emoji: '🗣️', text: 'Stört den Unterricht' },
@@ -150,7 +171,7 @@ async function init(customPath) {
     SQL = await initSqlJs();
   }
 
-  dbPath = customPath || process.env.DB_PATH || DEFAULT_DB_PATH;
+  dbPath = customPath || process.env.DB_PATH || defaultDbPathForBranch();
 
   if (dbPath !== ':memory:' && fs.existsSync(dbPath)) {
     const fileBuffer = fs.readFileSync(dbPath);
