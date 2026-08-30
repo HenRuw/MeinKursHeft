@@ -828,6 +828,21 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               </button>
             </div>
             <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} />
+            {/* Only when this cell already carries a manual override --
+                openOverrideEdit seeds `grade` from the resolved average's
+                own `grade` field, which is null unless resolveAverage found
+                one. Resetting is just setOverrideGrade(null): the same PUT
+                every other pick here already goes through, and the backend
+                already treats an empty grade as "delete the override" (see
+                the route's own comment) -- there's no separate reset call. */}
+            {overrideEdit?.grade && (
+              <button
+                onClick={() => setOverrideGrade(null)}
+                style={{ padding: '8px 12px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.mutedStrong, background: colors.cream }}
+              >
+                Reset
+              </button>
+            )}
           </div>
         </Popover>
       )}
