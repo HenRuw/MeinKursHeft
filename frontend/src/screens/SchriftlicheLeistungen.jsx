@@ -23,6 +23,11 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   const { isDesktop } = useViewport();
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const [activeWorkId, setActiveWorkId] = useState(null);
+  // The student row to highlight after arriving via a grade clicked in the
+  // Notenübersicht — cleared by App itself (setFocusWork(null)) the moment
+  // you leave this tab, so a plain remount without a fresh initialWork just
+  // leaves this at its null default instead of reapplying a stale one.
+  const [highlightedStudentId, setHighlightedStudentId] = useState(null);
   const addBtnRef = useRef(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newKind, setNewKind] = useState('klassenarbeit');
@@ -51,6 +56,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
     // sidebar rather than just selected behind a closed group.
     if (initialWork != null) {
       setActiveWorkId(initialWork.id);
+      setHighlightedStudentId(initialWork.highlightStudentId ?? null);
       const target = bundle.writtenWorks.find((w) => w.id === initialWork.id);
       if (target) setCollapsedKinds((cur) => ({ ...cur, [target.kind]: false }));
       return;
@@ -324,25 +330,44 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 — sticky's `left` accounts for the row's own 24px padding,
                 same reasoning as Stundenerfassung's roster. */}
             <div className="scroll-panel" style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
-              {students.map((s, i) => (
-                <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '26px 200px 286px 1fr', alignItems: 'center', gap: 14, padding: '7px 24px', borderBottom: `1px solid ${colors.divider}`, minWidth: 'max-content' }}>
-                  <span style={{ position: 'sticky', left: 24, background: colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                  <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 64, background: colors.panelBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
-                    {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
-                  </button>
-                  <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} />
-                  <RemarkPicker
-                    remarks={remarksFor(s.id)}
-                    presets={presets}
-                    onAddPreset={addPreset(s.id)}
-                    onAddCustom={addCustom(s.id)}
-                    onUpdateRemark={updateRemark}
-                    onDeleteRemark={deleteRemark}
-                    onDeletePreset={deletePreset}
-                  />
-                </div>
-              ))}
+              {students.map((s, i) => {
+                // The row a grade was clicked for, coming from the
+                // Notenübersicht — see highlightedStudentId's own comment.
+                const highlighted = s.id === highlightedStudentId;
+                const rowBg = highlighted ? colors.goldBg : undefined;
+                return (
+                  <div
+                    key={s.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '26px 200px 286px 1fr',
+                      alignItems: 'center',
+                      gap: 14,
+                      padding: '7px 24px',
+                      borderBottom: `1px solid ${colors.divider}`,
+                      borderLeft: `3px solid ${highlighted ? colors.gold : 'transparent'}`,
+                      background: rowBg,
+                      minWidth: 'max-content',
+                    }}
+                  >
+                    <span style={{ position: 'sticky', left: 24, background: rowBg ?? colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 64, background: rowBg ?? colors.panelBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
+                      {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
+                    </button>
+                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} />
+                    <RemarkPicker
+                      remarks={remarksFor(s.id)}
+                      presets={presets}
+                      onAddPreset={addPreset(s.id)}
+                      onAddCustom={addCustom(s.id)}
+                      onUpdateRemark={updateRemark}
+                      onDeleteRemark={deleteRemark}
+                      onDeletePreset={deletePreset}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </>
         )}

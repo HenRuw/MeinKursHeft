@@ -716,7 +716,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         const color = absent ? (att.excused ? colors.green : colors.red) : g ? gradeColor(v) : '#c4bba6';
         return (
           <div key={key} style={{ ...td({ background: colors.cream, color, ...GRADE_TYPE_SCALE.single, fontWeight: absent ? 700 : GRADE_TYPE_SCALE.single.fontWeight }), gridColumn, gridRow }}>
-            <button onClick={() => onOpenLesson(l.lesson.id)} title="Zur Mündlichen Mitarbeit" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
+            <button onClick={() => onOpenLesson(l.lesson.id, s.id)} title="Zur Mündlichen Mitarbeit" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
               {label}
             </button>
           </div>
@@ -727,7 +727,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         const v = num(g);
         return (
           <div key={key} style={{ ...td({ background: KIND_BG_LIGHT[l.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }), gridColumn, gridRow }}>
-            <button onClick={() => onOpenWork(l.work.id)} title="Zu den Schriftlichen Leistungen" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
+            <button onClick={() => onOpenWork(l.work.id, s.id)} title="Zu den Schriftlichen Leistungen" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
               {g || '·'}
             </button>
           </div>

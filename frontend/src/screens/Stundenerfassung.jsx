@@ -35,6 +35,11 @@ function Stepper({ value, onChange, min = 1, max = 30, suffix = '' }) {
 export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets, initialLesson }) {
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const [activeLessonId, setActiveLessonId] = useState(null);
+  // The student row to highlight after arriving via a grade clicked in the
+  // Notenübersicht — cleared by App itself (setFocusLesson(null)) the moment
+  // you leave this tab, so a plain remount without a fresh initialLesson
+  // just leaves this at its null default instead of reapplying a stale one.
+  const [highlightedStudentId, setHighlightedStudentId] = useState(null);
   const addBtnRef = useRef(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newDate, setNewDate] = useState(todayISO());
@@ -57,6 +62,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
     // clicking the same lesson again, so this always re-fires).
     if (initialLesson != null) {
       setActiveLessonId(initialLesson.id);
+      setHighlightedStudentId(initialLesson.highlightStudentId ?? null);
       return;
     }
     if (!allLessons.some((l) => l.id === activeLessonId)) {
@@ -327,10 +333,27 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               const att = attendanceFor(s.id);
               const status = att?.status || 'anwesend';
               const absent = status === 'fehlt';
+              // The row a grade was clicked for, coming from the
+              // Notenübersicht — see highlightedStudentId's own comment.
+              const highlighted = s.id === highlightedStudentId;
+              const rowBg = highlighted ? colors.goldBg : undefined;
               return (
-                <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '26px 168px 118px 108px 286px 1fr', alignItems: 'center', gap: 14, padding: '7px 24px', borderBottom: `1px solid ${colors.divider}`, minWidth: 'max-content' }}>
-                  <span style={{ position: 'sticky', left: 24, background: colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                  <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 64, background: colors.panelBg, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+                <div
+                  key={s.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '26px 168px 118px 108px 286px 1fr',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '7px 24px',
+                    borderBottom: `1px solid ${colors.divider}`,
+                    borderLeft: `3px solid ${highlighted ? colors.gold : 'transparent'}`,
+                    background: rowBg,
+                    minWidth: 'max-content',
+                  }}
+                >
+                  <span style={{ position: 'sticky', left: 24, background: rowBg ?? colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                  <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 64, background: rowBg ?? colors.panelBg, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
                     <span style={{ flex: 'none', width: 26, height: 26, borderRadius: 99, background: '#e3e8e5', color: absent ? colors.faint : colors.mutedStrong, font: `600 10px ${fonts.mono}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {s.first_name[0]}
                       {s.last_name[0]}

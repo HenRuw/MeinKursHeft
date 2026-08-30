@@ -107,6 +107,22 @@ export default function App() {
     refreshBundle(courseId);
   }, [courseId, refreshBundle]);
 
+  // Clears the drill-down state (which lesson/work to jump to, which
+  // student's row to highlight there) the moment you leave that tab —
+  // however you leave it: a tab click, "Zurück", switching courses, all go
+  // through `screen` changing. Without this, returning to 'stunde'/'ka'
+  // later (a plain tab click, not a fresh grade click from Notenübersicht)
+  // would still find the old focusLesson/focusWork sitting there and
+  // re-apply a jump/highlight that has nothing to do with how you actually
+  // got there this time — the whole point is that it only ever reflects the
+  // *most recent* arrival, for exactly as long as you stay on that tab.
+  useEffect(() => {
+    if (screen !== 'stunde') setFocusLesson(null);
+  }, [screen]);
+  useEffect(() => {
+    if (screen !== 'ka') setFocusWork(null);
+  }, [screen]);
+
   useEffect(
     () =>
       subscribeSync(({ resource, courseId: changedCourseId }) => {
@@ -146,18 +162,23 @@ export default function App() {
 
   // `from` is 'matrix' when a grade was clicked in the course-wide
   // Notenübersicht, or 'student' when clicked in a student's own grade table
-  // on their Schueleransicht page — studentId itself doesn't need touching
-  // either way, since it's already whatever it was set to get there.
-  const openLessonForEditing = (lessonId, from) => {
+  // on their Schueleransicht page — the App-level `studentId` (which student
+  // Schueleransicht itself is showing) doesn't need touching either way,
+  // since it's already whatever it was set to get there. `highlightStudentId`
+  // is a different thing: whichever student's grade was actually clicked, so
+  // that row can be highlighted on the destination screen — matrix and
+  // student both feed it the same way (Notenuebersicht passes the row's own
+  // student id from either context).
+  const openLessonForEditing = (lessonId, from, highlightStudentId) => {
     focusTokenRef.current += 1;
-    setFocusLesson({ id: lessonId, token: focusTokenRef.current });
+    setFocusLesson({ id: lessonId, token: focusTokenRef.current, highlightStudentId });
     setReturnScreen(from);
     setScreen('stunde');
   };
 
-  const openWorkForEditing = (workId, from) => {
+  const openWorkForEditing = (workId, from, highlightStudentId) => {
     focusTokenRef.current += 1;
-    setFocusWork({ id: workId, token: focusTokenRef.current });
+    setFocusWork({ id: workId, token: focusTokenRef.current, highlightStudentId });
     setReturnScreen(from);
     setScreen('ka');
   };
@@ -494,8 +515,8 @@ export default function App() {
                 bundle={bundle}
                 onRefresh={onRefreshBundle}
                 onOpenStudent={openStudent}
-                onOpenLesson={(id) => openLessonForEditing(id, 'matrix')}
-                onOpenWork={(id) => openWorkForEditing(id, 'matrix')}
+                onOpenLesson={(id, sid) => openLessonForEditing(id, 'matrix', sid)}
+                onOpenWork={(id, sid) => openWorkForEditing(id, 'matrix', sid)}
                 allowGradeOverride
               />
             )}
@@ -504,8 +525,8 @@ export default function App() {
                 bundle={bundle}
                 studentId={studentId}
                 onBack={() => setScreen(fromScreen)}
-                onOpenLesson={(id) => openLessonForEditing(id, 'student')}
-                onOpenWork={(id) => openWorkForEditing(id, 'student')}
+                onOpenLesson={(id, sid) => openLessonForEditing(id, 'student', sid)}
+                onOpenWork={(id, sid) => openWorkForEditing(id, 'student', sid)}
               />
             )}
           </>
