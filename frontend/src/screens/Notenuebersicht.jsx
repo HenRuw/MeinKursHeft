@@ -48,7 +48,10 @@ const FRAME = {
 // unlike an HTML table's border-collapse, nothing merges it with a
 // neighbor's border, so nothing can knock it a subpixel out of alignment
 // while a sticky cell scrolls past.
-const COL_WIDTH = { name: 190, lesson: 36, exam: 44, mitAvg: 40, schrAvg: 40, qNote: 44, hjNote: 44, zeugnis: 44 };
+// Every kind but zeugnis carries a WeightInput (free-text "Gewicht" field)
+// in its header -- those are a touch wider than the display-only zeugnis
+// column so the input isn't flush against the column's own edges.
+const COL_WIDTH = { name: 190, lesson: 44, exam: 52, mitAvg: 48, schrAvg: 48, qNote: 52, hjNote: 52, zeugnis: 44 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
 // Header grid rows, top to bottom; body rows start right after.
