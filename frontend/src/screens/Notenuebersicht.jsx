@@ -143,8 +143,22 @@ function buildColumns(bundle, collapsed, toggles) {
                 groups.push({ key: `kind-${quarter.id}-${g.kind}`, level: 'kind', examKind: g.kind, label: SECTION_LABELS[g.kind], start: kindStart, end: leaves.length });
               });
             }
-            leaves.push({ kind: 'mitAvg', width: COL_WIDTH.mitAvg, quarter });
-            groups.push({ key: `mit-${quarter.id}`, level: 'mit', label: 'MITARBEIT', quarter, start: mitStart, end: leaves.length, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
+            const mitAvgLeaf = { kind: 'mitAvg', width: COL_WIDTH.mitAvg, quarter };
+            leaves.push(mitAvgLeaf);
+            const mitEnd = leaves.length;
+            groups.push({ key: `mit-${quarter.id}`, level: 'mit', label: 'MITARBEIT', quarter, start: mitStart, end: mitEnd, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
+            // A frame that ends up exactly one leaf wide (its own average
+            // column, nothing else) is too narrow for a normal horizontal
+            // label -- see renderGroup's `narrow` case. Rather than render
+            // that label out-of-flow (which can't guarantee it stays within
+            // the space actually available -- see renderLeafHeader's own
+            // comment on narrowGroupLabel for why that broke), attach it to
+            // this leaf instead: its cell already spans several rows and
+            // grid-auto-sizes them for real, so stacking the frame's label
+            // above the leaf's own one there is naturally overlap-free,
+            // reusing already-tall rows from sibling columns when there are
+            // any and only growing its own tracks when there aren't.
+            if (mitEnd - mitStart <= 1) mitAvgLeaf.narrowGroupLabel = 'MITARBEIT';
 
             const schrStart = leaves.length;
             if (!schrCollapsed) {
@@ -154,24 +168,33 @@ function buildColumns(bundle, collapsed, toggles) {
               // Sonstige above.
               schrKindGroups.forEach((g) => g.works.forEach((work) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, direct: true })));
             }
-            leaves.push({ kind: 'schrAvg', width: COL_WIDTH.schrAvg, quarter });
-            groups.push({ key: `schr-${quarter.id}`, level: 'schr', label: 'KLASSENARBEITEN', quarter, start: schrStart, end: leaves.length, collapsed: schrCollapsed, onToggle: () => toggles.schr(quarter.id) });
+            const schrAvgLeaf = { kind: 'schrAvg', width: COL_WIDTH.schrAvg, quarter };
+            leaves.push(schrAvgLeaf);
+            const schrEnd = leaves.length;
+            groups.push({ key: `schr-${quarter.id}`, level: 'schr', label: 'KLASSENARBEITEN', quarter, start: schrStart, end: schrEnd, collapsed: schrCollapsed, onToggle: () => toggles.schr(quarter.id) });
+            if (schrEnd - schrStart <= 1) schrAvgLeaf.narrowGroupLabel = 'KLASSENARBEITEN';
           }
-          leaves.push({ kind: 'qNote', width: COL_WIDTH.qNote, quarter, accent });
+          const qNoteLeaf = { kind: 'qNote', width: COL_WIDTH.qNote, quarter, accent };
+          leaves.push(qNoteLeaf);
+          const quarterEnd = leaves.length;
           groups.push({
             key: `quarter-${quarter.id}`,
             level: 'quarter',
             label: `${quarter.idx}. Quartal`,
             start: quarterStart,
-            end: leaves.length,
+            end: quarterEnd,
             collapsed: qCollapsed,
             onToggle: () => toggles.quarter(quarter.id),
             accent,
           });
+          if (quarterEnd - quarterStart <= 1) qNoteLeaf.narrowGroupLabel = `${quarter.idx}. Quartal`;
         });
       }
-      leaves.push({ kind: 'hjNote', width: COL_WIDTH.hjNote, half });
-      groups.push({ key: `half-${half.id}`, level: 'half', label: `${half.idx}. HALBJAHR`, start: halfStart, end: leaves.length, collapsed: hCollapsed, onToggle: () => toggles.half(half.id) });
+      const hjNoteLeaf = { kind: 'hjNote', width: COL_WIDTH.hjNote, half };
+      leaves.push(hjNoteLeaf);
+      const halfEnd = leaves.length;
+      groups.push({ key: `half-${half.id}`, level: 'half', label: `${half.idx}. HALBJAHR`, start: halfStart, end: halfEnd, collapsed: hCollapsed, onToggle: () => toggles.half(half.id) });
+      if (halfEnd - halfStart <= 1) hjNoteLeaf.narrowGroupLabel = `${half.idx}. HALBJAHR`;
     });
   }
   leaves.push({ kind: 'zeugnis', width: COL_WIDTH.zeugnis });
@@ -391,6 +414,15 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     }
     const borderColor = g.level === 'quarter' ? g.accent : FRAME[g.level].color;
     const borderWidth = g.level === 'quarter' ? 3 : FRAME[g.level].border;
+    // Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
+    // average column's width (~44-52px) -- too narrow for the label to wrap
+    // horizontally (word-break degenerates into one character per line at
+    // that width). Its label isn't rendered here at all in that case --
+    // buildColumns already attached it (as narrowGroupLabel) to this frame's
+    // own average leaf instead, which renderLeafHeader stacks above its own
+    // label using ordinary document flow, so the grid can size that multi-
+    // row cell for real instead of guessing. This row keeps only the arrow,
+    // which needs no more height than the arrow itself.
     const narrow = g.end - g.start <= 1 && g.level !== 'year';
     return (
       <div
@@ -405,9 +437,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           borderTop: `${borderWidth}px solid ${borderColor}`,
           borderRight: `${borderWidth}px solid ${borderColor}`,
           ...(g.level === 'half' ? { borderLeft: `${borderWidth}px solid ${borderColor}` } : null),
-          // Only needed as the vertical label's positioning anchor below,
-          // but harmless to always set.
-          position: 'relative',
         }}
       >
         {/* Arrow *before* the label, not after: the label wraps onto
@@ -417,38 +446,21 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             arrow at frameStart+padding -- a fixed offset that never depends
             on how the label ends up wrapping. */}
         <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
-        {narrow ? (
-          // Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
-          // average column's width (~44-52px) -- too narrow for the label to
-          // wrap horizontally, so it reads top-to-bottom instead (see the
-          // non-narrow branch's comment for why it can't just disappear).
-          // Positioned absolutely (out of flow) rather than a normal flex
-          // child: this row almost always shares its row *track* with a
-          // sibling column that's already taller for unrelated reasons (a
-          // lesson list, a long exam title, ...), so there's already free
-          // vertical space below the arrow -- an in-flow vertical label would
-          // demand that same height a second time, over on top of it,
-          // pushing every row below (down through the student rows) that
-          // much further. Out of flow, it just reads down into whatever
-          // space is already there instead of adding to it.
-          <span
-            style={{
-              position: 'absolute',
-              top: 5,
-              left: 26, // padding-left(8) + arrow width(14) + gap(4)
-              whiteSpace: 'nowrap',
-              writingMode: 'vertical-rl',
-              textOrientation: 'mixed',
-            }}
-          >
-            {g.label}
-          </span>
-        ) : (
+        {!narrow && (
           <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
         )}
       </div>
     );
   };
+
+  // A too-narrow frame's own label (see buildColumns' narrowGroupLabel
+  // comment above): stacked as a normal, in-flow child of the leaf cell it's
+  // attached to, so the grid sizes that cell for real -- reusing height
+  // already there from a taller sibling column when there is any, growing
+  // this cell's own tracks when there isn't, but never overlapping anything
+  // either way.
+  const NarrowGroupLabel = ({ label }) =>
+    label ? <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', whiteSpace: 'nowrap', alignSelf: 'center' }}>{label}</span> : null;
 
   // --- leaf header rendering ---
   // Every rowSpan below ends at ROW.weight, not BODY_START: the label stops
@@ -494,6 +506,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`,
           })}
         >
+          <NarrowGroupLabel label={l.narrowGroupLabel} />
           <span>Ø MIT.</span>
         </div>
       );
@@ -511,6 +524,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`,
           })}
         >
+          <NarrowGroupLabel label={l.narrowGroupLabel} />
           <span>Ø SCHR.</span>
         </div>
       );
@@ -528,6 +542,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `3px solid ${l.accent}`,
           })}
         >
+          <NarrowGroupLabel label={l.narrowGroupLabel} />
           <span>{l.quarter.idx}.Q-Note</span>
         </div>
       );
@@ -550,6 +565,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
           })}
         >
+          <NarrowGroupLabel label={l.narrowGroupLabel} />
           <span>{l.half.idx}.HJ-Note</span>
         </div>
       );
