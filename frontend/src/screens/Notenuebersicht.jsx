@@ -529,11 +529,21 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
 
       // Same reasoning as Q-Note above: HJ-Note is half's own average,
       // pushed after all of this half's quarters.
+      const lastQuarterInHalf = quarterCols[quarterCols.length - 1]?.quarter;
+      const hjNoteLeftAccent = lastQuarterInHalf ? QUARTER_ACCENTS[(lastQuarterInHalf.idx - 1) % QUARTER_ACCENTS.length] : colors.hBg;
       r2.push({
         label: `${half.idx}.HJ-Note`,
         rowSpan: 4,
         weight: { value: half.weight, onChange: setHalfWeight(half) },
         stickyMask: colors.hBg,
+        // The last quarter's own accent-colored borderRight sits directly to
+        // the left of this cell — the plain stickyMask above would otherwise
+        // paint straight over it for this cell's entire height (it's sized
+        // to hide a sub-pixel hairline, not a deliberately colored 3px
+        // border), breaking that quarter's frame outline exactly like
+        // Klassenarbeiten's did. Redraw it in the matching accent color
+        // instead of the half's own background, same fix, different corner.
+        stickyMaskLeftColor: hjNoteLeftAccent,
         ref: (el) => {
           hjNoteHeaderRefs.current[half.id] = el;
         },
@@ -559,6 +569,10 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
       rowSpan: 5,
       ref: zeugnisHeaderRef,
       stickyMask: colors.sidebarBg,
+      // Same fix as HJ-Note's stickyMaskLeftColor above: the second half's
+      // own borderRight (FRAME.half, same color either half) sits right
+      // next to this cell and would otherwise be painted over.
+      stickyMaskLeftColor: FRAME.half.color,
       style: th({
         background: colors.sidebarBg,
         color: '#fff',
@@ -712,10 +726,14 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         // paper over this — table cells under border-collapse don't paint it
         // at all — so these are real, generously oversized elements in the
         // same color instead, one banding the full top edge and one the
-        // full left edge.
+        // full left edge. The left band defaults to this cell's own
+        // background, but stickyMaskLeftColor overrides it when a
+        // differently-colored, deliberately-drawn border (a quarter's own
+        // accent, say) runs along that exact edge and needs to keep
+        // showing instead of being painted over.
         <>
           <span style={{ position: 'absolute', top: -4, left: -4, right: -4, height: 8, background: c.stickyMask }} />
-          <span style={{ position: 'absolute', top: -4, left: -4, bottom: -4, width: 8, background: c.stickyMask }} />
+          <span style={{ position: 'absolute', top: -4, left: -4, bottom: -4, width: 8, background: c.stickyMaskLeftColor ?? c.stickyMask }} />
         </>
       )}
       {c.arrow ? (
