@@ -54,9 +54,12 @@ const FRAME = {
 const COL_WIDTH = { name: 190, lesson: 44, exam: 52, mitAvg: 48, schrAvg: 48, qNote: 52, hjNote: 52, zeugnis: 44 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
-// Header grid rows, top to bottom; body rows start right after.
-const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6 };
-const HEADER_ROWS = 6;
+// Header grid rows, top to bottom; body rows start right after. `weight` is
+// its own row rather than living at the bottom of each label cell, so every
+// Gewicht field -- lesson, exam, Ø MIT./Ø SCHR., Q-Note, HJ-Note -- lines up
+// in one strip directly above the first student row.
+const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6, weight: 7 };
+const HEADER_ROWS = 7;
 const BODY_START = HEADER_ROWS + 1;
 
 function CollapseArrow({ collapsed, onClick, dark }) {
@@ -304,23 +307,21 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     justifyContent: 'flex-start',
     textAlign: 'left',
   };
-  // Leaf headers (individual columns): label + optional weight input,
-  // bottom-anchored so every weight field -- regardless of how tall its own
-  // column header is (Zeugnis spans far more rows than a lesson date) --
-  // lines up in the same strip directly above the first student row.
+  // Leaf headers (individual columns): just the label now -- the weight
+  // input used to live at the bottom of this same cell, but now has its own
+  // dedicated row (see weightRowStyle below), so this centers vertically
+  // instead of bottom-anchoring against a field that's no longer here.
   //
   // No `alignItems: 'center'` here (default is 'stretch'): the label span
   // has no width of its own, so stretching it to the full column width is
   // what lets it actually wrap within that width instead of shrink-wrapping
-  // to its unbroken text size. WeightInput sets its own explicit width, so
-  // it isn't affected by the stretch and still centers itself via its own
-  // margin:auto. `overflow:hidden` stays only as a last-resort safety net --
-  // the grid row itself grows to fit however many lines a label wraps to,
-  // so it's normally never triggered.
+  // to its unbroken text size. `overflow:hidden` stays only as a
+  // last-resort safety net -- the grid row itself grows to fit however many
+  // lines a label wraps to, so it's normally never triggered.
   const leafHeaderStyle = (extra) => ({
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 2,
     padding: '5px 4px 6px',
     font: `500 8.5px ${fonts.mono}`,
@@ -342,6 +343,17 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     borderBottom: `1px solid ${colors.divider}`,
     textAlign: 'center',
     whiteSpace: 'nowrap',
+    ...extra,
+  });
+  // The dedicated Gewichtung row: same background/frame-border language as
+  // the label cell directly above each column, just centered on the input
+  // alone instead of stacking a label above it.
+  const weightRowStyle = (extra) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '4px 4px 6px',
+    borderBottom: `1px solid ${colors.border}`,
     ...extra,
   });
 
@@ -420,14 +432,16 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   };
 
   // --- leaf header rendering ---
+  // Every rowSpan below ends at ROW.weight, not BODY_START: the label stops
+  // one row short of where it used to, leaving that last row free for the
+  // dedicated Gewichtung strip rendered separately by renderWeightCell.
   const renderLeafHeader = (l, i) => {
     const gridColumn = `${colLine(i)} / ${colLine(i) + 1}`;
     if (l.kind === 'lesson') {
       const { dow, label } = formatShortDate(l.lesson.date);
       return (
-        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${BODY_START}`, background: colors.mitBgStrong })}>
+        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`, background: colors.mitBgStrong })}>
           <span>{`${dow}\n${label}`}</span>
-          <WeightInput value={l.lesson.weight} onChange={(e) => api.updateLesson(l.lesson.id, { weight: parseWeight(e.target.value) })} />
         </div>
       );
     }
@@ -438,14 +452,13 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`e${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${rowStart} / ${BODY_START}`,
+            gridRow: `${rowStart} / ${ROW.weight}`,
             background: KIND_BG[l.examKind],
             color: KIND_TEXT[l.examKind],
             ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null),
           })}
         >
           <span>{l.work.title}</span>
-          <WeightInput value={l.work.weight} onChange={(e) => api.updateWrittenWork(l.work.id, { weight: parseWeight(e.target.value) })} />
         </div>
       );
     }
@@ -455,7 +468,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`ma${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.kindOrKlassen} / ${BODY_START}`,
+            gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`,
             background: colors.mitBgStrong,
             color: colors.teal,
             fontWeight: 600,
@@ -463,7 +476,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <span>Ø MIT.</span>
-          <WeightInput value={l.quarter.weight_mitarbeit} onChange={setQuarterWeight(l.quarter, 'weightMitarbeit')} />
         </div>
       );
     }
@@ -473,7 +485,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`sa${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.kindOrKlassen} / ${BODY_START}`,
+            gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`,
             background: colors.schBgStrong,
             color: colors.gold,
             fontWeight: 600,
@@ -481,7 +493,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <span>Ø SCHR.</span>
-          <WeightInput value={l.quarter.weight_schriftlich} onChange={setQuarterWeight(l.quarter, 'weightSchriftlich')} />
         </div>
       );
     }
@@ -491,7 +502,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`q${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.mitSchr} / ${BODY_START}`,
+            gridRow: `${ROW.mitSchr} / ${ROW.weight}`,
             background: colors.qBg,
             color: colors.teal,
             fontWeight: 700,
@@ -499,7 +510,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <span>{l.quarter.idx}.Q-Note</span>
-          <WeightInput value={l.quarter.weight_quarter} onChange={setQuarterWeight(l.quarter, 'weightQuarter')} />
         </div>
       );
     }
@@ -514,7 +524,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`h${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.quarter} / ${BODY_START}`,
+            gridRow: `${ROW.quarter} / ${ROW.weight}`,
             background: colors.hBg,
             color: colors.tealDark,
             fontWeight: 700,
@@ -522,7 +532,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           })}
         >
           <span>{l.half.idx}.HJ-Note</span>
-          <WeightInput value={l.half.weight} onChange={setHalfWeight(l.half)} />
         </div>
       );
     }
@@ -533,7 +542,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         key="zeugnis"
         style={leafHeaderStyle({
           gridColumn,
-          gridRow: `${ROW.half} / ${BODY_START}`,
+          gridRow: `${ROW.half} / ${ROW.weight}`,
           background: colors.sidebarBg,
           color: '#fff',
           fontWeight: 700,
@@ -545,6 +554,73 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
       >
         ZEUGNIS
       </div>
+    );
+  };
+
+  // --- dedicated Gewichtung row (one cell per leaf, directly above the
+  // first student row) -- background/frame-border matches the label cell
+  // right above it, so the column's own visual identity stays continuous
+  // straight through into the body. Zeugnis has no weight of its own, so
+  // its cell here is just a blank, matching-background placeholder.
+  const renderWeightCell = (l, i) => {
+    const gridColumn = `${colLine(i)} / ${colLine(i) + 1}`;
+    const gridRow = `${ROW.weight} / ${BODY_START}`;
+    if (l.kind === 'lesson') {
+      return (
+        <div key={`wl${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong })}>
+          <WeightInput value={l.lesson.weight} onChange={(e) => api.updateLesson(l.lesson.id, { weight: parseWeight(e.target.value) })} />
+        </div>
+      );
+    }
+    if (l.kind === 'exam') {
+      return (
+        <div
+          key={`we${i}`}
+          style={weightRowStyle({ gridColumn, gridRow, background: KIND_BG[l.examKind], ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) })}
+        >
+          <WeightInput value={l.work.weight} onChange={(e) => api.updateWrittenWork(l.work.id, { weight: parseWeight(e.target.value) })} />
+        </div>
+      );
+    }
+    if (l.kind === 'mitAvg') {
+      return (
+        <div key={`wma${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` })}>
+          <WeightInput value={l.quarter.weight_mitarbeit} onChange={setQuarterWeight(l.quarter, 'weightMitarbeit')} />
+        </div>
+      );
+    }
+    if (l.kind === 'schrAvg') {
+      return (
+        <div key={`wsa${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.schBgStrong, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` })}>
+          <WeightInput value={l.quarter.weight_schriftlich} onChange={setQuarterWeight(l.quarter, 'weightSchriftlich')} />
+        </div>
+      );
+    }
+    if (l.kind === 'qNote') {
+      return (
+        <div key={`wq${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.qBg, borderRight: `3px solid ${l.accent}` })}>
+          <WeightInput value={l.quarter.weight_quarter} onChange={setQuarterWeight(l.quarter, 'weightQuarter')} />
+        </div>
+      );
+    }
+    if (l.kind === 'hjNote') {
+      return (
+        <div key={`wh${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.hBg, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` })}>
+          <WeightInput value={l.half.weight} onChange={setHalfWeight(l.half)} />
+        </div>
+      );
+    }
+    // zeugnis
+    return (
+      <div
+        key="wzeugnis"
+        style={{
+          ...weightRowStyle({ gridColumn, gridRow, background: colors.sidebarBg, borderRight: `${FRAME.year.border}px solid ${FRAME.year.color}` }),
+          position: isMobile ? 'static' : 'sticky',
+          right: isMobile ? undefined : 0,
+          zIndex: 2,
+        }}
+      />
     );
   };
 
@@ -714,21 +790,36 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
 
       <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ display: 'grid', width: 'max-content', gridTemplateColumns }}>
+          {/* No label here (was "SCHÜLER:IN") -- the name column is
+              self-explanatory from its own contents below, and removing it
+              leaves the Gewichtung cell right underneath as the only text in
+              this column, unambiguous either way. */}
           <div
             style={{
-              ...leafHeaderStyle({ background: '#efece5', alignItems: 'flex-start', textAlign: 'left', justifyContent: 'center', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+              ...leafHeaderStyle({ background: '#efece5', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
               gridColumn: '1 / 2',
-              gridRow: `${ROW.half} / ${BODY_START}`,
+              gridRow: `${ROW.half} / ${ROW.weight}`,
+              position: isMobile ? 'static' : 'sticky',
+              left: 0,
+              zIndex: 3,
+            }}
+          />
+          <div
+            style={{
+              ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '4px 8px 6px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+              gridColumn: '1 / 2',
+              gridRow: `${ROW.weight} / ${BODY_START}`,
               position: isMobile ? 'static' : 'sticky',
               left: 0,
               zIndex: 3,
             }}
           >
-            SCHÜLER:IN
+            <span style={{ font: `500 8.5px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>GEWICHTUNG</span>
           </div>
 
           {groups.map(renderGroup)}
           {leaves.map(renderLeafHeader)}
+          {leaves.map(renderWeightCell)}
 
           {students.map(renderBodyRow)}
 
