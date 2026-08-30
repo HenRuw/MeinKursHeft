@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS lessons (
   duration_hours REAL NOT NULL DEFAULT 1,
   topic TEXT NOT NULL DEFAULT '',
   content TEXT NOT NULL DEFAULT '',
-  note TEXT NOT NULL DEFAULT ''
+  note TEXT NOT NULL DEFAULT '',
+  weight REAL NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS attendance (
@@ -126,6 +127,22 @@ CREATE TABLE IF NOT EXISTS remark_presets (
   emoji TEXT NOT NULL DEFAULT '',
   text TEXT NOT NULL
 );
+
+-- A manually-entered average that stands in for a computed one (Ø MIT./
+-- Ø SCHR./Q-Note/HJ-Note/Zeugnis) everywhere it's displayed. ref_id scopes
+-- it to the right thing per kind: a quarter for mitAvg/schrAvg/qNote, a half
+-- for hjNote, and the course itself for zeugnis (there's no smaller unit to
+-- scope a year grade to, and a NULL there would defeat the UNIQUE index —
+-- SQL treats every NULL as distinct from every other NULL).
+CREATE TABLE IF NOT EXISTS grade_overrides (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK(kind IN ('mitAvg','schrAvg','qNote','hjNote','zeugnis')),
+  ref_id INTEGER NOT NULL,
+  grade TEXT NOT NULL,
+  UNIQUE(course_id, student_id, kind, ref_id)
+);
 `;
 
 async function init(customPath) {
@@ -151,6 +168,14 @@ async function init(customPath) {
   const studentColumns = all('PRAGMA table_info(students)').map((c) => c.name);
   if (!studentColumns.includes('klasse_id')) {
     run('ALTER TABLE students ADD COLUMN klasse_id INTEGER REFERENCES klassen(id) ON DELETE SET NULL');
+  }
+
+  // `lessons` may already exist from before per-lesson weighting was
+  // introduced — CREATE TABLE IF NOT EXISTS above is a no-op for it, so add
+  // the column by hand for databases that predate this change.
+  const lessonColumns = all('PRAGMA table_info(lessons)').map((c) => c.name);
+  if (!lessonColumns.includes('weight')) {
+    run('ALTER TABLE lessons ADD COLUMN weight REAL NOT NULL DEFAULT 1');
   }
 
   if (!all('SELECT id FROM remark_presets').length) {
@@ -327,8 +352,10 @@ function deleteCourse(id) {
 
 function listEnrolledStudents(courseId) {
   return all(
-    `SELECT s.* FROM students s
+    `SELECT s.*, k.name AS klasse_name, k.jahrgang AS klasse_jahrgang
+     FROM students s
      JOIN course_students cs ON cs.student_id = s.id
+     LEFT JOIN klassen k ON k.id = s.klasse_id
      WHERE cs.course_id = ?
      ORDER BY s.last_name ASC, s.first_name ASC`,
     [courseId]
@@ -458,8 +485,8 @@ function getLesson(id) {
 
 function createLesson({ courseId, quarterId, date, durationHours, topic, content, note }) {
   run(
-    `INSERT INTO lessons (course_id, quarter_id, date, duration_hours, topic, content, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO lessons (course_id, quarter_id, date, duration_hours, topic, content, note, weight)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
     [courseId, quarterId, date, durationHours || 1, topic || '', content || '', note || '']
   );
   const id = lastId();
@@ -477,10 +504,11 @@ function updateLesson(id, patch) {
     topic: patch.topic !== undefined ? patch.topic : cur.topic,
     content: patch.content !== undefined ? patch.content : cur.content,
     note: patch.note !== undefined ? patch.note : cur.note,
+    weight: patch.weight !== undefined ? patch.weight : cur.weight,
   };
   run(
-    'UPDATE lessons SET quarter_id = ?, date = ?, duration_hours = ?, topic = ?, content = ?, note = ? WHERE id = ?',
-    [next.quarter_id, next.date, next.duration_hours, next.topic, next.content, next.note, id]
+    'UPDATE lessons SET quarter_id = ?, date = ?, duration_hours = ?, topic = ?, content = ?, note = ?, weight = ? WHERE id = ?',
+    [next.quarter_id, next.date, next.duration_hours, next.topic, next.content, next.note, next.weight, id]
   );
   persist();
   return get('SELECT * FROM lessons WHERE id = ?', [id]);
@@ -586,6 +614,27 @@ function setWrittenWorkGrade(writtenWorkId, studentId, grade) {
   return get('SELECT * FROM written_work_grades WHERE written_work_id = ? AND student_id = ?', [writtenWorkId, studentId]);
 }
 
+// ---------- grade overrides ----------
+
+function listGradeOverrides(courseId) {
+  return all('SELECT * FROM grade_overrides WHERE course_id = ?', [courseId]);
+}
+
+function setGradeOverride({ courseId, studentId, kind, refId, grade }) {
+  run(
+    `INSERT INTO grade_overrides (course_id, student_id, kind, ref_id, grade) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(course_id, student_id, kind, ref_id) DO UPDATE SET grade = excluded.grade`,
+    [courseId, studentId, kind, refId, grade]
+  );
+  persist();
+  return get('SELECT * FROM grade_overrides WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, studentId, kind, refId]);
+}
+
+function deleteGradeOverride({ courseId, studentId, kind, refId }) {
+  run('DELETE FROM grade_overrides WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, studentId, kind, refId]);
+  persist();
+}
+
 // ---------- bundle (everything a course screen needs, in one shot) ----------
 
 function getCourseBundle(courseId) {
@@ -615,7 +664,9 @@ function getCourseBundle(courseId) {
     remarks: workRemarks.filter((r) => r.target_id === work.id),
   }));
 
-  return { course, students, quarters, halves, lessons, writtenWorks };
+  const gradeOverrides = listGradeOverrides(courseId);
+
+  return { course, students, quarters, halves, lessons, writtenWorks, gradeOverrides };
 }
 
 module.exports = {
@@ -672,6 +723,10 @@ module.exports = {
   deleteWrittenWork,
   listWrittenWorkGrades,
   setWrittenWorkGrade,
+  // grade overrides
+  listGradeOverrides,
+  setGradeOverride,
+  deleteGradeOverride,
   // bundle
   getCourseBundle,
 };

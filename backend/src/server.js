@@ -9,6 +9,7 @@ const coursesRouter = require('./routes/courses');
 const lessonsRouter = require('./routes/lessons');
 const writtenWorksRouter = require('./routes/writtenWorks');
 const remarksRouter = require('./routes/remarks');
+const gradeOverridesRouter = require('./routes/gradeOverrides');
 
 function createApp(notify) {
   const app = express();
@@ -23,6 +24,7 @@ function createApp(notify) {
   app.use('/api', lessonsRouter(db, notify));
   app.use('/api', writtenWorksRouter(db, notify));
   app.use('/api', remarksRouter(db, notify));
+  app.use('/api', gradeOverridesRouter(db, notify));
 
   return app;
 }

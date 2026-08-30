@@ -62,6 +62,9 @@ export const api = {
   deleteWrittenWork: (id) => del(`/api/written-works/${id}`),
   setWrittenWorkGrade: (workId, studentId, grade) => put(`/api/written-works/${workId}/grade/${studentId}`, { grade }),
 
+  // grade overrides — a null grade clears the override (reset to calculated)
+  setGradeOverride: (courseId, data) => put(`/api/courses/${courseId}/grade-overrides`, data),
+
   // remarks
   createRemark: (data) => post('/api/remarks', data),
   updateRemark: (id, data) => patch(`/api/remarks/${id}`, data),

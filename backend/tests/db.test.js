@@ -135,6 +135,50 @@ describe('written works and grades', () => {
   });
 });
 
+describe('grade overrides', () => {
+  test('sets, overwrites and clears a manual override for a quarter average', () => {
+    const course = db.createCourse({ name: 'Englisch 10c' });
+    const student = db.createStudent({ firstName: 'Ben', lastName: 'Lorenz' });
+    db.enrollStudent(course.id, student.id);
+    const quarterId = db.listQuarters(course.id)[0].id;
+
+    const created = db.setGradeOverride({ courseId: course.id, studentId: student.id, kind: 'qNote', refId: quarterId, grade: '2+' });
+    expect(created).toMatchObject({ kind: 'qNote', ref_id: quarterId, grade: '2+' });
+    expect(db.listGradeOverrides(course.id)).toHaveLength(1);
+
+    const updated = db.setGradeOverride({ courseId: course.id, studentId: student.id, kind: 'qNote', refId: quarterId, grade: '3-' });
+    expect(updated.grade).toBe('3-');
+    expect(db.listGradeOverrides(course.id)).toHaveLength(1); // upsert, not a second row
+
+    db.deleteGradeOverride({ courseId: course.id, studentId: student.id, kind: 'qNote', refId: quarterId });
+    expect(db.listGradeOverrides(course.id)).toEqual([]);
+  });
+
+  test('scopes overrides independently per kind, even with the same ref_id', () => {
+    const course = db.createCourse({ name: 'Physik 11' });
+    const student = db.createStudent({ firstName: 'Lea', lastName: 'Hoffmann' });
+    db.enrollStudent(course.id, student.id);
+    const quarterId = db.listQuarters(course.id)[0].id;
+
+    db.setGradeOverride({ courseId: course.id, studentId: student.id, kind: 'mitAvg', refId: quarterId, grade: '1' });
+    db.setGradeOverride({ courseId: course.id, studentId: student.id, kind: 'schrAvg', refId: quarterId, grade: '4' });
+
+    expect(db.listGradeOverrides(course.id)).toHaveLength(2);
+  });
+
+  test('is included in the course bundle', () => {
+    const course = db.createCourse({ name: 'Geschichte 8a' });
+    const student = db.createStudent({ firstName: 'Marie', lastName: 'Schuster' });
+    db.enrollStudent(course.id, student.id);
+    const halfId = db.listHalves(course.id)[0].id;
+
+    db.setGradeOverride({ courseId: course.id, studentId: student.id, kind: 'hjNote', refId: halfId, grade: '1-' });
+
+    const bundle = db.getCourseBundle(course.id);
+    expect(bundle.gradeOverrides).toMatchObject([{ kind: 'hjNote', ref_id: halfId, grade: '1-' }]);
+  });
+});
+
 describe('remarks', () => {
   test('creates, updates and deletes a remark on a lesson', () => {
     const course = db.createCourse({ name: 'Mathematik 9b' });
