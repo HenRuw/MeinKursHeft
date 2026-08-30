@@ -50,7 +50,7 @@ const FRAME = {
 // Every kind but zeugnis carries a WeightInput (free-text "Gewicht" field)
 // in its header -- those are a touch wider than the display-only zeugnis
 // column so the input isn't flush against the column's own edges.
-const COL_WIDTH = { name: 190, lesson: 44, exam: 52, mitAvg: 48, schrAvg: 48, qNote: 52, hjNote: 52, zeugnis: 44 };
+const COL_WIDTH = { name: 196, lesson: 48, exam: 56, mitAvg: 52, schrAvg: 52, qNote: 56, hjNote: 56, zeugnis: 48 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
 // Header grid rows, top to bottom; body rows start right after. `weight` is
@@ -329,10 +329,12 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     justifyContent: 'flex-start',
     textAlign: 'left',
   };
-  // Leaf headers (individual columns): just the label now -- the weight
-  // input used to live at the bottom of this same cell, but now has its own
-  // dedicated row (see weightRowStyle below), so this centers vertically
-  // instead of bottom-anchoring against a field that's no longer here.
+  // Leaf headers (individual columns): bottom-anchored so every one of
+  // them -- lesson dates, exam titles, Ø MIT./Ø KLASSENARBEITEN, Q-Note,
+  // HJ-Note, Zeugnis -- sits directly in the row right above Gewichtung,
+  // regardless of how many rows its own cell spans (Zeugnis spans far more
+  // of the header than a lesson date does). A label too wide for its column
+  // still wraps upward from there onto more lines instead of overflowing.
   //
   // No `alignItems: 'center'` here (default is 'stretch'): the label span
   // has no width of its own, so stretching it to the full column width is
@@ -343,7 +345,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const leafHeaderStyle = (extra) => ({
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     gap: 2,
     padding: '5px 4px 6px',
     font: `500 10px ${fonts.mono}`,
