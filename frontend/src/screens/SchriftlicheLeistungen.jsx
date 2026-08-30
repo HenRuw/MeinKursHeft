@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
-import { sortStudents, studentDisplayName, WRITTEN_WORK_KINDS, writtenWorkKindLabel, num, fmt, wavg } from '../lib/gradeMath.js';
+import { sortStudents, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, writtenWorkKindLabel, num, fmt, wavg } from '../lib/gradeMath.js';
 import { todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
 import { usePersisted } from '../lib/usePersisted.js';
+import { useViewport } from '../lib/useViewport.js';
 import SplitKeys from '../components/SplitKeys.jsx';
 import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
@@ -18,7 +19,8 @@ const SECTION_LABELS = {
   sonstige: 'Sonstige Leistungen',
 };
 
-export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets }) {
+export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets, initialWork }) {
+  const { isDesktop } = useViewport();
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const [activeWorkId, setActiveWorkId] = useState(null);
   const addBtnRef = useRef(null);
@@ -40,10 +42,23 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   const toggleKindCollapsed = (kind) => setCollapsedKinds((cur) => ({ ...cur, [kind]: !cur[kind] }));
 
   useEffect(() => {
+    // Arriving here from a grade clicked in the Notenübersicht jumps
+    // straight to that work, ahead of the usual "first in the list" default
+    // — checked first and, if present, short-circuits that default entirely
+    // (the token in initialWork changes on every click, even clicking the
+    // same work again, so this always re-fires). Its kind section is
+    // un-collapsed too, so the highlighted entry is actually visible in the
+    // sidebar rather than just selected behind a closed group.
+    if (initialWork != null) {
+      setActiveWorkId(initialWork.id);
+      const target = bundle.writtenWorks.find((w) => w.id === initialWork.id);
+      if (target) setCollapsedKinds((cur) => ({ ...cur, [target.kind]: false }));
+      return;
+    }
     if (!allWorks.some((w) => w.id === activeWorkId)) {
       setActiveWorkId(allWorks.length ? allWorks[0].id : null);
     }
-  }, [allWorks.map((w) => w.id).join(',')]);
+  }, [initialWork, allWorks.map((w) => w.id).join(',')]);
 
   const work = bundle.writtenWorks.find((w) => w.id === activeWorkId) || null;
   const students = sortStudents(bundle.students);
@@ -116,8 +131,21 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   };
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-      <section style={{ width: 330, flex: 'none', borderRight: `1px solid ${colors.border}`, padding: 18, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isDesktop ? 'row' : 'column' }}>
+      <section
+        style={{
+          width: isDesktop ? 330 : '100%',
+          flex: 'none',
+          maxHeight: isDesktop ? 'none' : '38vh',
+          borderRight: isDesktop ? `1px solid ${colors.border}` : 'none',
+          borderBottom: isDesktop ? 'none' : `1px solid ${colors.border}`,
+          padding: 18,
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
         {WRITTEN_WORK_KINDS.map((k) => {
           const worksForKind = allWorks.filter((w) => w.kind === k.value);
           const isCollapsed = !!collapsedKinds[k.value];
@@ -283,18 +311,24 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
           </div>
         ) : (
           <>
-            <div style={{ padding: '16px 24px 13px', borderBottom: `1px solid ${colors.border}`, display: 'flex', gap: 14, alignItems: 'baseline' }}>
+            <div style={{ padding: '16px 24px 13px', borderBottom: `1px solid ${colors.border}`, display: 'flex', flexWrap: 'wrap', gap: 14, rowGap: 6, alignItems: 'baseline' }}>
               <span style={{ font: `500 16px/1.2 ${fonts.serif}` }}>{work.title}</span>
               <span style={{ font: `500 11.5px ${fonts.mono}`, color: colors.muted }}>{work.date}</span>
               <span style={{ font: `500 10.5px ${fonts.mono}`, padding: '3px 8px', borderRadius: 99, background: colors.tealTint, color: colors.teal }}>{writtenWorkKindLabel(work.kind)}</span>
               {work.content && <span style={{ fontSize: 12, color: colors.mutedStrong, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{work.content}</span>}
             </div>
+            {/* One shared scroll container (not a separate header) so the
+                "#"/name columns can stay pinned via position:sticky while
+                the grade/remark columns scroll sideways on a narrow screen
+                — sticky's `left` accounts for the row's own 24px padding,
+                same reasoning as Stundenerfassung's roster. */}
             <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
               {students.map((s, i) => (
-                <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '26px 200px 286px 1fr', alignItems: 'center', gap: 14, padding: '7px 24px', borderBottom: `1px solid ${colors.divider}` }}>
-                  <span style={{ font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                  <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
-                    {studentDisplayName(s)}
+                <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '26px 200px 286px 1fr', alignItems: 'center', gap: 14, padding: '7px 24px', borderBottom: `1px solid ${colors.divider}`, minWidth: 'max-content' }}>
+                  <span style={{ position: 'sticky', left: 24, background: colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                  <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 64, background: colors.panelBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
+                    {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                   </button>
                   <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} />
                   <RemarkPicker
