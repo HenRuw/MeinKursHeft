@@ -726,10 +726,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 24px', borderBottom: `1px solid ${colors.border}`, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11.5, color: colors.muted }}>Gewichte im weißen Feld über jeder Note · Pfeil unten rechts klappt einen Rahmen ein/aus</span>
-      </div>
-
       {allowGradeOverride && (
         <Popover open={overrideEdit != null} anchorRef={overrideAnchorRef} onClose={() => setOverrideEdit(null)} width={220}>
           <div style={{ background: '#fff', border: `1px solid ${colors.borderStrong}`, borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,.18)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -740,9 +736,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               </button>
             </div>
             <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} />
-            <span style={{ fontSize: 11, color: colors.muted }}>
-              {overrideEdit?.grade ? 'Nochmal klicken setzt auf den berechneten Wert zurück.' : 'Eine Note auswählen, um den berechneten Wert zu überschreiben.'}
-            </span>
           </div>
         </Popover>
       )}
