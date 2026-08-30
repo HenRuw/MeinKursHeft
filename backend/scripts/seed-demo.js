@@ -25,10 +25,32 @@ const STUDENTS = [
   ['Jonas', 'Krüger', '9a'],
   ['Lea', 'Hoffmann', '9a'],
   ['Emir', 'Yildiz', '9a'],
+  ['Mia', 'Fischer', '9a'],
+  ['Elias', 'Schmidt', '9a'],
+  ['Hannah', 'Wolf', '9a'],
+  ['Luca', 'Becker', '9a'],
+  ['Lina', 'Zimmermann', '9a'],
+  ['Finn', 'Braun', '9a'],
+  ['Emily', 'Krause', '9a'],
+  ['Paul', 'Neumann', '9a'],
+  ['Mila', 'Schwarz', '9a'],
+  ['Anton', 'Richter', '9a'],
+  ['Ida', 'Vogel', '9a'],
   ['Marie', 'Schuster', '9b'],
   ['Ben', 'Lorenz', '9b'],
   ['Sophie', 'Wagner', '9b'],
   ['Noah', 'Petrov', '9b'],
+  ['Leon', 'Hartmann', '9b'],
+  ['Clara', 'Werner', '9b'],
+  ['Felix', 'Lange', '9b'],
+  ['Frieda', 'Köhler', '9b'],
+  ['Max', 'Schäfer', '9b'],
+  ['Ella', 'Klein', '9b'],
+  ['Julian', 'Fuchs', '9b'],
+  ['Greta', 'Berger', '9b'],
+  ['David', 'Herrmann', '9b'],
+  ['Lena', 'Peters', '9b'],
+  ['Tim', 'Krämer', '9b'],
 ];
 
 const GRADES = ['1', '1+', '1-', '2', '2+', '2-', '3', '3+', '3-', '4', '4+', '4-', '5', '5-', '6'];
@@ -85,6 +107,8 @@ async function main() {
   const bundle = await api('GET', `/api/courses/${course.id}/bundle`);
   const q1 = bundle.quarters.find((q) => q.idx === 1);
   const q2 = bundle.quarters.find((q) => q.idx === 2);
+  const q3 = bundle.quarters.find((q) => q.idx === 3);
+  const q4 = bundle.quarters.find((q) => q.idx === 4);
 
   const LESSONS = [
     { date: '2026-08-31', topic: 'Einführung', quarter: q1 },
@@ -150,12 +174,20 @@ async function main() {
     });
   }
 
+  // 4 Klassenarbeiten per Halbjahr (2 per Quartal), spanning the whole
+  // year -- q1/q2 make up 1. Halbjahr, q3/q4 make up 2. Halbjahr.
   const WORKS = [
     { kind: 'klassenarbeit', title: '1. Klassenarbeit', content: 'Terme, lineare Funktionen', date: '2026-09-25', weight: 2, quarter: q1 },
     { kind: 'test', title: 'Kurztest Terme', content: 'Ausmultiplizieren, Ausklammern', date: '2026-09-11', weight: 1, quarter: q1 },
     { kind: 'sonstige', title: 'Hausaufgabenheft', content: 'Vollständigkeit & Ordentlichkeit', date: '2026-10-16', weight: 0.5, quarter: q1 },
-    { kind: 'klassenarbeit', title: '2. Klassenarbeit', content: 'Gleichungssysteme', date: '2026-12-02', weight: 2, quarter: q2 },
+    { kind: 'klassenarbeit', title: '2. Klassenarbeit', content: 'Steigung, Sachaufgaben', date: '2026-11-06', weight: 2, quarter: q1 },
+    { kind: 'klassenarbeit', title: '3. Klassenarbeit', content: 'Gleichungssysteme', date: '2026-12-02', weight: 2, quarter: q2 },
     { kind: 'test', title: 'Kurztest Gleichungssysteme', content: 'Einsetzungs- & Additionsverfahren', date: '2026-11-27', weight: 1, quarter: q2 },
+    { kind: 'klassenarbeit', title: '4. Klassenarbeit', content: 'Textaufgaben', date: '2027-01-20', weight: 2, quarter: q2 },
+    { kind: 'klassenarbeit', title: '5. Klassenarbeit', content: 'Quadratische Funktionen', date: '2027-02-26', weight: 2, quarter: q3 },
+    { kind: 'klassenarbeit', title: '6. Klassenarbeit', content: 'Satz des Pythagoras', date: '2027-03-26', weight: 2, quarter: q3 },
+    { kind: 'klassenarbeit', title: '7. Klassenarbeit', content: 'Wahrscheinlichkeitsrechnung', date: '2027-05-14', weight: 2, quarter: q4 },
+    { kind: 'klassenarbeit', title: '8. Klassenarbeit', content: 'Abschlusstest Jahresstoff', date: '2027-06-25', weight: 2, quarter: q4 },
   ];
 
   for (const w of WORKS) {
