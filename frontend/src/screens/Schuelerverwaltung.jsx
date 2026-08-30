@@ -6,7 +6,6 @@ import { parseStudentsFile } from '../lib/studentImport.js';
 
 const th = { font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em', textAlign: 'left', padding: '8px 12px' };
 const td = { padding: '9px 12px', borderTop: `1px solid ${colors.divider}`, fontSize: 13 };
-const selectStyle = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, background: '#fff' };
 
 function klasseLabel(k) {
   return `${k.name} (Jg. ${k.jahrgang})`;
@@ -15,14 +14,12 @@ function klasseLabel(k) {
 export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, klassen, onRefreshKlassen }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [klasseId, setKlasseId] = useState('');
-  const [newKlasseOpen, setNewKlasseOpen] = useState(false);
-  const [newKlasseName, setNewKlasseName] = useState('');
-  const [newKlasseJahrgang, setNewKlasseJahrgang] = useState('');
+  const [klasseName, setKlasseName] = useState('');
+  const [klasseError, setKlasseError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editFirst, setEditFirst] = useState('');
   const [editLast, setEditLast] = useState('');
-  const [editKlasseId, setEditKlasseId] = useState('');
+  const [editKlasseName, setEditKlasseName] = useState('');
   const [importPreview, setImportPreview] = useState(null); // [{ firstName, lastName, skip }]
   const [importError, setImportError] = useState('');
   const [importing, setImporting] = useState(false);
@@ -31,23 +28,31 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
   const sorted = sortStudents(allStudents);
   const sortedKlassen = [...klassen].sort((a, b) => a.jahrgang - b.jahrgang || a.name.localeCompare(b.name, 'de'));
 
-  const addStudent = async () => {
-    if (!firstName.trim() || !lastName.trim()) return;
-    await api.createStudent({ firstName: firstName.trim(), lastName: lastName.trim(), klasseId: klasseId ? Number(klasseId) : null });
-    setFirstName('');
-    setLastName('');
-    setKlasseId('');
-    onRefreshAllStudents();
+  // Resolves a typed class name to a klasseId, creating the class on the fly
+  // if it doesn't exist yet. Jahrgang is derived from the class name's
+  // leading digits (e.g. "9a" -> 9), matching the existing naming convention.
+  const resolveKlasseId = async (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return { klasseId: null };
+    const existing = klassen.find((k) => k.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return { klasseId: existing.id };
+    const jahrgang = Number((trimmed.match(/^\d+/) || [])[0]);
+    if (!jahrgang) return { error: `Jahrgang konnte aus "${trimmed}" nicht erkannt werden, z. B. "9a".` };
+    const created = await api.createKlasse({ name: trimmed, jahrgang });
+    await onRefreshKlassen();
+    return { klasseId: created.id };
   };
 
-  const createKlasse = async () => {
-    if (!newKlasseName.trim() || !newKlasseJahrgang) return;
-    const created = await api.createKlasse({ name: newKlasseName.trim(), jahrgang: Number(newKlasseJahrgang) });
-    setNewKlasseName('');
-    setNewKlasseJahrgang('');
-    setNewKlasseOpen(false);
-    await onRefreshKlassen();
-    setKlasseId(String(created.id));
+  const addStudent = async () => {
+    if (!firstName.trim() || !lastName.trim()) return;
+    setKlasseError('');
+    const { klasseId, error } = await resolveKlasseId(klasseName);
+    if (error) { setKlasseError(error); return; }
+    await api.createStudent({ firstName: firstName.trim(), lastName: lastName.trim(), klasseId });
+    setFirstName('');
+    setLastName('');
+    setKlasseName('');
+    onRefreshAllStudents();
   };
 
   const existingNameKeys = new Set(allStudents.map((s) => `${s.first_name.trim().toLowerCase()} ${s.last_name.trim().toLowerCase()}`));
@@ -100,11 +105,15 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
     setEditingId(s.id);
     setEditFirst(s.first_name);
     setEditLast(s.last_name);
-    setEditKlasseId(s.klasse_id ? String(s.klasse_id) : '');
+    setEditKlasseName(s.klasse_name || '');
+    setKlasseError('');
   };
 
   const saveEdit = async () => {
-    await api.updateStudent(editingId, { firstName: editFirst.trim(), lastName: editLast.trim(), klasseId: editKlasseId ? Number(editKlasseId) : null });
+    setKlasseError('');
+    const { klasseId, error } = await resolveKlasseId(editKlasseName);
+    if (error) { setKlasseError(error); return; }
+    await api.updateStudent(editingId, { firstName: editFirst.trim(), lastName: editLast.trim(), klasseId });
     setEditingId(null);
     onRefreshAllStudents();
   };
@@ -121,32 +130,24 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <input placeholder="Vorname" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <input placeholder="Nachname" value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
-          <select value={klasseId} onChange={(e) => setKlasseId(e.target.value)} style={{ ...selectStyle, flex: 1 }}>
-            <option value="">– keine Klasse –</option>
-            {sortedKlassen.map((k) => (
-              <option key={k.id} value={k.id}>
-                {klasseLabel(k)}
-              </option>
-            ))}
-          </select>
-          <button onClick={() => setNewKlasseOpen((v) => !v)} title="Neue Klasse anlegen" style={{ padding: '8px 12px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, fontSize: 13, color: colors.mutedStrong }}>
-            +
-          </button>
+          <input
+            list="klassen-list"
+            placeholder="Klasse, z. B. 9a"
+            value={klasseName}
+            onChange={(e) => setKlasseName(e.target.value)}
+            style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+          />
           <button onClick={addStudent} style={{ padding: '8px 15px', borderRadius: 7, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
             Hinzufügen
           </button>
         </div>
+        <datalist id="klassen-list">
+          {sortedKlassen.map((k) => (
+            <option key={k.id} value={k.name} />
+          ))}
+        </datalist>
 
-        {newKlasseOpen && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, padding: 10, background: colors.cream, border: `1px solid ${colors.borderCard}`, borderRadius: 9 }}>
-            <span style={{ fontSize: 12, color: colors.mutedStrong, flex: 'none' }}>Neue Klasse:</span>
-            <input placeholder="Name, z. B. 9a" value={newKlasseName} onChange={(e) => setNewKlasseName(e.target.value)} style={{ flex: 1, padding: '7px 9px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
-            <input placeholder="Jahrgang" value={newKlasseJahrgang} onChange={(e) => setNewKlasseJahrgang(e.target.value)} style={{ width: 90, padding: '7px 9px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
-            <button onClick={createKlasse} style={{ padding: '7px 13px', borderRadius: 6, background: colors.teal, color: '#fff', fontSize: 12, fontWeight: 500 }}>
-              Anlegen
-            </button>
-          </div>
-        )}
+        {klasseError && <div style={{ fontSize: 12, color: colors.red, marginBottom: 14 }}>{klasseError}</div>}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={onImportFileChosen} style={{ display: 'none' }} />
@@ -201,14 +202,13 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input value={editLast} onChange={(e) => setEditLast(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
                       <input value={editFirst} onChange={(e) => setEditFirst(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }} />
-                      <select value={editKlasseId} onChange={(e) => setEditKlasseId(e.target.value)} style={{ ...selectStyle, flex: 1 }}>
-                        <option value="">– keine Klasse –</option>
-                        {sortedKlassen.map((k) => (
-                          <option key={k.id} value={k.id}>
-                            {klasseLabel(k)}
-                          </option>
-                        ))}
-                      </select>
+                      <input
+                        list="klassen-list"
+                        placeholder="Klasse, z. B. 9a"
+                        value={editKlasseName}
+                        onChange={(e) => setEditKlasseName(e.target.value)}
+                        style={{ flex: 1, padding: '6px 8px', border: `1px solid ${colors.borderStrong}`, borderRadius: 6, fontSize: 12.5 }}
+                      />
                       <button onClick={saveEdit} style={{ padding: '6px 12px', borderRadius: 6, background: colors.teal, color: '#fff', fontSize: 12 }}>
                         Speichern
                       </button>
