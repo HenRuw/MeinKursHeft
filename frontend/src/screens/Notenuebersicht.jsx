@@ -49,7 +49,7 @@ const FRAME = {
 // Every kind but zeugnis carries a WeightInput (free-text "Gewicht" field)
 // in its header -- those are a touch wider than the display-only zeugnis
 // column so the input isn't flush against the column's own edges.
-const COL_WIDTH = { name: 196, lesson: 48, exam: 56, mitAvg: 52, schrAvg: 52, qNote: 56, hjNote: 56, zeugnis: 48 };
+const COL_WIDTH = { name: 202, lesson: 54, exam: 62, mitAvg: 58, schrAvg: 58, qNote: 62, hjNote: 62, zeugnis: 54 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
 // Header grid rows, top to bottom; body rows start right after. `weight` is
