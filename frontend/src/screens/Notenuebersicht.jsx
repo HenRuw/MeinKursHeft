@@ -24,12 +24,11 @@ import SplitKeys from '../components/SplitKeys.jsx';
 import Popover from '../components/Popover.jsx';
 
 // Klassenarbeiten sit in the KLASSENARBEITEN (amber) frame; Tests and
-// Sonstige Leistungen count toward MITARBEIT, so they get a tint from that
-// (teal) family instead.
+// Sonstige Leistungen count toward SONSTIGE MITARBEIT, so they get a tint
+// from that (teal) family instead.
 const KIND_BG = { klassenarbeit: '#fdf7e9', test: '#e6f0ea', sonstige: '#d9ebe1' };
 const KIND_BG_LIGHT = { klassenarbeit: '#fefcf5', test: '#f3f8f5', sonstige: '#eef6f1' };
 const KIND_TEXT = { klassenarbeit: colors.gold, test: colors.teal, sonstige: colors.teal };
-const SECTION_LABELS = { klassenarbeit: 'Klassenarbeiten', test: 'Tests', sonstige: 'Sonst. Leist.' };
 
 const FRAME = {
   year: { border: 5, color: colors.sidebarBg },
@@ -55,7 +54,8 @@ const NAME_BORDER_COLOR = colors.tealDark;
 
 // Header grid rows, top to bottom; body rows start right after. `weight` is
 // its own row rather than living at the bottom of each label cell, so every
-// Gewicht field -- lesson, exam, Ø MIT./Ø SCHR., Q-Note, HJ-Note -- lines up
+// Gewicht field -- lesson, exam, Ø SONSTIGE MITARBEIT/Ø KLASSENARBEITEN,
+// Q-Note, HJ-Note -- lines up
 // in one strip directly above the first student row.
 const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6, weight: 7 };
 const HEADER_ROWS = 7;
@@ -90,9 +90,11 @@ function CollapseArrow({ collapsed, onClick, dark }) {
 // from: `leaves` is one entry per actual data/average column, in on-screen
 // order (Name is always grid column 1 and handled separately, not a leaf).
 // `groups` is one entry per collapsible frame header (year/half/quarter/
-// mitarbeit/klassenarbeiten) plus the written-work kind sub-headers -- each
-// just a {start, end} range over `leaves`, so its on-screen position is pure
-// index arithmetic, never a DOM measurement.
+// mitarbeit/klassenarbeiten) -- each just a {start, end} range over
+// `leaves`, so its on-screen position is pure index arithmetic, never a DOM
+// measurement. Tests/Sonstige Leistungen/Klassenarbeiten titles are plain
+// leaves with no group of their own -- shown uncategorized, one flat list
+// per frame.
 //
 // Collapsing a frame only ever removes its own *detail* leaves -- its own
 // average/summary leaf (mitAvg, qNote, hjNote, ...) is always still pushed,
@@ -135,17 +137,16 @@ function buildColumns(bundle, collapsed, toggles) {
                 .filter((l) => l.quarter_id === quarter.id && l.grades.some((g) => g.grade))
                 .sort((a, b) => a.date.localeCompare(b.date))
                 .forEach((lesson) => leaves.push({ kind: 'lesson', width: COL_WIDTH.lesson, lesson, quarter }));
-              mitKindGroups.forEach((g) => {
-                if (!g.works.length) return;
-                const kindStart = leaves.length;
-                g.works.forEach((work, idx) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, firstInKind: idx === 0 }));
-                groups.push({ key: `kind-${quarter.id}-${g.kind}`, level: 'kind', examKind: g.kind, label: SECTION_LABELS[g.kind], start: kindStart, end: leaves.length });
-              });
+              // Tests and Sonstige Leistungen sit alongside lessons with no
+              // sub-header of their own (like Klassenarbeiten's own `direct`
+              // titles below) -- shown uncategorized, just each keeping its
+              // own kind's tint via KIND_BG/KIND_TEXT.
+              mitKindGroups.forEach((g) => g.works.forEach((work) => leaves.push({ kind: 'exam', examKind: g.kind, width: COL_WIDTH.exam, work, quarter, direct: true })));
             }
             const mitAvgLeaf = { kind: 'mitAvg', width: COL_WIDTH.mitAvg, quarter };
             leaves.push(mitAvgLeaf);
             const mitEnd = leaves.length;
-            groups.push({ key: `mit-${quarter.id}`, level: 'mit', label: 'MITARBEIT', quarter, start: mitStart, end: mitEnd, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
+            groups.push({ key: `mit-${quarter.id}`, level: 'mit', label: 'SONSTIGE MITARBEIT', quarter, start: mitStart, end: mitEnd, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
             // A frame that ends up exactly one leaf wide (its own average
             // column, nothing else) is too narrow for a normal horizontal
             // label -- see renderGroup's `narrow` case. Rather than render
@@ -157,7 +158,7 @@ function buildColumns(bundle, collapsed, toggles) {
             // above the leaf's own one there is naturally overlap-free,
             // reusing already-tall rows from sibling columns when there are
             // any and only growing its own tracks when there aren't.
-            if (mitEnd - mitStart <= 1) mitAvgLeaf.narrowGroupLabel = 'MITARBEIT';
+            if (mitEnd - mitStart <= 1) mitAvgLeaf.narrowGroupLabel = 'SONSTIGE MITARBEIT';
 
             const schrStart = leaves.length;
             if (!schrCollapsed) {
@@ -329,12 +330,13 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     justifyContent: 'flex-start',
     textAlign: 'left',
   };
-  // Leaf headers (individual columns): bottom-anchored so every one of
-  // them -- lesson dates, exam titles, Ø MIT./Ø KLASSENARBEITEN, Q-Note,
-  // HJ-Note, Zeugnis -- sits directly in the row right above Gewichtung,
-  // regardless of how many rows its own cell spans (Zeugnis spans far more
-  // of the header than a lesson date does). A label too wide for its column
-  // still wraps upward from there onto more lines instead of overflowing.
+  // Leaf headers (individual columns): bottom-anchored so every one of them
+  // -- lesson dates, exam titles, Ø SONSTIGE MITARBEIT/Ø KLASSENARBEITEN,
+  // Q-Note, HJ-Note, Zeugnis -- sits directly in the row right above
+  // Gewichtung, regardless of how many rows its own cell spans (Zeugnis
+  // spans far more of the header than a lesson date does). A label too wide
+  // for its column still wraps upward from there onto more lines instead of
+  // overflowing.
   //
   // No `alignItems: 'center'` here (default is 'stretch'): the label span
   // has no width of its own, so stretching it to the full column width is
@@ -382,7 +384,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   });
 
   // --- group (frame) header rendering ---
-  const GROUP_ROW = { year: ROW.year, half: ROW.half, quarter: ROW.quarter, mit: ROW.mitSchr, schr: ROW.mitSchr, kind: ROW.kindOrKlassen };
+  const GROUP_ROW = { year: ROW.year, half: ROW.half, quarter: ROW.quarter, mit: ROW.mitSchr, schr: ROW.mitSchr };
   const GROUP_BG = { year: colors.sidebarBg, half: colors.hBg, quarter: colors.qBg, mit: colors.mitBgStrong, schr: colors.schBgStrong };
   const GROUP_COLOR = { year: '#fff', half: colors.tealDark, quarter: colors.mutedStrong, mit: colors.mutedStrong, schr: colors.mutedStrong };
   const GROUP_WEIGHT = { year: 700, half: 700, quarter: 600, mit: 500, schr: 500 };
@@ -391,28 +393,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     const row = GROUP_ROW[g.level];
     const gridColumn = `${colLine(g.start)} / ${colLine(g.end)}`;
     const gridRow = `${row} / ${row + 1}`;
-    if (g.level === 'kind') {
-      return (
-        <div
-          key={g.key}
-          style={{
-            ...groupBaseStyle,
-            gridColumn,
-            gridRow,
-            background: KIND_BG[g.examKind],
-            color: KIND_TEXT[g.examKind],
-            fontWeight: 600,
-            borderLeft: `2px solid ${colors.borderStrong}`,
-            borderBottom: `1px solid ${colors.border}`,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {g.label}
-        </div>
-      );
-    }
     const borderColor = g.level === 'quarter' ? g.accent : FRAME[g.level].color;
     const borderWidth = g.level === 'quarter' ? 3 : FRAME[g.level].border;
     // Half/Quarter/Mitarbeit/Klassenarbeiten shrink to just their own
@@ -515,10 +495,11 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         >
           <NarrowGroupLabel label={l.narrowGroupLabel} />
           {/* Collapsed down to just its own average column (narrowGroupLabel
-              set): the vertical MITARBEIT/... heading above replaces this
-              "Ø MIT." sub-label -- weight and the per-student value below
-              stay exactly as in the expanded state. */}
-          {!l.narrowGroupLabel && <span>Ø MIT.</span>}
+              set): the vertical SONSTIGE MITARBEIT heading above replaces
+              this "Ø SONSTIGE MITARBEIT" sub-label -- weight and the
+              per-student value below stay exactly as in the expanded
+              state. */}
+          {!l.narrowGroupLabel && <span>Ø SONSTIGE MITARBEIT</span>}
         </div>
       );
     }
