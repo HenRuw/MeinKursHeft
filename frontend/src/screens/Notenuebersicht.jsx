@@ -383,6 +383,11 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           fontWeight: 700,
           borderTop: `${FRAME.half.border}px solid ${FRAME.half.color}`,
           borderLeft: `${FRAME.half.border}px solid ${FRAME.half.color}`,
+          // Matches HJ-Note's own borderRight below (same color/thickness) so
+          // the top border doesn't dead-end above it — without this, the
+          // frame's right edge would only start one row down, at HJ-Note
+          // itself, leaving the top-right corner open instead of closed.
+          borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
         }),
       });
 
@@ -411,13 +416,18 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               label: 'MITARBEIT',
               colSpan: lessonCount + mitExamCount + 1,
               arrow: { collapsed: mitCollapsed, onClick: () => toggleMit(quarter.id) },
-              style: frameTh({ background: colors.mitBgStrong, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
+              // borderRight matches Ø MIT.'s own borderRight (same
+              // color/thickness) one row down, so the frame's right edge
+              // runs unbroken from this header straight through to the
+              // average column instead of only starting below it.
+              style: frameTh({ background: colors.mitBgStrong, borderTop: `${FRAME.mit.border}px solid ${FRAME.mit.color}`, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` }),
             });
             r3.push({
               label: 'KLASSENARBEITEN',
               colSpan: schrExamCount + 1,
               arrow: { collapsed: schrCollapsed, onClick: () => toggleSchr(quarter.id) },
-              style: frameTh({ background: colors.schBgStrong, borderTop: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
+              // Same reasoning as MITARBEIT above, matching Ø SCHR.'s border.
+              style: frameTh({ background: colors.schBgStrong, borderTop: `${FRAME.schr.border}px solid ${FRAME.schr.color}`, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` }),
             });
 
             let i = 0;
