@@ -17,7 +17,7 @@ import {
   schriftlichAverage,
   resolveAverage,
 } from '../lib/gradeMath.js';
-import { formatShortDate, formatDateRange } from '../lib/dates.js';
+import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
 import WeightInput from '../components/WeightInput.jsx';
@@ -158,7 +158,7 @@ function buildColumns(bundle, collapsed, toggles) {
           groups.push({
             key: `quarter-${quarter.id}`,
             level: 'quarter',
-            label: `${quarter.idx}. Quartal · ${formatDateRange(quarter.start_date, quarter.end_date)}`,
+            label: `${quarter.idx}. Quartal`,
             start: quarterStart,
             end: leaves.length,
             collapsed: qCollapsed,
