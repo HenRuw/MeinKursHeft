@@ -405,6 +405,21 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     // row cell for real instead of guessing. This row keeps only the arrow,
     // which needs no more height than the arrow itself.
     const narrow = g.end - g.start <= 1 && g.level !== 'year';
+    // Arrow *before* the label, not after: the label wraps onto further
+    // lines (below) rather than truncating once its frame is too narrow to
+    // fit it on one line, which would drag a trailing arrow sideways along
+    // with it. Leading the label instead pins the arrow at
+    // frameStart+padding -- a fixed offset that never depends on how the
+    // label ends up wrapping.
+    const content = (
+      <>
+        <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
+        {!narrow && (
+          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
+        )}
+      </>
+    );
+    const isYear = g.level === 'year';
     return (
       <div
         key={g.key}
@@ -424,17 +439,41 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           // double it up unevenly.
           borderTop: `${borderWidth}px solid ${borderColor}`,
           borderRight: `${borderWidth}px solid ${borderColor}`,
+          // Padding moves onto the inner sticky wrapper below for the year
+          // level, so it stays put whether or not that wrapper is currently
+          // stuck.
+          ...(isYear ? { padding: 0 } : null),
         }}
       >
-        {/* Arrow *before* the label, not after: the label wraps onto
-            further lines (below) rather than truncating once its frame is
-            too narrow to fit it on one line, which would drag a trailing
-            arrow sideways along with it. Leading the label instead pins the
-            arrow at frameStart+padding -- a fixed offset that never depends
-            on how the label ends up wrapping. */}
-        <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
-        {!narrow && (
-          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
+        {isYear ? (
+          // GANZES SCHULJAHR's own bar spans the *entire* table width -- and
+          // that's exactly why `position: sticky` on the bar itself does
+          // nothing: a sticky element can only ever move within the bounds
+          // of its own containing block, and this bar's containing block
+          // (the grid) is already exactly as wide as the bar, leaving no
+          // room for it to shift into as you scroll. Wrapping just the
+          // label/arrow in their own, much narrower sticky element gives
+          // that inner element real room to move within the (still normally
+          // scrolling) bar, the same way Name's column does -- keeping the
+          // heading and the toggle to collapse the whole year reachable
+          // while scrolling through a wide table, without the bar itself
+          // needing to "stick" (it doesn't need to; its background/border
+          // already span the full width regardless of scroll position).
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '5px 8px',
+              position: isMobile ? 'static' : 'sticky',
+              left: isMobile ? undefined : 0,
+              zIndex: 4,
+            }}
+          >
+            {content}
+          </span>
+        ) : (
+          content
         )}
       </div>
     );
