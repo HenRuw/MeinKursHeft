@@ -325,7 +325,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     alignItems: 'flex-start',
     gap: 4,
     padding: '5px 8px',
-    font: `500 8.5px ${fonts.mono}`,
+    font: `500 10px ${fonts.mono}`,
     letterSpacing: '.06em',
     justifyContent: 'flex-start',
     textAlign: 'left',
@@ -347,7 +347,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     justifyContent: 'center',
     gap: 2,
     padding: '5px 4px 6px',
-    font: `500 8.5px ${fonts.mono}`,
+    font: `500 10px ${fonts.mono}`,
     color: colors.mutedStrong,
     letterSpacing: '.06em',
     textAlign: 'center',
@@ -853,7 +853,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               zIndex: 3,
             }}
           >
-            <span style={{ font: `500 8.5px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>GEWICHTUNG</span>
+            <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>GEWICHTUNG</span>
           </div>
 
           {groups.map(renderGroup)}
