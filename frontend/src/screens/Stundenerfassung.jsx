@@ -21,7 +21,7 @@ const ATTENDANCE_OPTIONS = [
 // Unit tile geometry — one source of truth for the tiles and for the
 // paging maths (how far a left/right-edge click scrolls the row).
 const TILE_W = 152;
-const TILE_H = 92;
+const TILE_H = 62;
 const TILE_GAP = 9;
 
 // End of a unit's span: a single-hour unit leaves end_date equal to date (or
@@ -260,14 +260,14 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             width: detailWidth,
             transition: 'width 160ms ease',
             minHeight: TILE_H,
-            padding: '11px 13px',
+            padding: '8px 13px',
             borderRadius: 10,
             border: `1px solid ${colors.borderCard}`,
             background: colors.cream,
             cursor: lesson ? 'pointer' : 'default',
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            gap: 4,
           }}
         >
           {lesson ? (
@@ -282,7 +282,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               >
                 ✎
               </button>
-              {/* paddingRight keeps this first row clear of the corner pencil. */}
+              {/* Row 1: date (with Schulstunden right beside it); paddingRight
+                  keeps it clear of the corner pencil. Row 2: Thema and
+                  Kommentar side by side. */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, paddingRight: 30 }}>
                 {isMultiDay(lesson) ? (
                   <>
@@ -292,11 +294,16 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                 ) : (
                   <DetailRow label="Datum" value={formatLongDate(lesson.date)} />
                 )}
-                <DetailRow label="Gewicht" value={formatWeight(lesson.weight)} />
                 <DetailRow label="Schulstunden" value={String(lesson.duration_hours)} />
               </div>
-              <DetailRow label="Thema" value={lesson.topic || '—'} />
-              <DetailRow label="Kommentar" value={lesson.note || '—'} multiline />
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <DetailRow label="Thema" value={lesson.topic || '—'} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <DetailRow label="Kommentar" value={lesson.note || '—'} multiline />
+                </div>
+              </div>
             </>
           ) : (
             <span style={{ fontSize: 12, color: colors.muted }}>Keine Einheit ausgewählt.</span>
@@ -330,8 +337,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
-                  gap: 3,
-                  padding: '11px 13px',
+                  gap: 2,
+                  padding: '8px 12px',
                   borderRadius: 10,
                   border: `1px solid ${on ? colors.teal : colors.borderCard}`,
                   background: on ? colors.teal : '#fff',
