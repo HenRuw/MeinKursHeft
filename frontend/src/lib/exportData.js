@@ -28,9 +28,9 @@ function csvEscape(value) {
 export const EXPORT_TREE = [
   {
     key: 'muendlich',
-    label: 'Mündliche Mitarbeit',
+    label: 'Mitarbeit',
     children: [
-      { key: 'noten', label: 'Mündliche Noten' },
+      { key: 'noten', label: 'Noten Mitarbeit' },
       { key: 'bemerkungen', label: 'Bemerkungen' },
     ],
   },

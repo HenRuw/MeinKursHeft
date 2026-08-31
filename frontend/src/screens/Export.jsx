@@ -157,8 +157,8 @@ export default function Export({ courses, allStudents, klassen }) {
         const filter = schuelerFilterMode === 'all' ? null : { mode: schuelerFilterMode, klasseId: effectiveKlasseId, jahrgang: effectiveJahrgang };
         sections.push({ label: 'Schülerliste', report: buildStudentListReport(allStudents, filter) });
       }
-      if (selectedLeaves.has('muendlich.noten')) sections.push({ label: 'Mündliche Noten', report: buildMuendlicheNotenReport(bundles) });
-      if (selectedLeaves.has('muendlich.bemerkungen')) sections.push({ label: 'Bemerkungen Mündlich', report: buildMuendlicheBemerkungenReport(bundles) });
+      if (selectedLeaves.has('muendlich.noten')) sections.push({ label: 'Noten Mitarbeit', report: buildMuendlicheNotenReport(bundles) });
+      if (selectedLeaves.has('muendlich.bemerkungen')) sections.push({ label: 'Bemerkungen Mitarbeit', report: buildMuendlicheBemerkungenReport(bundles) });
       if (selectedLeaves.has('schriftlich.klassenarbeit')) sections.push({ label: 'Klassenarbeiten', report: buildWrittenWorkReport(bundles, 'klassenarbeit') });
       if (selectedLeaves.has('schriftlich.test')) sections.push({ label: 'Tests', report: buildWrittenWorkReport(bundles, 'test') });
       if (selectedLeaves.has('schriftlich.sonstige')) sections.push({ label: 'Sonstige Leistungen', report: buildWrittenWorkReport(bundles, 'sonstige') });

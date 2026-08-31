@@ -25,7 +25,7 @@ const menuPanel = {
 const menuOptionBtn = { textAlign: 'left', padding: '9px 10px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, fontSize: 12.5 };
 
 const TABS = [
-  ['stunde', 'Mündliche Mitarbeit'],
+  ['stunde', 'Mitarbeit'],
   ['ka', 'Schriftliche Leistungen'],
   ['matrix', 'Notenübersicht'],
 ];
