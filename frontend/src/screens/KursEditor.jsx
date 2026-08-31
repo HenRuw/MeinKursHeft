@@ -218,7 +218,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
                 </select>
               </div>
               <div>
-                <label style={label}>KLASSE</label>
+                <label style={label}>NACH KLASSE FILTERN
                 <select value={addFilterKlasse} onChange={(e) => setAddFilterKlasse(e.target.value)} style={select}>
                   <option value="">Alle Klassen</option>
                   {klassen.map((k) => (
