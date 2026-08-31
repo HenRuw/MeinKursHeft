@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
-import { sortStudents, studentDisplayName, studentKlasseLabel } from '../lib/gradeMath.js';
-import { formatShortDate, todayISO } from '../lib/dates.js';
+import { sortStudents, studentDisplayName, studentKlasseLabel, formatWeight } from '../lib/gradeMath.js';
+import { formatShortDate, formatLongDate, formatDateRange, todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
 import { submitOnEnter } from '../lib/keys.js';
 import SplitKeys from '../components/SplitKeys.jsx';
@@ -16,6 +16,38 @@ const ATTENDANCE_OPTIONS = [
   ['verspaetet', 'V', 'Verspätet', '#d8a02a'],
   ['fehlt', 'F', 'Fehlt', colors.red],
 ];
+
+// Unit tile geometry — one source of truth for the tiles and for the
+// paging maths (how far a left/right-edge click scrolls the row).
+const TILE_W = 152;
+const TILE_H = 92;
+const TILE_GAP = 9;
+
+// End of a unit's span: a single-hour unit leaves end_date equal to date (or
+// null on pre-range rows), so treat those as no range.
+const unitEnd = (l) => l.end_date || l.date;
+const isMultiDay = (l) => unitEnd(l) !== l.date;
+
+// One labelled field in the unit detail panel (small mono caption above the
+// value). `multiline` lets the Kommentar wrap; everything else ellipsises.
+function DetailRow({ label, value, multiline }) {
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+      <span style={{ font: `500 8.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.08em', textTransform: 'uppercase' }}>{label}</span>
+      <span
+        style={{
+          fontSize: 12,
+          color: colors.ink,
+          ...(multiline
+            ? { whiteSpace: 'pre-wrap', wordBreak: 'break-word' }
+            : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }),
+        }}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
 
 function Stepper({ value, onChange, min = 1, max = 30, suffix = '' }) {
   return (
@@ -43,6 +75,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   // just leaves this at its null default instead of reapplying a stale one.
   const [highlightedStudentId, setHighlightedStudentId] = useState(null);
   const addBtnRef = useRef(null);
+  const tileViewportRef = useRef(null);
+  const tileRefs = useRef({});
   const [addOpen, setAddOpen] = useState(false);
   const [newDate, setNewDate] = useState(todayISO());
   const [newEndDate, setNewEndDate] = useState(todayISO());
@@ -164,67 +198,151 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const deleteRemark = (id) => api.deleteRemark(id).then(onRefresh);
   const deletePreset = (id) => api.deleteRemarkPreset(id).then(onRefreshPresets);
 
+  // --- unit tile row: scrolling + edge-click paging ---
+  // Centre a unit's tile in the viewport — used when clicking empty space in
+  // the detail panel to jump the row back to the unit it describes.
+  const scrollToLesson = (id) => {
+    const vp = tileViewportRef.current;
+    const el = tileRefs.current[id];
+    if (!vp || !el) return;
+    const delta = el.getBoundingClientRect().left - vp.getBoundingClientRect().left;
+    const target = vp.scrollLeft + delta - (vp.clientWidth - el.offsetWidth) / 2;
+    vp.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+  };
+
+  // A click on the tile currently flush against the left (right) edge pages
+  // the row toward earlier (later) units instead of selecting it — but only
+  // while there's actually room to scroll that way, so once the row is at its
+  // extreme the same edge tile becomes selectable again. Anything not at an
+  // edge just selects normally.
+  const onTileClick = (l, el) => {
+    const vp = tileViewportRef.current;
+    if (vp) {
+      const vpRect = vp.getBoundingClientRect();
+      const tRect = el.getBoundingClientRect();
+      const left = tRect.left - vpRect.left;
+      const right = tRect.right - vpRect.left;
+      const canScrollLeft = vp.scrollLeft > 1;
+      const canScrollRight = vp.scrollLeft + vp.clientWidth < vp.scrollWidth - 1;
+      const visible = Math.max(1, Math.floor(vp.clientWidth / (TILE_W + TILE_GAP)));
+      const page = Math.max(1, visible - 1) * (TILE_W + TILE_GAP);
+      if (left <= TILE_W * 0.5 && canScrollLeft) return vp.scrollBy({ left: -page, behavior: 'smooth' });
+      if (right >= vp.clientWidth - TILE_W * 0.5 && canScrollRight) return vp.scrollBy({ left: page, behavior: 'smooth' });
+    }
+    setActiveLessonId(l.id);
+  };
+
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div className="scroll-panel" style={{ display: 'flex', alignItems: 'stretch', gap: 9, padding: '16px 24px', borderBottom: `1px solid ${colors.border}`, overflowX: 'auto' }}>
-        {allLessons.map((l) => {
-          const { dow, label: dayLabel } = formatShortDate(l.date);
-          const on = l.id === activeLessonId;
-          return (
-            <span key={l.id} style={{ position: 'relative', flex: 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
+        {/* Detail panel (left): the selected unit's Von…bis, Gewicht,
+            Schulstunden, Thema and Kommentar. Clicking empty space in it
+            scrolls the tile row back to that unit; the pencil opens the
+            editor (the old per-tile gear button is gone). */}
+        <div
+          onClick={() => activeLessonId && scrollToLesson(activeLessonId)}
+          style={{
+            flex: 'none',
+            width: 224,
+            minHeight: TILE_H,
+            padding: '11px 13px',
+            borderRadius: 10,
+            border: `1px solid ${colors.borderCard}`,
+            background: colors.cream,
+            cursor: lesson ? 'pointer' : 'default',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          {lesson ? (
+            <>
+              {isMultiDay(lesson) ? (
+                <>
+                  <DetailRow label="von" value={formatLongDate(lesson.date)} />
+                  <DetailRow label="bis" value={formatLongDate(unitEnd(lesson))} />
+                </>
+              ) : (
+                <DetailRow label="Datum" value={formatLongDate(lesson.date)} />
+              )}
+              <div style={{ display: 'flex', gap: 16 }}>
+                <DetailRow label="Gewicht" value={formatWeight(lesson.weight)} />
+                <DetailRow label="Schulstunden" value={String(lesson.duration_hours)} />
+              </div>
+              <DetailRow label="Thema" value={lesson.topic || '—'} />
+              <DetailRow label="Kommentar" value={lesson.note || '—'} multiline />
               <button
-                onClick={() => setActiveLessonId(l.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdit(lesson, e.currentTarget);
+                }}
+                style={{ alignSelf: 'flex-start', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', color: colors.mutedStrong, fontSize: 11.5 }}
+              >
+                ✎ Bearbeiten
+              </button>
+            </>
+          ) : (
+            <span style={{ fontSize: 12, color: colors.muted }}>Keine Einheit ausgewählt.</span>
+          )}
+        </div>
+
+        {/* Tile row (middle): scrolls/swipes horizontally, at least three
+            tiles visible on a normal window. Clicking the tile at the very
+            left/right edge pages the row (see onTileClick). */}
+        <div
+          ref={tileViewportRef}
+          className="scroll-panel"
+          style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: TILE_GAP, overflowX: 'auto', scrollSnapType: 'x proximity', paddingBottom: 2 }}
+        >
+          {allLessons.map((l) => {
+            const on = l.id === activeLessonId;
+            const period = isMultiDay(l) ? formatDateRange(l.date, unitEnd(l)) : formatShortDate(l.date).label;
+            return (
+              <button
+                key={l.id}
+                ref={(el) => {
+                  if (el) tileRefs.current[l.id] = el;
+                  else delete tileRefs.current[l.id];
+                }}
+                onClick={(e) => onTileClick(l, e.currentTarget)}
                 style={{
+                  flex: 'none',
+                  width: TILE_W,
+                  height: TILE_H,
+                  scrollSnapAlign: 'start',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: 'flex-start',
                   gap: 3,
-                  padding: '12px 14px 11px',
-                  width: 96,
-                  height: 84,
+                  padding: '11px 13px',
                   borderRadius: 10,
                   border: `1px solid ${on ? colors.teal : colors.borderCard}`,
                   background: on ? colors.teal : '#fff',
                   color: on ? '#fff' : colors.ink,
+                  textAlign: 'left',
                 }}
               >
-                <span style={{ fontSize: 10.5, letterSpacing: '.08em', opacity: 0.6 }}>{dow}</span>
-                <span style={{ font: `600 18px ${fonts.mono}` }}>{dayLabel}</span>
-                <span style={{ fontSize: 10.5, marginTop: 2, maxWidth: 74, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: on ? 'rgba(255,255,255,.72)' : '#9a958b' }}>
+                <span style={{ font: `600 15px ${fonts.mono}` }}>{period}</span>
+                <span style={{ fontSize: 10.5, color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>{l.duration_hours} Schulstd.</span>
+                <span style={{ fontSize: 11, maxWidth: TILE_W - 26, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: on ? 'rgba(255,255,255,.85)' : '#6c7a76' }}>
                   {l.topic || ' '}
                 </span>
               </button>
-              <button
-                onClick={(e) => openEdit(l, e.currentTarget)}
-                title="Stunde bearbeiten"
-                style={{
-                  position: 'absolute',
-                  top: 5,
-                  right: 5,
-                  width: 22,
-                  height: 22,
-                  borderRadius: 99,
-                  fontSize: 12.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${on ? 'rgba(255,255,255,.55)' : colors.borderStrong}`,
-                  background: on ? 'rgba(255,255,255,.22)' : '#efece5',
-                  color: on ? '#fff' : '#4b5c58',
-                }}
-              >
-                ⚙
-              </button>
-            </span>
-          );
-        })}
+            );
+          })}
+          {!allLessons.length && (
+            <span style={{ alignSelf: 'center', fontSize: 12.5, color: colors.mutedStrong, paddingLeft: 4 }}>Noch keine Einheit — rechts über „+“ anlegen.</span>
+          )}
+        </div>
+
+        {/* "+" tile: right of the tile viewport, so it never scrolls away. */}
         <button
           ref={addBtnRef}
           onClick={() => setAddOpen((v) => !v)}
+          title="Neue Einheit"
           style={{
-            width: 96,
-            height: 84,
+            width: 56,
+            height: TILE_H,
             flex: 'none',
             display: 'flex',
             alignItems: 'center',
