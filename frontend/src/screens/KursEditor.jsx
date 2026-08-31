@@ -67,7 +67,7 @@ function StudentRow({ student, checked, onToggle }) {
 // (pre-checked, since removing is the point of being here) to remove some
 // of them, "Schüler hinzufügen" opens the rest of the school's roster
 // (sortable like Schülerverwaltung) to check in whoever's joining.
-export default function KursEditor({ mode, course, allStudents, klassen, initialSelectedIds, onSubmit, onDelete, onCancel }) {
+export default function KursEditor({ mode, course, allStudents, klassen, initialSelectedIds, onSubmit, onDelete, onCancel, onManageStudents }) {
   const [name, setName] = useState(course?.name || '');
   const [selectedIds, setSelectedIds] = useState(new Set(initialSelectedIds));
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -303,6 +303,14 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13 }}>
             Abbrechen
           </button>
+          {onManageStudents && (
+            <button
+              onClick={onManageStudents}
+              style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13, color: colors.mutedStrong }}
+            >
+              Schülerdaten verwalten
+            </button>
+          )}
         </div>
       )}
     </div>

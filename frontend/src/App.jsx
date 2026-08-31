@@ -576,6 +576,7 @@ export default function App() {
             onSubmit={submitCourseEditor}
             onDelete={deleteCourseFromEditor}
             onCancel={closeCourseEditor}
+            onManageStudents={() => openVerwaltungScreen('schuelerverwaltung')}
           />
         )}
       </main>
