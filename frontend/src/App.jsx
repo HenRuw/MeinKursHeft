@@ -160,7 +160,10 @@ export default function App() {
   // On mobile/tablet the sidebar is an off-canvas drawer (see the aside's
   // own responsive styles below) — any navigation action taken inside it
   // should close it again, the same way a mobile nav drawer normally works.
-  const closeSidebarOnNavigate = () => setSidebarOpen(false);
+  // On desktop it's an in-flow panel that stays put while you navigate.
+  const closeSidebarOnNavigate = () => {
+    if (!isDesktop) setSidebarOpen(false);
+  };
 
   const TAB_SCREENS = ['stunde', 'ka', 'matrix'];
   const selectCourse = (id) => {
@@ -277,6 +280,11 @@ export default function App() {
     closeSidebarOnNavigate();
   };
 
+  // A course only counts as "selected" (highlighted in the sidebar) while one
+  // of its own screens is showing. In a management menu or the course editor
+  // no course is the active context, so none is highlighted.
+  const activeCourseId = ['stunde', 'ka', 'matrix', 'student'].includes(screen) ? courseId : null;
+
   return (
     <div style={{ display: 'flex', height: '100%', background: colors.panelBg, fontFamily: fonts.sans, color: colors.ink, position: 'relative', overflow: 'hidden' }}>
       {!isDesktop && sidebarOpen && (
@@ -338,7 +346,7 @@ export default function App() {
                 alignItems: 'center',
                 gap: 2,
                 borderRadius: 7,
-                background: c.id === courseId ? 'rgba(255,255,255,.10)' : 'transparent',
+                background: c.id === activeCourseId ? 'rgba(255,255,255,.10)' : 'transparent',
               }}
             >
               <button
@@ -352,7 +360,7 @@ export default function App() {
                   minWidth: 0,
                   padding: '9px 4px 9px 10px',
                   borderRadius: 7,
-                  color: c.id === courseId ? '#fff' : '#9fb0ab',
+                  color: c.id === activeCourseId ? '#fff' : '#9fb0ab',
                 }}
               >
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left', minWidth: 0 }}>
@@ -365,7 +373,7 @@ export default function App() {
                     width: 6,
                     height: 6,
                     borderRadius: 99,
-                    background: c.id === courseId ? '#3fbf9a' : 'transparent',
+                    background: c.id === activeCourseId ? '#3fbf9a' : 'transparent',
                     flex: 'none',
                   }}
                 />
@@ -383,7 +391,7 @@ export default function App() {
                   justifyContent: 'center',
                   borderRadius: 6,
                   fontSize: 12,
-                  color: c.id === courseId ? '#fff' : '#7f918c',
+                  color: c.id === activeCourseId ? '#fff' : '#7f918c',
                 }}
               >
                 ✎
