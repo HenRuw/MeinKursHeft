@@ -5,6 +5,7 @@ import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
 import GradeLineChart from '../components/GradeLineChart.jsx';
+import CollapseArrow from '../components/CollapseArrow.jsx';
 import Notenuebersicht from './Notenuebersicht.jsx';
 
 function Kpi({ label, value, note, strong, valueColor }) {
@@ -32,7 +33,7 @@ function CollapsibleSection({ title, collapsed, onToggle, headerExtra, children 
     <div style={{ background: '#fff', border: `1px solid ${colors.borderCard}`, borderRadius: 11, overflow: 'hidden', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: collapsed ? 'none' : `1px solid ${colors.divider}`, flexWrap: 'wrap' }}>
         <button onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ display: 'inline-block', fontSize: 9, color: colors.muted, transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 120ms ease' }}>▾</span>
+          <CollapseArrow collapsed={collapsed} size={16} fontSize={10} />
           <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>{title}</span>
         </button>
         {!collapsed && headerExtra}

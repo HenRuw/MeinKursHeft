@@ -488,7 +488,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
     // label ends up wrapping.
     const content = (
       <>
-        <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} collapsedGlyph="▶" />
+        <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
         {!narrow && (
           <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{bindLead(splitKlassenarbeit(g.label))}</span>
         )}
