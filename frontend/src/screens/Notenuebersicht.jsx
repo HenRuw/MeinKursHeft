@@ -28,6 +28,7 @@ import WeightInput from '../components/WeightInput.jsx';
 import SplitKeys from '../components/SplitKeys.jsx';
 import Popover from '../components/Popover.jsx';
 import LockIcon from '../components/LockIcon.jsx';
+import CollapseArrow from '../components/CollapseArrow.jsx';
 
 // Klassenarbeiten sit in the KLASSENARBEITEN (amber) frame; Tests and
 // Sonstige Leistungen count toward SONSTIGE MITARBEIT, so they get a tint
@@ -80,31 +81,6 @@ const bindLead = (label) => (label || '').replace(/^(Ø|\d+\.)\s+/, '$1 ');
 const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6, lock: 7, weight: 8 };
 const HEADER_ROWS = 8;
 const BODY_START = HEADER_ROWS + 1;
-
-function CollapseArrow({ collapsed, onClick, dark }) {
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      title={collapsed ? 'Aufklappen' : 'Einklappen'}
-      style={{
-        flex: 'none',
-        width: 14,
-        height: 14,
-        borderRadius: 4,
-        fontSize: 8,
-        lineHeight: '14px',
-        textAlign: 'center',
-        color: dark ? '#fff' : '#3c4a46',
-        background: dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.08)',
-      }}
-    >
-      {collapsed ? '+' : '◀'}
-    </button>
-  );
-}
 
 // Builds the flat, collapse-aware column list the whole grid is laid out
 // from: `leaves` is one entry per actual data/average column, in on-screen

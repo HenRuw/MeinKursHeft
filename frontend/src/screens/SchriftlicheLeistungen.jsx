@@ -12,6 +12,7 @@ import SplitKeys from '../components/SplitKeys.jsx';
 import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
 import LockButton from '../components/LockButton.jsx';
+import CollapseArrow from '../components/CollapseArrow.jsx';
 
 // WRITTEN_WORK_KINDS.label is singular (correct for "choose one kind" in a
 // dropdown or a single work's badge); a section header groups many, so it
@@ -172,7 +173,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '4px 2px' }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', fontSize: 9, color: colors.muted, transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 120ms ease' }}>▾</span>
+                  <CollapseArrow collapsed={isCollapsed} />
                   <span style={{ font: `600 10.5px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>{SECTION_LABELS[k.value].toUpperCase()}</span>
                 </span>
                 <span style={{ font: `500 10px ${fonts.mono}`, color: colors.faint }}>{worksForKind.length}</span>
