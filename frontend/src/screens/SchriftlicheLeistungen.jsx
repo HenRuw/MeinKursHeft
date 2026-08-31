@@ -328,12 +328,15 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
           </div>
         ) : (
           <>
+            {/* Name, then the kind (the "was ist es"-description), then the
+                topic -- and the Sperre directly beside them, not floated off
+                to the far right. The date lives in the sidebar entry already,
+                so it's dropped here. */}
             <div style={{ padding: '16px 24px 13px', borderBottom: `1px solid ${colors.border}`, display: 'flex', flexWrap: 'wrap', gap: 14, rowGap: 6, alignItems: 'baseline' }}>
               <span style={{ font: `500 16px/1.2 ${fonts.serif}` }}>{work.title}</span>
-              <span style={{ font: `500 11.5px ${fonts.mono}`, color: colors.muted }}>{work.date}</span>
               <span style={{ font: `500 10.5px ${fonts.mono}`, padding: '3px 8px', borderRadius: 99, background: colors.tealTint, color: colors.teal }}>{writtenWorkKindLabel(work.kind)}</span>
-              {work.content && <span style={{ fontSize: 12, color: colors.mutedStrong, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{work.content}</span>}
-              <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {work.content && <span style={{ fontSize: 12, color: colors.mutedStrong, flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{work.content}</span>}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {setLocked && <span style={{ font: `600 9.5px ${fonts.mono}`, color: colors.gold, letterSpacing: '.06em' }}>GESPERRT</span>}
                 <span ref={setLockRef} style={{ display: 'inline-flex' }}>
                   <LockButton locked={setLocked} onClick={toggleSetLock} size={22} title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'} />
