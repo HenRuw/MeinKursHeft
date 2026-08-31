@@ -323,7 +323,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               {/* Two aligned columns across both rows -- date | Schulstunden
                   and Thema | Kommentar -- so Schulstunden and Kommentar start
                   at the same x. The matching paddingRight on both rows keeps
-                  the split identical and the right column clear of the pencil. */}
+                  the split identical and the right column clear of the pencil.
+                  Thema and Kommentar wrap (multiline), so the panel grows
+                  downward until the full topic is shown; the sibling tiles
+                  stretch to match via the row's alignItems:stretch. */}
               <div style={{ display: 'flex', gap: 16, paddingRight: 30 }}>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 16 }}>
                   {isMultiDay(lesson) ? (
@@ -341,7 +344,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               </div>
               <div style={{ display: 'flex', gap: 16, paddingRight: 30 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <DetailRow label="Thema" value={lesson.topic || '—'} />
+                  <DetailRow label="Thema" value={lesson.topic || '—'} multiline />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <DetailRow label="Kommentar" value={lesson.note || '—'} multiline />
