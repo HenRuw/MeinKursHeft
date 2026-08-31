@@ -10,11 +10,13 @@ const lessonsRouter = require('./routes/lessons');
 const writtenWorksRouter = require('./routes/writtenWorks');
 const remarksRouter = require('./routes/remarks');
 const gradeOverridesRouter = require('./routes/gradeOverrides');
+const backupRouter = require('./routes/backup');
 
 function createApp(notify) {
   const app = express();
   app.use(cors());
-  app.use(express.json());
+  // Generous limit: a restore posts the whole database as JSON.
+  app.use(express.json({ limit: '64mb' }));
 
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -25,6 +27,7 @@ function createApp(notify) {
   app.use('/api', writtenWorksRouter(db, notify));
   app.use('/api', remarksRouter(db, notify));
   app.use('/api', gradeOverridesRouter(db, notify));
+  app.use('/api', backupRouter(db, notify));
 
   return app;
 }

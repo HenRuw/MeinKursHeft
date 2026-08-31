@@ -298,6 +298,61 @@ function close() {
   }
 }
 
+// ---------- backup (full dump / restore) ----------
+
+// Every user table (skips SQLite's own internal ones), in creation order so a
+// restore can insert parents before children.
+function userTables() {
+  return all("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY rootpage").map((r) => r.name);
+}
+
+// A plain, human-readable JSON snapshot of the whole database: every row of
+// every table, ids and all. Lossless (relationships are preserved because the
+// ids are kept) yet still legible in any text/JSON viewer.
+function exportAll() {
+  const tables = {};
+  for (const t of userTables()) tables[t] = all(`SELECT * FROM "${t}"`);
+  return { app: 'scorespace', version: 1, exportedAt: new Date().toISOString(), tables };
+}
+
+// Replaces the entire database contents with a snapshot produced by
+// exportAll. Runs in one transaction with foreign keys deferred so table
+// order doesn't matter; only columns that still exist in the current schema
+// are inserted, so a snapshot from a slightly older/newer schema still loads.
+function importAll(payload) {
+  const snapshot = payload && payload.tables;
+  if (!snapshot || typeof snapshot !== 'object') throw new Error('Invalid backup: missing tables');
+
+  const tables = userTables();
+  const colsByTable = {};
+  for (const t of tables) colsByTable[t] = all(`PRAGMA table_info("${t}")`).map((c) => c.name);
+
+  requireDb();
+  db.run('PRAGMA foreign_keys = OFF');
+  db.run('BEGIN');
+  try {
+    // Clear children before parents (reverse creation order).
+    for (const t of [...tables].reverse()) db.run(`DELETE FROM "${t}"`);
+    for (const t of tables) {
+      const rows = snapshot[t];
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        const cols = Object.keys(row).filter((c) => colsByTable[t].includes(c));
+        if (!cols.length) continue;
+        const sql = `INSERT INTO "${t}" (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
+        db.run(sql, cols.map((c) => row[c]));
+      }
+    }
+    db.run('COMMIT');
+  } catch (err) {
+    db.run('ROLLBACK');
+    db.run('PRAGMA foreign_keys = ON');
+    throw err;
+  }
+  db.run('PRAGMA foreign_keys = ON');
+  persist();
+}
+
 // ---------- students ----------
 
 function listStudents() {
@@ -843,6 +898,9 @@ module.exports = {
   init,
   persist,
   close,
+  // backup
+  exportAll,
+  importAll,
   // students
   listStudents,
   createStudent,

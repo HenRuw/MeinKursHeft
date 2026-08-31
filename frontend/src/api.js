@@ -76,6 +76,10 @@ export const api = {
   listRemarkPresets: () => get('/api/remark-presets'),
   createRemarkPreset: (data) => post('/api/remark-presets', data),
   deleteRemarkPreset: (id) => del(`/api/remark-presets/${id}`),
+
+  // backup — download a full JSON snapshot, or restore one (replaces everything)
+  getBackup: () => get('/api/backup'),
+  restoreBackup: (data) => post('/api/backup/restore', data),
 };
 
 let socket = null;

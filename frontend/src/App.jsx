@@ -11,6 +11,7 @@ import Schuelerverwaltung from './screens/Schuelerverwaltung.jsx';
 import Quartalsdaten from './screens/Quartalsdaten.jsx';
 import KursEditor from './screens/KursEditor.jsx';
 import Export from './screens/Export.jsx';
+import Backup from './screens/Backup.jsx';
 
 const menuPanel = {
   background: '#fff',
@@ -30,7 +31,7 @@ const TABS = [
   ['matrix', 'Notenübersicht'],
 ];
 
-const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten', 'export'];
+const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten', 'export', 'backup'];
 const NO_HEADER_SCREENS = [...VERWALTUNG_SCREENS, 'kurs-editor'];
 
 export default function App() {
@@ -142,6 +143,13 @@ export default function App() {
           refreshKlassen();
         } else if (resource === 'remark-presets') {
           refreshPresets();
+        } else if (resource === 'backup') {
+          // A restore replaced the whole database -- refetch everything.
+          refreshCourses();
+          refreshAllStudents();
+          refreshKlassen();
+          refreshPresets();
+          if (courseId) refreshBundle(courseId);
         }
       }),
     [courseId, refreshCourses, refreshAllStudents, refreshKlassen, refreshBundle, refreshPresets]
@@ -434,6 +442,9 @@ export default function App() {
           <button onClick={() => openVerwaltungScreen('export')} style={menuOptionBtn}>
             Export
           </button>
+          <button onClick={() => openVerwaltungScreen('backup')} style={menuOptionBtn}>
+            Backup
+          </button>
         </div>
       </Popover>
 
@@ -553,6 +564,7 @@ export default function App() {
         )}
         {screen === 'quartalsdaten' && <Quartalsdaten courses={courses} />}
         {screen === 'export' && <Export courses={courses} allStudents={allStudents} klassen={klassen} />}
+        {screen === 'backup' && <Backup />}
         {screen === 'kurs-editor' && (
           <KursEditor
             key={courseEditorNonce}
