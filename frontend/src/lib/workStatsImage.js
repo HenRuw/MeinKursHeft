@@ -1,10 +1,11 @@
 import { num, isNb, gradeColor, fmt } from './gradeMath.js';
 import { formatLongDate } from './dates.js';
 
-// Renders a downloadable PNG for one written work: its name and date, the
-// Durchschnitt and Median, and a bar chart of the grade distribution (bins by
-// whole grade 1-6). n.b. and ungraded students are left out of the stats.
-export function downloadWorkStatsImage(work, students) {
+// Renders a downloadable PNG for one written work: the course it belongs to,
+// its name and date, the Durchschnitt and Median, and a bar chart of the grade
+// distribution (bins by whole grade 1-6). n.b. and ungraded students are left
+// out of the stats.
+export function downloadWorkStatsImage(work, students, course) {
   const grades = students
     .map((s) => work.grades.find((g) => g.student_id === s.id)?.grade)
     .filter((g) => g && !isNb(g));
@@ -35,6 +36,13 @@ export function downloadWorkStatsImage(work, students) {
   const pad = 48;
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
+
+  // Course name as a small kicker above the work title.
+  if (course?.name) {
+    ctx.fillStyle = '#8b968f';
+    ctx.font = '600 13px Arial, sans-serif';
+    ctx.fillText(course.name, pad, 34);
+  }
 
   ctx.fillStyle = '#16211f';
   ctx.font = "600 30px Georgia, 'Times New Roman', serif";

@@ -237,7 +237,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                           <span style={{ fontSize: 11.5, color: colors.muted }}>Ø {fmt(avg)}</span>
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); downloadWorkStatsImage(w, students); }}
+                          onClick={(e) => { e.stopPropagation(); downloadWorkStatsImage(w, students, bundle.course); }}
                           title="Notenverteilung als Bild herunterladen"
                           style={{ ...cornerBtnStyle(false), right: 39 }}
                         >

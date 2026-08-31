@@ -71,4 +71,14 @@ describe('downloadWorkStatsImage bar chart axes', () => {
       expect(record.texts).toContain(d);
     }
   });
+
+  it('draws the course name when a course is given', () => {
+    downloadWorkStatsImage(work, students, { id: 1, name: 'Mathe 9a' });
+    expect(record.texts).toContain('Mathe 9a');
+  });
+
+  it('omits the course kicker when no course is given', () => {
+    downloadWorkStatsImage(work, students);
+    expect(record.texts).not.toContain('Mathe 9a');
+  });
 });
