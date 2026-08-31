@@ -143,10 +143,6 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
         <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px 7px 9px', border: `1px solid ${colors.borderStrong}`, borderRadius: 8, background: '#fff', color: colors.mutedStrong, fontSize: 12.5 }}>
           ‹ Zurück
         </button>
-        <span style={{ width: 44, height: 44, flex: 'none', borderRadius: 99, background: colors.sidebarBg, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `500 15px ${fonts.sans}` }}>
-          {student.first_name[0]}
-          {student.last_name[0]}
-        </span>
         <span style={{ font: `500 21px/1.1 ${fonts.serif}` }}>{studentDisplayName(student)}</span>
         {studentKlasseLabel(student) && (
           <span style={{ font: `500 12px ${fonts.mono}`, padding: '3px 9px', borderRadius: 99, background: colors.tealTint, color: colors.teal }}>{studentKlasseLabel(student)}</span>

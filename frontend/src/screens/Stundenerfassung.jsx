@@ -653,10 +653,6 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                 >
                   <span style={{ position: 'sticky', left: 12, zIndex: 2, background: pinnedBg, boxShadow: `-12px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
                   <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 46, zIndex: 2, background: pinnedBg, boxShadow: `14px 0 0 0 ${pinnedBg}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
-                    <span style={{ flex: 'none', width: 26, height: 26, borderRadius: 99, background: '#e3e8e5', color: absent ? colors.faint : colors.mutedStrong, font: `600 10px ${fonts.mono}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {s.first_name[0]}
-                      {s.last_name[0]}
-                    </span>
                     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                       <span style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: absent ? colors.faint : colors.ink }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
