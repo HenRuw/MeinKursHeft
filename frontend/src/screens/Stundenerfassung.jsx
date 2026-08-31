@@ -196,15 +196,12 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
 
   const attendanceFor = (studentId) => lesson?.attendance.find((a) => a.student_id === studentId);
   const gradeFor = (studentId) => lesson?.grades.find((g) => g.student_id === studentId)?.grade || null;
-  const gradeLockedFor = (studentId) => !!lesson?.grades.find((g) => g.student_id === studentId)?.locked;
   const remarksFor = (studentId) => lesson?.remarks.filter((r) => r.student_id === studentId) || [];
 
-  // Whole-set lock (Notensatz) vs. a single locked cell — a locked set
-  // disables and governs every grade in this lesson; an individual lock only
-  // its own cell. Toggling either goes through the API and refreshes.
+  // Whole-set lock (Notensatz): a locked set disables and governs every grade
+  // in this lesson. Individual grades are not lockable on their own.
   const setLocked = !!lesson?.grades_locked;
   const toggleSetLock = () => api.updateLesson(activeLessonId, { gradesLocked: !setLocked }).then(onRefresh);
-  const toggleGradeLock = (studentId) => api.setLessonGradeLock(activeLessonId, studentId, !gradeLockedFor(studentId)).then(onRefresh);
 
   const setStatus = (studentId, status) => {
     api.setAttendance(activeLessonId, studentId, { status }).then(() => {
@@ -533,7 +530,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '26px 168px 118px 108px 322px 1fr',
+              gridTemplateColumns: '26px 168px 118px 108px 286px 1fr',
               alignItems: 'center',
               gap: 14,
               padding: '8px 24px',
@@ -577,7 +574,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   key={s.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '26px 168px 118px 108px 322px 1fr',
+                    gridTemplateColumns: '26px 168px 118px 108px 286px 1fr',
                     alignItems: 'center',
                     gap: 14,
                     padding: '7px 24px',
@@ -630,15 +627,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       </span>
                     )}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={absent || setLocked || gradeLockedFor(s.id)} />
-                    </span>
-                    <LockButton
-                      locked={setLocked || gradeLockedFor(s.id)}
-                      disabled={setLocked}
-                      onClick={() => toggleGradeLock(s.id)}
-                    />
+                  <span>
+                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={absent || setLocked} />
                   </span>
                   <RemarkPicker
                     remarks={remarksFor(s.id)}

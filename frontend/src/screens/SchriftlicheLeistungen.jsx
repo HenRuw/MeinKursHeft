@@ -120,15 +120,13 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   };
 
   const gradeFor = (studentId) => work?.grades.find((g) => g.student_id === studentId)?.grade || null;
-  const gradeLockedFor = (studentId) => !!work?.grades.find((g) => g.student_id === studentId)?.locked;
   const remarksFor = (studentId) => work?.remarks.filter((r) => r.student_id === studentId) || [];
   const setGrade = (studentId, grade) => api.setWrittenWorkGrade(activeWorkId, studentId, grade).then(onRefresh);
 
-  // Whole-set lock (Notensatz) vs. a single locked cell for this written work
-  // — same model as Stundenerfassung's Mitarbeit grades.
+  // Whole-set lock (Notensatz) for this written work — same model as
+  // Stundenerfassung's Mitarbeit grades. Individual grades aren't lockable.
   const setLocked = !!work?.grades_locked;
   const toggleSetLock = () => api.updateWrittenWork(activeWorkId, { gradesLocked: !setLocked }).then(onRefresh);
-  const toggleGradeLock = (studentId) => api.setWorkGradeLock(activeWorkId, studentId, !gradeLockedFor(studentId)).then(onRefresh);
 
   const addPreset = (studentId) => (preset) =>
     api.createRemark({ targetType: 'written_work', targetId: activeWorkId, studentId, emoji: preset.emoji, text: preset.text }).then(onRefresh);
@@ -353,7 +351,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                     key={s.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '26px 200px 322px 1fr',
+                      gridTemplateColumns: '26px 200px 286px 1fr',
                       alignItems: 'center',
                       gap: 14,
                       padding: '7px 24px',
@@ -368,12 +366,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked || gradeLockedFor(s.id)} />
-                      </span>
-                      <LockButton locked={setLocked || gradeLockedFor(s.id)} disabled={setLocked} onClick={() => toggleGradeLock(s.id)} />
-                    </span>
+                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} />
                     <RemarkPicker
                       remarks={remarksFor(s.id)}
                       presets={presets}

@@ -128,21 +128,6 @@ describe('lessons, attendance and participation grades', () => {
     expect(db.listParticipationGrades(lesson.id)).toEqual([]);
   });
 
-  test('a locked individual grade cannot be overwritten until it is unlocked', () => {
-    const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
-    db.setParticipationGrade(lesson.id, student.id, '2');
-    db.setParticipationGradeLock(lesson.id, student.id, true);
-
-    // write is ignored while locked
-    db.setParticipationGrade(lesson.id, student.id, '5');
-    expect(db.listParticipationGrades(lesson.id)[0].grade).toBe('2');
-
-    // unlock, then the write goes through
-    db.setParticipationGradeLock(lesson.id, student.id, false);
-    db.setParticipationGrade(lesson.id, student.id, '5');
-    expect(db.listParticipationGrades(lesson.id)[0].grade).toBe('5');
-  });
-
   test('a locked grade set (grades_locked) blocks writes to every cell in it', () => {
     const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
     db.setParticipationGrade(lesson.id, student.id, '3');

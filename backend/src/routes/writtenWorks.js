@@ -49,16 +49,6 @@ function writtenWorksRouter(db, notify) {
     res.json(record);
   });
 
-  router.put('/written-works/:id/grade/:studentId/lock', (req, res) => {
-    const workId = Number(req.params.id);
-    const studentId = Number(req.params.studentId);
-    const { locked } = req.body || {};
-    const record = db.setWrittenWorkGradeLock(workId, studentId, !!locked);
-    const work = db.getWrittenWork(workId);
-    if (work) notify('courses', work.course_id);
-    res.json(record);
-  });
-
   return router;
 }
 
