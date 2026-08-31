@@ -11,6 +11,7 @@ import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
 import ScrollWheel from '../components/ScrollWheel.jsx';
 import LockButton from '../components/LockButton.jsx';
+import { useConfirm } from '../components/useConfirm.jsx';
 
 const ATTENDANCE_OPTIONS = [
   ['anwesend', 'A', 'Anwesend', colors.green],
@@ -68,6 +69,7 @@ function Stepper({ value, onChange, min = 1, max = 30, suffix = '' }) {
 }
 
 export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets, initialLesson }) {
+  const { confirm, confirmDialog } = useConfirm();
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const [activeLessonId, setActiveLessonId] = useState(null);
   // The student row to highlight after arriving via a grade clicked in the
@@ -208,6 +210,12 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   };
 
   const deleteLesson = async () => {
+    const ok = await confirm({
+      title: 'Termin löschen?',
+      message:
+        'Dieser Mitarbeits-Termin wird mit allen dazu erfassten Noten, Anwesenheiten und Bemerkungen dauerhaft gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden.',
+    });
+    if (!ok) return;
     await api.deleteLesson(editLessonId);
     setEditLessonId(null);
     setActiveLessonId(null);
@@ -274,6 +282,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {confirmDialog}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
         {/* Detail panel (left): the selected unit's Von…bis, Gewicht,
             Schulstunden, Thema and Kommentar. The date/Gewicht/Schulstunden

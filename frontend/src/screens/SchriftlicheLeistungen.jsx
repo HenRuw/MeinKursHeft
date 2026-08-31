@@ -13,6 +13,7 @@ import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
 import LockButton from '../components/LockButton.jsx';
 import CollapseArrow from '../components/CollapseArrow.jsx';
+import { useConfirm } from '../components/useConfirm.jsx';
 import { downloadWorkStatsImage } from '../lib/workStatsImage.js';
 
 // WRITTEN_WORK_KINDS.label is singular (correct for "choose one kind" in a
@@ -54,6 +55,7 @@ function BarChartIcon() {
 
 export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets, initialWork }) {
   const { isDesktop } = useViewport();
+  const { confirm, confirmDialog } = useConfirm();
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
   const [activeWorkId, setActiveWorkId] = useState(null);
   // The student row to highlight after arriving via a grade clicked in the
@@ -166,6 +168,12 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   };
 
   const deleteWork = async () => {
+    const ok = await confirm({
+      title: 'Schriftliche Arbeit löschen?',
+      message:
+        'Diese schriftliche Arbeit wird mit allen dazu erfassten Noten und Bemerkungen dauerhaft gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden.',
+    });
+    if (!ok) return;
     await api.deleteWrittenWork(editWorkId);
     setEditWorkId(null);
     setActiveWorkId(null);
@@ -198,6 +206,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isDesktop ? 'row' : 'column' }}>
+      {confirmDialog}
       <section
         className="scroll-panel"
         style={{
