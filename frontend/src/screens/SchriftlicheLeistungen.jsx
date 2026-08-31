@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
-import { sortStudents, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, writtenWorkKindLabel, num, fmt, wavg } from '../lib/gradeMath.js';
+import { sortStudents, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, num, fmt, wavg } from '../lib/gradeMath.js';
 import { todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
 import { submitOnEnter } from '../lib/keys.js';
@@ -328,19 +328,17 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
           </div>
         ) : (
           <>
-            {/* Name, then the kind (the "was ist es"-description), then the
-                topic -- and the Sperre directly beside them, not floated off
-                to the far right. The date lives in the sidebar entry already,
-                so it's dropped here. */}
+            {/* Just name + description here (the kind/category and the date
+                are shown on the sidebar entry already), with the Sperre --
+                lock icon first, then GESPERRT -- directly beside them. */}
             <div style={{ padding: '16px 24px 13px', borderBottom: `1px solid ${colors.border}`, display: 'flex', flexWrap: 'wrap', gap: 14, rowGap: 6, alignItems: 'baseline' }}>
               <span style={{ font: `500 16px/1.2 ${fonts.serif}` }}>{work.title}</span>
-              <span style={{ font: `500 10.5px ${fonts.mono}`, padding: '3px 8px', borderRadius: 99, background: colors.tealTint, color: colors.teal }}>{writtenWorkKindLabel(work.kind)}</span>
               {work.content && <span style={{ fontSize: 12, color: colors.mutedStrong, flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{work.content}</span>}
               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {setLocked && <span style={{ font: `600 9.5px ${fonts.mono}`, color: colors.gold, letterSpacing: '.06em' }}>GESPERRT</span>}
                 <span ref={setLockRef} style={{ display: 'inline-flex' }}>
                   <LockButton locked={setLocked} onClick={toggleSetLock} size={22} title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'} />
                 </span>
+                {setLocked && <span style={{ font: `600 9.5px ${fonts.mono}`, color: colors.gold, letterSpacing: '.06em' }}>GESPERRT</span>}
               </span>
             </div>
             {/* One shared scroll container (not a separate header) so the
