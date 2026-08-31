@@ -51,6 +51,16 @@ function lessonsRouter(db, notify) {
     res.json(record);
   });
 
+  router.put('/lessons/:id/grade/:studentId/lock', (req, res) => {
+    const lessonId = Number(req.params.id);
+    const studentId = Number(req.params.studentId);
+    const { locked } = req.body || {};
+    const record = db.setParticipationGradeLock(lessonId, studentId, !!locked);
+    const lesson = db.getLesson(lessonId);
+    if (lesson) notify('courses', lesson.course_id);
+    res.json(record);
+  });
+
   return router;
 }
 

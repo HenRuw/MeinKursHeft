@@ -55,12 +55,14 @@ export const api = {
   deleteLesson: (id) => del(`/api/lessons/${id}`),
   setAttendance: (lessonId, studentId, data) => put(`/api/lessons/${lessonId}/attendance/${studentId}`, data),
   setGrade: (lessonId, studentId, grade) => put(`/api/lessons/${lessonId}/grade/${studentId}`, { grade }),
+  setLessonGradeLock: (lessonId, studentId, locked) => put(`/api/lessons/${lessonId}/grade/${studentId}/lock`, { locked }),
 
   // written works
   createWrittenWork: (courseId, data) => post(`/api/courses/${courseId}/written-works`, data),
   updateWrittenWork: (id, data) => patch(`/api/written-works/${id}`, data),
   deleteWrittenWork: (id) => del(`/api/written-works/${id}`),
   setWrittenWorkGrade: (workId, studentId, grade) => put(`/api/written-works/${workId}/grade/${studentId}`, { grade }),
+  setWorkGradeLock: (workId, studentId, locked) => put(`/api/written-works/${workId}/grade/${studentId}/lock`, { locked }),
 
   // grade overrides — a null grade clears the override (reset to calculated)
   setGradeOverride: (courseId, data) => put(`/api/courses/${courseId}/grade-overrides`, data),

@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS lessons (
   topic TEXT NOT NULL DEFAULT '',
   content TEXT NOT NULL DEFAULT '',
   note TEXT NOT NULL DEFAULT '',
-  weight REAL NOT NULL DEFAULT 1
+  weight REAL NOT NULL DEFAULT 1,
+  grades_locked INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS attendance (
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS participation_grades (
   lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   grade TEXT,
+  locked INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (lesson_id, student_id)
 );
 
@@ -123,13 +125,15 @@ CREATE TABLE IF NOT EXISTS written_works (
   title TEXT NOT NULL,
   content TEXT NOT NULL DEFAULT '',
   date TEXT NOT NULL,
-  weight REAL NOT NULL DEFAULT 1
+  weight REAL NOT NULL DEFAULT 1,
+  grades_locked INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS written_work_grades (
   written_work_id INTEGER NOT NULL REFERENCES written_works(id) ON DELETE CASCADE,
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   grade TEXT,
+  locked INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (written_work_id, student_id)
 );
 
@@ -197,6 +201,25 @@ async function init(customPath) {
   const lessonColumns = all('PRAGMA table_info(lessons)').map((c) => c.name);
   if (!lessonColumns.includes('weight')) {
     run('ALTER TABLE lessons ADD COLUMN weight REAL NOT NULL DEFAULT 1');
+  }
+
+  // Grade-set / individual-grade locking columns, added by hand for databases
+  // that predate the "lock grades against editing" feature (CREATE TABLE IF
+  // NOT EXISTS above is a no-op once a table already exists).
+  if (!lessonColumns.includes('grades_locked')) {
+    run('ALTER TABLE lessons ADD COLUMN grades_locked INTEGER NOT NULL DEFAULT 0');
+  }
+  const workColumns = all('PRAGMA table_info(written_works)').map((c) => c.name);
+  if (!workColumns.includes('grades_locked')) {
+    run('ALTER TABLE written_works ADD COLUMN grades_locked INTEGER NOT NULL DEFAULT 0');
+  }
+  const partGradeColumns = all('PRAGMA table_info(participation_grades)').map((c) => c.name);
+  if (!partGradeColumns.includes('locked')) {
+    run('ALTER TABLE participation_grades ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
+  }
+  const workGradeColumns = all('PRAGMA table_info(written_work_grades)').map((c) => c.name);
+  if (!workGradeColumns.includes('locked')) {
+    run('ALTER TABLE written_work_grades ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
   }
 
   if (!all('SELECT id FROM remark_presets').length) {
@@ -526,10 +549,11 @@ function updateLesson(id, patch) {
     content: patch.content !== undefined ? patch.content : cur.content,
     note: patch.note !== undefined ? patch.note : cur.note,
     weight: patch.weight !== undefined ? patch.weight : cur.weight,
+    grades_locked: patch.gradesLocked !== undefined ? (patch.gradesLocked ? 1 : 0) : cur.grades_locked,
   };
   run(
-    'UPDATE lessons SET quarter_id = ?, date = ?, duration_hours = ?, topic = ?, content = ?, note = ?, weight = ? WHERE id = ?',
-    [next.quarter_id, next.date, next.duration_hours, next.topic, next.content, next.note, next.weight, id]
+    'UPDATE lessons SET quarter_id = ?, date = ?, duration_hours = ?, topic = ?, content = ?, note = ?, weight = ?, grades_locked = ? WHERE id = ?',
+    [next.quarter_id, next.date, next.duration_hours, next.topic, next.content, next.note, next.weight, next.grades_locked, id]
   );
   persist();
   return get('SELECT * FROM lessons WHERE id = ?', [id]);
@@ -565,11 +589,29 @@ function listParticipationGrades(lessonId) {
   return all('SELECT * FROM participation_grades WHERE lesson_id = ?', [lessonId]);
 }
 
+// A locked grade set (lesson.grades_locked) or a locked individual cell
+// (participation_grades.locked) blocks any grade write, so a stray call --
+// including the automatic "clear grade when marked absent" and any live-sync
+// race from another client -- can never silently overwrite a protected grade.
+// Toggling the lock itself goes through setParticipationGradeLock, not here.
 function setParticipationGrade(lessonId, studentId, grade) {
+  const lesson = get('SELECT grades_locked FROM lessons WHERE id = ?', [lessonId]);
+  const cur = get('SELECT * FROM participation_grades WHERE lesson_id = ? AND student_id = ?', [lessonId, studentId]);
+  if ((lesson && lesson.grades_locked) || (cur && cur.locked)) return cur;
   run(
     `INSERT INTO participation_grades (lesson_id, student_id, grade) VALUES (?, ?, ?)
      ON CONFLICT(lesson_id, student_id) DO UPDATE SET grade = excluded.grade`,
     [lessonId, studentId, grade]
+  );
+  persist();
+  return get('SELECT * FROM participation_grades WHERE lesson_id = ? AND student_id = ?', [lessonId, studentId]);
+}
+
+function setParticipationGradeLock(lessonId, studentId, locked) {
+  run(
+    `INSERT INTO participation_grades (lesson_id, student_id, grade, locked) VALUES (?, ?, NULL, ?)
+     ON CONFLICT(lesson_id, student_id) DO UPDATE SET locked = excluded.locked`,
+    [lessonId, studentId, locked ? 1 : 0]
   );
   persist();
   return get('SELECT * FROM participation_grades WHERE lesson_id = ? AND student_id = ?', [lessonId, studentId]);
@@ -606,10 +648,11 @@ function updateWrittenWork(id, patch) {
     content: patch.content !== undefined ? patch.content : cur.content,
     date: patch.date !== undefined ? patch.date : cur.date,
     weight: patch.weight !== undefined ? patch.weight : cur.weight,
+    grades_locked: patch.gradesLocked !== undefined ? (patch.gradesLocked ? 1 : 0) : cur.grades_locked,
   };
   run(
-    'UPDATE written_works SET quarter_id = ?, kind = ?, title = ?, content = ?, date = ?, weight = ? WHERE id = ?',
-    [next.quarter_id, next.kind, next.title, next.content, next.date, next.weight, id]
+    'UPDATE written_works SET quarter_id = ?, kind = ?, title = ?, content = ?, date = ?, weight = ?, grades_locked = ? WHERE id = ?',
+    [next.quarter_id, next.kind, next.title, next.content, next.date, next.weight, next.grades_locked, id]
   );
   persist();
   return get('SELECT * FROM written_works WHERE id = ?', [id]);
@@ -625,11 +668,25 @@ function listWrittenWorkGrades(writtenWorkId) {
   return all('SELECT * FROM written_work_grades WHERE written_work_id = ?', [writtenWorkId]);
 }
 
+// Same lock enforcement as participation grades (see setParticipationGrade).
 function setWrittenWorkGrade(writtenWorkId, studentId, grade) {
+  const work = get('SELECT grades_locked FROM written_works WHERE id = ?', [writtenWorkId]);
+  const cur = get('SELECT * FROM written_work_grades WHERE written_work_id = ? AND student_id = ?', [writtenWorkId, studentId]);
+  if ((work && work.grades_locked) || (cur && cur.locked)) return cur;
   run(
     `INSERT INTO written_work_grades (written_work_id, student_id, grade) VALUES (?, ?, ?)
      ON CONFLICT(written_work_id, student_id) DO UPDATE SET grade = excluded.grade`,
     [writtenWorkId, studentId, grade]
+  );
+  persist();
+  return get('SELECT * FROM written_work_grades WHERE written_work_id = ? AND student_id = ?', [writtenWorkId, studentId]);
+}
+
+function setWrittenWorkGradeLock(writtenWorkId, studentId, locked) {
+  run(
+    `INSERT INTO written_work_grades (written_work_id, student_id, grade, locked) VALUES (?, ?, NULL, ?)
+     ON CONFLICT(written_work_id, student_id) DO UPDATE SET locked = excluded.locked`,
+    [writtenWorkId, studentId, locked ? 1 : 0]
   );
   persist();
   return get('SELECT * FROM written_work_grades WHERE written_work_id = ? AND student_id = ?', [writtenWorkId, studentId]);
@@ -736,6 +793,7 @@ module.exports = {
   setAttendance,
   listParticipationGrades,
   setParticipationGrade,
+  setParticipationGradeLock,
   // written works
   listWrittenWorks,
   getWrittenWork,
@@ -744,6 +802,7 @@ module.exports = {
   deleteWrittenWork,
   listWrittenWorkGrades,
   setWrittenWorkGrade,
+  setWrittenWorkGradeLock,
   // grade overrides
   listGradeOverrides,
   setGradeOverride,

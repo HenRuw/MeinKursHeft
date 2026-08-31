@@ -10,6 +10,7 @@ import { useViewport } from '../lib/useViewport.js';
 import SplitKeys from '../components/SplitKeys.jsx';
 import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
+import LockButton from '../components/LockButton.jsx';
 
 // WRITTEN_WORK_KINDS.label is singular (correct for "choose one kind" in a
 // dropdown or a single work's badge); a section header groups many, so it
@@ -119,8 +120,15 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   };
 
   const gradeFor = (studentId) => work?.grades.find((g) => g.student_id === studentId)?.grade || null;
+  const gradeLockedFor = (studentId) => !!work?.grades.find((g) => g.student_id === studentId)?.locked;
   const remarksFor = (studentId) => work?.remarks.filter((r) => r.student_id === studentId) || [];
   const setGrade = (studentId, grade) => api.setWrittenWorkGrade(activeWorkId, studentId, grade).then(onRefresh);
+
+  // Whole-set lock (Notensatz) vs. a single locked cell for this written work
+  // — same model as Stundenerfassung's Mitarbeit grades.
+  const setLocked = !!work?.grades_locked;
+  const toggleSetLock = () => api.updateWrittenWork(activeWorkId, { gradesLocked: !setLocked }).then(onRefresh);
+  const toggleGradeLock = (studentId) => api.setWorkGradeLock(activeWorkId, studentId, !gradeLockedFor(studentId)).then(onRefresh);
 
   const addPreset = (studentId) => (preset) =>
     api.createRemark({ targetType: 'written_work', targetId: activeWorkId, studentId, emoji: preset.emoji, text: preset.text }).then(onRefresh);
@@ -324,6 +332,10 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
               <span style={{ font: `500 11.5px ${fonts.mono}`, color: colors.muted }}>{work.date}</span>
               <span style={{ font: `500 10.5px ${fonts.mono}`, padding: '3px 8px', borderRadius: 99, background: colors.tealTint, color: colors.teal }}>{writtenWorkKindLabel(work.kind)}</span>
               {work.content && <span style={{ fontSize: 12, color: colors.mutedStrong, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{work.content}</span>}
+              <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {setLocked && <span style={{ font: `600 9.5px ${fonts.mono}`, color: colors.gold, letterSpacing: '.06em' }}>GESPERRT</span>}
+                <LockButton locked={setLocked} onClick={toggleSetLock} size={22} title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'} />
+              </span>
             </div>
             {/* One shared scroll container (not a separate header) so the
                 "#"/name columns can stay pinned via position:sticky while
@@ -341,7 +353,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                     key={s.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '26px 200px 286px 1fr',
+                      gridTemplateColumns: '26px 200px 322px 1fr',
                       alignItems: 'center',
                       gap: 14,
                       padding: '7px 24px',
@@ -356,7 +368,12 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>
-                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked || gradeLockedFor(s.id)} />
+                      </span>
+                      <LockButton locked={setLocked || gradeLockedFor(s.id)} disabled={setLocked} onClick={() => toggleGradeLock(s.id)} />
+                    </span>
                     <RemarkPicker
                       remarks={remarksFor(s.id)}
                       presets={presets}
