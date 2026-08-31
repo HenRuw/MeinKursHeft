@@ -102,6 +102,13 @@ describe('lessons, attendance and participation grades', () => {
     expect(lesson).toMatchObject({ date: '2026-09-07', end_date: '2026-09-09', duration_hours: 3, weight: 3 });
   });
 
+  test('changing a lesson\'s Schulstunden re-weights it to match by default', () => {
+    const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' }); // 1h, weight 1
+    expect(db.updateLesson(lesson.id, { durationHours: 4 }).weight).toBe(4); // follows hours
+    // an explicit weight still wins over the hour count
+    expect(db.updateLesson(lesson.id, { durationHours: 2, weight: 5 }).weight).toBe(5);
+  });
+
   test('updateLesson can edit the span, Schulstunden count and weight after the fact', () => {
     const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
     const updated = db.updateLesson(lesson.id, { date: '2026-09-14', endDate: '2026-09-16', durationHours: 3, weight: 3, topic: 'Projekt' });

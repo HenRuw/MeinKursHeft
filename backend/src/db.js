@@ -180,6 +180,13 @@ CREATE TABLE IF NOT EXISTS average_locks (
   ref_id INTEGER NOT NULL,
   UNIQUE(course_id, student_id, kind, ref_id)
 );
+
+-- Small key/value store for one-time data migrations (see the lesson-weight
+-- backfill in init) so they don't re-run on every startup.
+CREATE TABLE IF NOT EXISTS app_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
 `;
 
 async function init(customPath) {
@@ -231,6 +238,15 @@ async function init(customPath) {
   const workColumns = all('PRAGMA table_info(written_works)').map((c) => c.name);
   if (!workColumns.includes('grades_locked')) {
     run('ALTER TABLE written_works ADD COLUMN grades_locked INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // A lesson's Gewichtung defaults to its Schulstunden count. Older lessons
+  // created while the weight was hardcoded to 1 can still be off, so bring
+  // every existing lesson's weight up to its duration once. Guarded by
+  // app_meta so it never re-runs and clobbers a later manual override.
+  if (!get('SELECT value FROM app_meta WHERE key = ?', ['lesson_weight_eq_hours'])) {
+    run('UPDATE lessons SET weight = duration_hours');
+    run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', ['lesson_weight_eq_hours', '1']);
   }
 
   if (!all('SELECT id FROM remark_presets').length) {
@@ -573,7 +589,14 @@ function updateLesson(id, patch) {
     topic: patch.topic !== undefined ? patch.topic : cur.topic,
     content: patch.content !== undefined ? patch.content : cur.content,
     note: patch.note !== undefined ? patch.note : cur.note,
-    weight: patch.weight !== undefined ? patch.weight : cur.weight,
+    // A lesson's weight defaults to its Schulstunden count: when the duration
+    // changes and no explicit weight is given, keep the weight equal to it.
+    weight:
+      patch.weight !== undefined
+        ? patch.weight
+        : patch.durationHours !== undefined
+          ? patch.durationHours
+          : cur.weight,
     grades_locked: patch.gradesLocked !== undefined ? (patch.gradesLocked ? 1 : 0) : cur.grades_locked,
   };
   // A locked grade set freezes its weight too -- ignore any weight change

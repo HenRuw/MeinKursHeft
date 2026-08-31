@@ -545,10 +545,11 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   const renderLeafHeader = (l, i) => {
     const gridColumn = `${colLine(i)} / ${colLine(i) + 1}`;
     if (l.kind === 'lesson') {
-      const { dow, label } = formatShortDate(l.lesson.date);
+      // Just the date, no weekday (by request).
+      const { label } = formatShortDate(l.lesson.date);
       return (
         <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${ROW.lock}`, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
-          <span>{`${dow}\n${label}`}</span>
+          <span>{label}</span>
         </div>
       );
     }
