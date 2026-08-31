@@ -77,6 +77,12 @@ const GRADE_SEP = '1px solid rgba(0,0,0,.08)';
 // it always sits directly before that word.
 const bindLead = (label) => (label || '').replace(/^(Ø|\d+\.)\s+/, '$1 ');
 
+// Inserts a zero-width break between "Klassen" and "arbeit(en)" so a narrow
+// heading wraps at that word boundary -- "Klassen" / "arbeiten" -- instead of
+// breaking mid-word. Applies to the plural KLASSENARBEITEN frame/average
+// headings and to singular "Klassenarbeit" work titles alike.
+export const splitKlassenarbeit = (label) => (label || '').replace(/(Klassen)(arbeit)/gi, '$1​$2');
+
 // Header grid rows, top to bottom; body rows start right after. `weight` is
 // its own row rather than living at the bottom of each label cell, so every
 // Gewicht field -- lesson, exam, Ø SONSTIGE MITARBEIT/Ø KLASSENARBEITEN,
@@ -484,7 +490,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
       <>
         <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} collapsedGlyph="▶" />
         {!narrow && (
-          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{bindLead(g.label)}</span>
+          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{bindLead(splitKlassenarbeit(g.label))}</span>
         )}
       </>
     );
@@ -577,7 +583,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null),
           })}
         >
-          <span>{bindLead(l.work.title)}</span>
+          <span>{bindLead(splitKlassenarbeit(l.work.title))}</span>
         </div>
       );
     }
@@ -614,7 +620,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`,
           })}
         >
-          <span>{bindLead('Ø KLASSENARBEITEN')}</span>
+          <span>{bindLead(splitKlassenarbeit('Ø KLASSENARBEITEN'))}</span>
         </div>
       );
     }
