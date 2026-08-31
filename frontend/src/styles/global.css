@@ -36,6 +36,33 @@ button {
   padding: 0;
   color: inherit;
 }
+/* Snappier taps everywhere (drops the ~300ms double-tap-zoom delay) without
+   affecting the mouse/desktop layout at all. */
+button,
+[role='button'],
+select,
+a,
+label,
+input {
+  touch-action: manipulation;
+}
+/* Touch devices only (coarse pointer): give clickable things a comfortably
+   tall tap target and enlarge the tiny native check/radio boxes. Only the
+   vertical size grows -- rows just get taller and stay centered -- so no
+   controls start overlapping their neighbours. The desktop (fine pointer)
+   layout is left exactly as it was. */
+@media (pointer: coarse) {
+  button,
+  [role='button'],
+  select {
+    min-height: 34px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+  }
+}
 input,
 textarea,
 select {
