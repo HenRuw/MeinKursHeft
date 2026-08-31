@@ -78,6 +78,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const addBtnRef = useRef(null);
   const tileViewportRef = useRef(null);
   const tileRefs = useRef({});
+  // A freshly created unit's id, remembered so we can scroll its tile into
+  // view once onRefresh has re-rendered the row and registered its ref.
+  const pendingScrollRef = useRef(null);
   const setLockRef = useRef(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newDate, setNewDate] = useState(todayISO());
@@ -149,6 +152,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
       weight: newDuration,
     });
     resetAddForm();
+    // Remember the new unit *before* refreshing: onRefresh's re-render is what
+    // renders the tile and fires the scroll effect, so the id has to be set by
+    // then (setActiveLessonId afterwards doesn't change that effect's deps).
+    pendingScrollRef.current = created.id;
     await onRefresh();
     setActiveLessonId(created.id);
   };
@@ -237,6 +244,17 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
     const target = vp.scrollLeft + delta - (vp.clientWidth - el.offsetWidth) / 2;
     vp.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
   };
+
+  // Once a newly created unit's tile has actually rendered (its ref is
+  // registered), scroll it into view and forget the pending id.
+  useEffect(() => {
+    const id = pendingScrollRef.current;
+    if (id != null && tileRefs.current[id]) {
+      scrollToLesson(id);
+      pendingScrollRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allLessons.map((l) => l.id).join(',')]);
 
   // Clicking any tile — including one flush against the left/right edge of
   // the row — just selects that unit. Moving through the list is done by
