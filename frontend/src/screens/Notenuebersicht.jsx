@@ -156,18 +156,6 @@ function buildColumns(bundle, collapsed, toggles) {
             leaves.push(mitAvgLeaf);
             const mitEnd = leaves.length;
             groups.push({ key: `mit-${quarter.id}`, level: 'mit', label: 'SONSTIGE MITARBEIT', quarter, start: mitStart, end: mitEnd, collapsed: mitCollapsed, onToggle: () => toggles.mit(quarter.id) });
-            // A frame that ends up exactly one leaf wide (its own average
-            // column, nothing else) is too narrow for a normal horizontal
-            // label -- see renderGroup's `narrow` case. Rather than render
-            // that label out-of-flow (which can't guarantee it stays within
-            // the space actually available -- see renderLeafHeader's own
-            // comment on narrowGroupLabel for why that broke), attach it to
-            // this leaf instead: its cell already spans several rows and
-            // grid-auto-sizes them for real, so stacking the frame's label
-            // above the leaf's own one there is naturally overlap-free,
-            // reusing already-tall rows from sibling columns when there are
-            // any and only growing its own tracks when there aren't.
-            if (mitEnd - mitStart <= 1) mitAvgLeaf.narrowGroupLabel = 'SONSTIGE MITARBEIT';
 
             const schrStart = leaves.length;
             if (!schrCollapsed) {
@@ -181,7 +169,6 @@ function buildColumns(bundle, collapsed, toggles) {
             leaves.push(schrAvgLeaf);
             const schrEnd = leaves.length;
             groups.push({ key: `schr-${quarter.id}`, level: 'schr', label: 'KLASSENARBEITEN', quarter, start: schrStart, end: schrEnd, collapsed: schrCollapsed, onToggle: () => toggles.schr(quarter.id) });
-            if (schrEnd - schrStart <= 1) schrAvgLeaf.narrowGroupLabel = 'KLASSENARBEITEN';
           }
           const qNoteLeaf = { kind: 'qNote', width: COL_WIDTH.qNote, quarter, accent };
           leaves.push(qNoteLeaf);
@@ -196,14 +183,12 @@ function buildColumns(bundle, collapsed, toggles) {
             onToggle: () => toggles.quarter(quarter.id),
             accent,
           });
-          if (quarterEnd - quarterStart <= 1) qNoteLeaf.narrowGroupLabel = `${quarter.idx}. Quartal`;
         });
       }
       const hjNoteLeaf = { kind: 'hjNote', width: COL_WIDTH.hjNote, half };
       leaves.push(hjNoteLeaf);
       const halfEnd = leaves.length;
       groups.push({ key: `half-${half.id}`, level: 'half', label: `${half.idx}. HALBJAHR`, start: halfStart, end: halfEnd, collapsed: hCollapsed, onToggle: () => toggles.half(half.id) });
-      if (halfEnd - halfStart <= 1) hjNoteLeaf.narrowGroupLabel = `${half.idx}. HALBJAHR`;
     });
   }
   leaves.push({ kind: 'zeugnis', width: COL_WIDTH.zeugnis });
@@ -504,15 +489,6 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     );
   };
 
-  // A too-narrow frame's own label (see buildColumns' narrowGroupLabel
-  // comment above): stacked as a normal, in-flow child of the leaf cell it's
-  // attached to, so the grid sizes that cell for real -- reusing height
-  // already there from a taller sibling column when there is any, growing
-  // this cell's own tracks when there isn't, but never overlapping anything
-  // either way.
-  const NarrowGroupLabel = ({ label }) =>
-    label ? <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', whiteSpace: 'nowrap', alignSelf: 'center' }}>{label}</span> : null;
-
   // --- leaf header rendering ---
   // Every rowSpan below ends at ROW.weight, not BODY_START: the label stops
   // one row short of where it used to, leaving that last row free for the
@@ -558,13 +534,10 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}`,
           })}
         >
-          <NarrowGroupLabel label={l.narrowGroupLabel} />
-          {/* Collapsed down to just its own average column (narrowGroupLabel
-              set): the vertical SONSTIGE MITARBEIT heading above replaces
-              this "Ø SONSTIGE MITARBEIT" sub-label -- weight and the
-              per-student value below stay exactly as in the expanded
-              state. */}
-          {!l.narrowGroupLabel && <span>Ø SONSTIGE MITARBEIT</span>}
+          {/* Even when this frame is collapsed to just its own average
+              column, the horizontal "Ø …" name stays (per request) rather
+              than switching to a vertical frame heading. */}
+          <span>Ø SONSTIGE MITARBEIT</span>
         </div>
       );
     }
@@ -581,8 +554,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`,
           })}
         >
-          <NarrowGroupLabel label={l.narrowGroupLabel} />
-          {!l.narrowGroupLabel && <span>Ø KLASSENARBEITEN</span>}
+          <span>Ø KLASSENARBEITEN</span>
         </div>
       );
     }
@@ -599,8 +571,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `3px solid ${l.accent}`,
           })}
         >
-          <NarrowGroupLabel label={l.narrowGroupLabel} />
-          {!l.narrowGroupLabel && <span>{l.quarter.idx}.Q-Note</span>}
+          <span>{l.quarter.idx}.Q-Note</span>
         </div>
       );
     }
@@ -622,8 +593,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}`,
           })}
         >
-          <NarrowGroupLabel label={l.narrowGroupLabel} />
-          {!l.narrowGroupLabel && <span>{l.half.idx}.HJ-Note</span>}
+          <span>{l.half.idx}.HJ-Note</span>
         </div>
       );
     }
