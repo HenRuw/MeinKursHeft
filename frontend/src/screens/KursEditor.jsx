@@ -154,6 +154,19 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
     onSubmit({ name: name.trim(), studentIds: selectedIds });
   };
 
+  // Shortcut to the school-wide student management. Shown in every footer
+  // (view/add/remove), next to that footer's Abbrechen, so it's reachable
+  // whether you're creating a course (which opens straight into "add
+  // students") or editing one.
+  const manageStudentsButton = onManageStudents && (
+    <button
+      onClick={onManageStudents}
+      style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13, color: colors.mutedStrong }}
+    >
+      Schülerdaten verwalten
+    </button>
+  );
+
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
@@ -303,6 +316,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           <button onClick={cancelRoster} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13 }}>
             Abbrechen
           </button>
+          {manageStudentsButton}
         </div>
       )}
       {rosterMode === 'add' && (
@@ -317,6 +331,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           <button onClick={cancelRoster} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13 }}>
             Abbrechen
           </button>
+          {manageStudentsButton}
         </div>
       )}
 
@@ -328,14 +343,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13 }}>
             Abbrechen
           </button>
-          {onManageStudents && (
-            <button
-              onClick={onManageStudents}
-              style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13, color: colors.mutedStrong }}
-            >
-              Schülerdaten verwalten
-            </button>
-          )}
+          {manageStudentsButton}
         </div>
       )}
     </div>
