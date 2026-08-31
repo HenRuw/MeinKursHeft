@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   quarter_id INTEGER NOT NULL REFERENCES quarters(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
+  end_date TEXT,
   duration_hours REAL NOT NULL DEFAULT 1,
   topic TEXT NOT NULL DEFAULT '',
   content TEXT NOT NULL DEFAULT '',
@@ -208,6 +209,13 @@ async function init(customPath) {
   // NOT EXISTS above is a no-op once a table already exists).
   if (!lessonColumns.includes('grades_locked')) {
     run('ALTER TABLE lessons ADD COLUMN grades_locked INTEGER NOT NULL DEFAULT 0');
+  }
+  // end_date backs a multi-Schulstunden unit's "von … bis" span; a single-
+  // hour lesson leaves it equal to date. Nullable, so pre-existing rows read
+  // back as null and are treated as single-day by callers (end_date ?? date).
+  if (!lessonColumns.includes('end_date')) {
+    run('ALTER TABLE lessons ADD COLUMN end_date TEXT');
+    run('UPDATE lessons SET end_date = date WHERE end_date IS NULL');
   }
   const workColumns = all('PRAGMA table_info(written_works)').map((c) => c.name);
   if (!workColumns.includes('grades_locked')) {
@@ -527,11 +535,16 @@ function getLesson(id) {
   return get('SELECT * FROM lessons WHERE id = ?', [id]);
 }
 
-function createLesson({ courseId, quarterId, date, durationHours, topic, content, note }) {
+// A unit spanning several Schulstunden weighs as many grade-points as it has
+// hours, so weight defaults to durationHours unless a caller overrides it
+// (later manual edits in the Notenübersicht set it explicitly). end_date
+// defaults to date, i.e. a single-day unit.
+function createLesson({ courseId, quarterId, date, endDate, durationHours, topic, content, note, weight }) {
+  const dur = durationHours || 1;
   run(
-    `INSERT INTO lessons (course_id, quarter_id, date, duration_hours, topic, content, note, weight)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-    [courseId, quarterId, date, durationHours || 1, topic || '', content || '', note || '']
+    `INSERT INTO lessons (course_id, quarter_id, date, end_date, duration_hours, topic, content, note, weight)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [courseId, quarterId, date, endDate || date, dur, topic || '', content || '', note || '', weight !== undefined ? weight : dur]
   );
   const id = lastId();
   persist();
@@ -544,6 +557,7 @@ function updateLesson(id, patch) {
   const next = {
     quarter_id: patch.quarterId !== undefined ? patch.quarterId : cur.quarter_id,
     date: patch.date !== undefined ? patch.date : cur.date,
+    end_date: patch.endDate !== undefined ? patch.endDate : cur.end_date,
     duration_hours: patch.durationHours !== undefined ? patch.durationHours : cur.duration_hours,
     topic: patch.topic !== undefined ? patch.topic : cur.topic,
     content: patch.content !== undefined ? patch.content : cur.content,
@@ -552,8 +566,8 @@ function updateLesson(id, patch) {
     grades_locked: patch.gradesLocked !== undefined ? (patch.gradesLocked ? 1 : 0) : cur.grades_locked,
   };
   run(
-    'UPDATE lessons SET quarter_id = ?, date = ?, duration_hours = ?, topic = ?, content = ?, note = ?, weight = ?, grades_locked = ? WHERE id = ?',
-    [next.quarter_id, next.date, next.duration_hours, next.topic, next.content, next.note, next.weight, next.grades_locked, id]
+    'UPDATE lessons SET quarter_id = ?, date = ?, end_date = ?, duration_hours = ?, topic = ?, content = ?, note = ?, weight = ?, grades_locked = ? WHERE id = ?',
+    [next.quarter_id, next.date, next.end_date, next.duration_hours, next.topic, next.content, next.note, next.weight, next.grades_locked, id]
   );
   persist();
   return get('SELECT * FROM lessons WHERE id = ?', [id]);

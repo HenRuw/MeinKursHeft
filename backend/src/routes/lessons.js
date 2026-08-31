@@ -9,9 +9,9 @@ function lessonsRouter(db, notify) {
 
   router.post('/courses/:id/lessons', (req, res) => {
     const courseId = Number(req.params.id);
-    const { quarterId, date, durationHours, topic, content, note } = req.body || {};
+    const { quarterId, date, endDate, durationHours, topic, content, note, weight } = req.body || {};
     if (!quarterId || !date) return res.status(400).json({ error: 'quarterId and date are required' });
-    const lesson = db.createLesson({ courseId, quarterId, date, durationHours, topic, content, note });
+    const lesson = db.createLesson({ courseId, quarterId, date, endDate, durationHours, topic, content, note, weight });
     notify('courses', courseId);
     res.status(201).json(lesson);
   });

@@ -87,6 +87,16 @@ describe('lessons, attendance and participation grades', () => {
     expect(lesson).toMatchObject({ course_id: course.id, quarter_id: quarterId, topic: 'Terme' });
   });
 
+  test('a single-hour unit collapses end_date onto date and weighs 1', () => {
+    const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
+    expect(lesson).toMatchObject({ date: '2026-09-07', end_date: '2026-09-07', duration_hours: 1, weight: 1 });
+  });
+
+  test('a multi-Schulstunden unit keeps a von…bis span and weighs its hours', () => {
+    const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07', endDate: '2026-09-09', durationHours: 3 });
+    expect(lesson).toMatchObject({ date: '2026-09-07', end_date: '2026-09-09', duration_hours: 3, weight: 3 });
+  });
+
   test('sets attendance and participation grade for a student', () => {
     const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
 

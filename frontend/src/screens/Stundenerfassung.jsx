@@ -45,6 +45,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const addBtnRef = useRef(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newDate, setNewDate] = useState(todayISO());
+  const [newEndDate, setNewEndDate] = useState(todayISO());
   const [newDuration, setNewDuration] = useState(1);
   const [newTopic, setNewTopic] = useState('');
   const editAnchorRef = useRef(null);
@@ -80,17 +81,25 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const resetAddForm = () => {
     setAddOpen(false);
     setNewTopic('');
+    setNewDuration(1);
+    setNewDate(todayISO());
+    setNewEndDate(todayISO());
   };
 
   const createLesson = async () => {
     if (!newDate) return;
     const quarter = quarterForDate(quarters, newDate);
     if (!quarter) return;
+    // A multi-Schulstunden unit spans von (newDate) … bis (newEndDate); a
+    // single hour collapses bis onto von. Weight tracks the hour count.
+    const endDate = newDuration > 1 && newEndDate >= newDate ? newEndDate : newDate;
     const created = await api.createLesson(bundle.course.id, {
       quarterId: quarter.id,
       date: newDate,
+      endDate,
       durationHours: newDuration,
       topic: newTopic.trim(),
+      weight: newDuration,
     });
     resetAddForm();
     await onRefresh();
@@ -282,11 +291,41 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               ✕
             </button>
           </div>
-          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} onKeyDown={submitOnEnter(createLesson)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          {/* Length first (in Schulstunden), then the date bar: a single
+              date for a one-hour unit, or a von … bis range once it spans
+              more than one Schulstunde. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: colors.mutedStrong }}>Länge</span>
-            <Stepper value={newDuration} onChange={setNewDuration} min={1} max={6} suffix=" Std." />
+            <Stepper value={newDuration} onChange={setNewDuration} min={1} max={12} />
+            <span style={{ fontSize: 12, color: colors.mutedStrong }}>Schulstunden</span>
           </div>
+          {newDuration > 1 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 30, fontSize: 12, color: colors.mutedStrong }}>von:</span>
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => { setNewDate(e.target.value); if (newEndDate < e.target.value) setNewEndDate(e.target.value); }}
+                  onKeyDown={submitOnEnter(createLesson)}
+                  style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+                />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 30, fontSize: 12, color: colors.mutedStrong }}>bis:</span>
+                <input
+                  type="date"
+                  value={newEndDate}
+                  min={newDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                  onKeyDown={submitOnEnter(createLesson)}
+                  style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+                />
+              </label>
+            </div>
+          ) : (
+            <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} onKeyDown={submitOnEnter(createLesson)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          )}
           <input value={newTopic} onChange={(e) => setNewTopic(e.target.value)} onKeyDown={submitOnEnter(createLesson)} placeholder="Thema (optional)" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
 
           <button
