@@ -28,11 +28,13 @@ describe('App sidebar hamburger toggle (desktop)', () => {
     // Starts open on desktop.
     expect(aside.style.width).toBe('232px');
 
-    const toggle = screen.getByLabelText('Menü umschalten');
-    fireEvent.click(toggle);
+    // While open, only the in-sidebar hamburger is shown (no white top-bar one).
+    expect(screen.queryByLabelText('Menü öffnen')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Menü einklappen'));
     expect(aside.style.width).toBe('0px');
 
-    fireEvent.click(toggle);
+    // While collapsed, the top-bar opener appears to re-expand it.
+    fireEvent.click(screen.getByLabelText('Menü öffnen'));
     expect(aside.style.width).toBe('232px');
   });
 

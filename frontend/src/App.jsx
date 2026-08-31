@@ -330,7 +330,7 @@ export default function App() {
           <button
             onClick={() => setSidebarOpen(false)}
             aria-label="Menü einklappen"
-            style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#9fb0ab', fontSize: 18 }}
+            style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,.22)', color: '#9fb0ab', fontSize: 18 }}
           >
             ☰
           </button>
@@ -471,13 +471,19 @@ export default function App() {
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: colors.panelBg, borderBottom: `1px solid ${colors.border}`, flex: 'none' }}>
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            aria-label="Menü umschalten"
-            style={{ width: 40, height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, background: '#fff', fontSize: 16 }}
-          >
-            ☰
-          </button>
+          {/* Opener shown only while the sidebar is collapsed -- a dark
+              (not white) hamburger with a border. While the sidebar is open
+              its own dark hamburger is the toggle, so there's only ever one
+              hamburger and it always sits on a dark button. */}
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Menü öffnen"
+              style={{ width: 40, height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,.22)', background: colors.sidebarBg, color: '#fff', fontSize: 16 }}
+            >
+              ☰
+            </button>
+          )}
           <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {isDesktop ? 'ScoreSpace' : bundle ? bundle.course.name : 'ScoreSpace'}
           </span>
