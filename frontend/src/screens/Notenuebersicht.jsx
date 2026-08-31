@@ -52,6 +52,13 @@ const FRAME = {
 const COL_WIDTH = { name: 202, lesson: 54, exam: 62, mitAvg: 58, schrAvg: 58, qNote: 62, hjNote: 62, zeugnis: 54 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
+// Thin vertical rule separating one individual grade column (a single lesson
+// or exam) from the next. Kept much lighter than the colored frame borders
+// (mit/schr/quarter/half/year) so it reads only as a subtle cell divider, not
+// a frame edge -- applied to the lesson/exam leaf header, its Gewichtung cell
+// and every body cell so it runs as one continuous line top to bottom.
+const GRADE_SEP = '1px solid rgba(0,0,0,.08)';
+
 // Header grid rows, top to bottom; body rows start right after. `weight` is
 // its own row rather than living at the bottom of each label cell, so every
 // Gewicht field -- lesson, exam, Ø SONSTIGE MITARBEIT/Ø KLASSENARBEITEN,
@@ -497,7 +504,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     if (l.kind === 'lesson') {
       const { dow, label } = formatShortDate(l.lesson.date);
       return (
-        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`, background: colors.mitBgStrong })}>
+        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
           <span>{`${dow}\n${label}`}</span>
         </div>
       );
@@ -512,6 +519,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             gridRow: `${rowStart} / ${ROW.weight}`,
             background: KIND_BG[l.examKind],
             color: KIND_TEXT[l.examKind],
+            borderRight: GRADE_SEP,
             ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null),
           })}
         >
@@ -633,7 +641,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     const gridRow = `${ROW.weight} / ${BODY_START}`;
     if (l.kind === 'lesson') {
       return (
-        <div key={`wl${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong })}>
+        <div key={`wl${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
           <WeightInput value={l.lesson.weight} onChange={(weight) => api.updateLesson(l.lesson.id, { weight })} />
         </div>
       );
@@ -642,7 +650,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
       return (
         <div
           key={`we${i}`}
-          style={weightRowStyle({ gridColumn, gridRow, background: KIND_BG[l.examKind], ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) })}
+          style={weightRowStyle({ gridColumn, gridRow, background: KIND_BG[l.examKind], borderRight: GRADE_SEP, ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) })}
         >
           <WeightInput value={l.work.weight} onChange={(weight) => api.updateWrittenWork(l.work.id, { weight })} />
         </div>
@@ -735,7 +743,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         const label = absent ? (att.excused ? 'E' : 'F') : g || '·';
         const color = absent ? (att.excused ? colors.green : colors.red) : g ? gradeColor(v) : '#c4bba6';
         return (
-          <div key={key} style={{ ...td({ background: colors.cream, color, ...GRADE_TYPE_SCALE.single, fontWeight: absent ? 700 : GRADE_TYPE_SCALE.single.fontWeight }), gridColumn, gridRow }}>
+          <div key={key} style={{ ...td({ background: colors.cream, color, ...GRADE_TYPE_SCALE.single, fontWeight: absent ? 700 : GRADE_TYPE_SCALE.single.fontWeight, borderRight: GRADE_SEP }), gridColumn, gridRow }}>
             <button onClick={() => onOpenLesson(l.lesson.id, s.id)} title="Zur Mitarbeit" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
               {label}
             </button>
@@ -746,7 +754,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         const g = gradeOf(l.work.grades, s.id);
         const v = num(g);
         return (
-          <div key={key} style={{ ...td({ background: KIND_BG_LIGHT[l.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single }), gridColumn, gridRow }}>
+          <div key={key} style={{ ...td({ background: KIND_BG_LIGHT[l.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderRight: GRADE_SEP }), gridColumn, gridRow }}>
             <button onClick={() => onOpenWork(l.work.id, s.id)} title="Zu den Schriftlichen Leistungen" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
               {g || '·'}
             </button>
