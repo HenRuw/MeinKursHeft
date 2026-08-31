@@ -4,12 +4,28 @@
 export const GRADE_DIGITS = ['1', '2', '3', '4', '5', '6'];
 export const TENDENCIES = ['+', '-'];
 
+// "Nicht bewertbar" — a real, deliberate entry (distinct from an empty cell)
+// that records a grade slot as unassessable. It's shown as "n.b." wherever a
+// grade is displayed, but num() maps it to null so it drops out of every
+// average (wavg skips null values), exactly like a blank would.
+export const NB = 'nb';
+export function isNb(grade) {
+  return grade === NB;
+}
+// The on-screen text for a stored grade: "n.b." for the NB marker, otherwise
+// the grade string itself ("2", "2+", …). Returns the raw value unchanged for
+// anything else, so callers can still guard on falsy themselves.
+export function gradeLabel(grade) {
+  return grade === NB ? 'n.b.' : grade;
+}
+
 const TENDENCY_OFFSET = { '+': -0.3, '-': 0.3 };
 
-// "2+" -> 1.7, "2-" -> 2.3, "3" -> 3, null/"" -> null
+// "2+" -> 1.7, "2-" -> 2.3, "3" -> 3, null/""/"nb" -> null
 export function num(grade) {
-  if (!grade) return null;
+  if (!grade || grade === NB) return null;
   const base = Number(grade[0]);
+  if (Number.isNaN(base)) return null;
   const tendency = grade[1];
   return base + (TENDENCY_OFFSET[tendency] || 0);
 }

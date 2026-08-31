@@ -1,15 +1,19 @@
-import { GRADE_DIGITS, num, gradeColor } from '../lib/gradeMath.js';
+import { GRADE_DIGITS, NB, num, gradeColor } from '../lib/gradeMath.js';
 
 // The +/mid/− grade picker used everywhere a single grade is entered.
 // Requirement: clicking + or − colors the middle field together with the
 // active +/− zone in the grade's own color (gradient dark green -> yellow -> dark red).
+// A separate "n.b." key sits after the 1–6 columns to mark a slot as
+// "nicht bewertbar" (see gradeMath's NB) — mutually exclusive with a digit,
+// toggled off by clicking it again.
 export default function SplitKeys({ value, onChange, disabled, size }) {
   const s = size || { zone: 17, mid: 22, font: 14, zoneFont: 11.5 };
-  const digit = value ? value[0] : null;
+  const nbSelected = value === NB;
+  const digit = nbSelected ? null : value ? value[0] : null;
   const tendency = value && value[1] ? value[1] : '';
 
   return (
-    <span style={{ display: 'flex', gap: 6, opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+    <span style={{ display: 'flex', gap: 6, alignItems: 'stretch', opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
       {GRADE_DIGITS.map((g) => {
         const selected = digit === g;
         const color = selected ? gradeColor(num(g + tendency)) : null;
@@ -63,6 +67,21 @@ export default function SplitKeys({ value, onChange, disabled, size }) {
           </span>
         );
       })}
+      <button
+        onClick={() => onChange(nbSelected ? null : NB)}
+        title="Nicht bewertbar"
+        style={{
+          flex: 'none',
+          width: 34,
+          borderRadius: 8,
+          border: `1px solid ${nbSelected ? '#6c7a76' : '#e2ddd2'}`,
+          background: nbSelected ? '#6c7a76' : '#fff',
+          color: nbSelected ? '#fff' : '#9a958b',
+          font: `600 ${s.zoneFont}px 'IBM Plex Mono',monospace`,
+        }}
+      >
+        n.b.
+      </button>
     </span>
   );
 }

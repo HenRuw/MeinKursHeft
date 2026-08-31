@@ -3,6 +3,9 @@ import {
   num,
   fmt,
   gradeColor,
+  gradeLabel,
+  isNb,
+  NB,
   wavg,
   parseWeight,
   formatWeight,
@@ -28,6 +31,26 @@ describe('num', () => {
     expect(num(null)).toBeNull();
     expect(num('')).toBeNull();
     expect(num(undefined)).toBeNull();
+  });
+});
+
+describe('n.b. (Nicht bewertbar)', () => {
+  test('num maps the NB marker to null so it drops out of averages', () => {
+    expect(num(NB)).toBeNull();
+    expect(num('nb')).toBeNull();
+  });
+  test('isNb only matches the NB marker', () => {
+    expect(isNb(NB)).toBe(true);
+    expect(isNb('3')).toBe(false);
+    expect(isNb(null)).toBe(false);
+  });
+  test('gradeLabel renders NB as "n.b." and leaves real grades alone', () => {
+    expect(gradeLabel(NB)).toBe('n.b.');
+    expect(gradeLabel('2+')).toBe('2+');
+  });
+  test('a NB entry is excluded from a weighted average, not counted as 0/6', () => {
+    // one "2" and one "n.b." must average to exactly 2, not be dragged down.
+    expect(wavg([[num('2'), 1], [num(NB), 1]])).toBe(2);
   });
 });
 

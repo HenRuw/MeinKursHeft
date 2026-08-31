@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { colors, fonts } from '../theme.js';
-import { num, fmt, gradeColor, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, writtenWorkKindLabel } from '../lib/gradeMath.js';
+import { num, fmt, gradeColor, gradeLabel, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, writtenWorkKindLabel } from '../lib/gradeMath.js';
 import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
@@ -281,7 +281,7 @@ export default function Schueleransicht({ bundle, studentId, onBack, onOpenLesso
                   <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, font: `500 11.5px ${fonts.mono}`, color: colors.mutedStrong }}>{w.date}</td>
                   <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, fontSize: 12, color: colors.mutedStrong }}>{w.content}</td>
                   <td style={{ padding: '11px 18px', borderBottom: `1px solid ${colors.divider}`, textAlign: 'center' }}>
-                    <span style={{ font: `600 12.5px ${fonts.mono}`, padding: '4px 9px', borderRadius: 99, background: '#f2efe9', color: grade ? gradeColor(v) : colors.faint }}>{grade || '–'}</span>
+                    <span style={{ font: `600 12.5px ${fonts.mono}`, padding: '4px 9px', borderRadius: 99, background: '#f2efe9', color: grade ? gradeColor(v) : colors.faint }}>{grade ? gradeLabel(grade) : '–'}</span>
                   </td>
                 </tr>
               );

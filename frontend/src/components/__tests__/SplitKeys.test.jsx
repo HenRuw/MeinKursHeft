@@ -72,6 +72,30 @@ describe('SplitKeys', () => {
     expect(minusButtons[1]).toHaveStyle({ backgroundColor: '#f2efe8' });
   });
 
+  test('clicking "n.b." selects the Nicht-bewertbar marker', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<SplitKeys value={null} onChange={onChange} />);
+
+    await user.click(screen.getByRole('button', { name: 'n.b.', exact: true }));
+    expect(onChange).toHaveBeenCalledWith('nb');
+  });
+
+  test('clicking "n.b." again clears it', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<SplitKeys value="nb" onChange={onChange} />);
+
+    await user.click(screen.getByRole('button', { name: 'n.b.', exact: true }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  test('with n.b. selected no digit reads as selected', () => {
+    render(<SplitKeys value="nb" onChange={() => {}} />);
+    // digit "1"'s middle cell keeps its unselected white background
+    expect(screen.getByRole('button', { name: '1', exact: true })).toHaveStyle({ backgroundColor: '#fff' });
+  });
+
   test('disabled prop dims the control and disables pointer events', () => {
     const { container } = render(<SplitKeys value={null} onChange={() => {}} disabled />);
     expect(container.firstChild).toHaveStyle({ opacity: 0.4, pointerEvents: 'none' });

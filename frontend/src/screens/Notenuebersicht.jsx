@@ -9,6 +9,8 @@ import {
   fmt,
   wavg,
   gradeColor,
+  gradeLabel,
+  isNb,
   GRADE_TYPE_SCALE,
   WRITTEN_WORK_KINDS,
   WRITTEN_WORK_GROUP,
@@ -270,10 +272,10 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   // Same content whether the cell is plain text (read elsewhere) or an
   // editable button (only in the Schueleransicht) -- a manual override
   // always gets the little pencil badge, everywhere it's shown.
-  const renderAvg = (value, overridden, onClick) => {
+  const renderAvg = (value, overridden, onClick, grade) => {
     const inner = (
       <>
-        {fmt(value)}
+        {isNb(grade) ? 'n.b.' : fmt(value)}
         {overridden && (
           <span title="Manuell eingetragen – nicht berechnet" style={{ marginLeft: 3, fontSize: 8 }}>
             ✎
@@ -740,7 +742,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         // for unentschuldigt, a green "E" for entschuldigt.
         const att = l.lesson.attendance.find((a) => a.student_id === s.id);
         const absent = att?.status === 'fehlt';
-        const label = absent ? (att.excused ? 'E' : 'F') : g || '·';
+        const label = absent ? (att.excused ? 'E' : 'F') : g ? gradeLabel(g) : '·';
         const color = absent ? (att.excused ? colors.green : colors.red) : g ? gradeColor(v) : '#c4bba6';
         return (
           <div key={key} style={{ ...td({ background: colors.cream, color, ...GRADE_TYPE_SCALE.single, fontWeight: absent ? 700 : GRADE_TYPE_SCALE.single.fontWeight, borderRight: GRADE_SEP }), gridColumn, gridRow }}>
@@ -756,7 +758,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         return (
           <div key={key} style={{ ...td({ background: KIND_BG_LIGHT[l.examKind], color: g ? gradeColor(v) : '#c4bba6', ...GRADE_TYPE_SCALE.single, borderRight: GRADE_SEP }), gridColumn, gridRow }}>
             <button onClick={() => onOpenWork(l.work.id, s.id)} title="Zu den Schriftlichen Leistungen" style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
-              {g || '·'}
+              {g ? gradeLabel(g) : '·'}
             </button>
           </div>
         );
@@ -772,7 +774,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               gridRow,
             }}
           >
-            {renderAvg(mit.value, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', l.quarter.id, mit.grade, e.currentTarget)))}
+            {renderAvg(mit.value, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', l.quarter.id, mit.grade, e.currentTarget)), mit.grade)}
           </div>
         );
       }
@@ -787,7 +789,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               gridRow,
             }}
           >
-            {renderAvg(schr.value, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', l.quarter.id, schr.grade, e.currentTarget)))}
+            {renderAvg(schr.value, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', l.quarter.id, schr.grade, e.currentTarget)), schr.grade)}
           </div>
         );
       }
@@ -795,7 +797,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         const q = avgs.qNoteByQuarter.get(l.quarter.id);
         return (
           <div key={key} style={{ ...td({ background: colors.qBg, color: q.value == null ? '#c4bba6' : gradeColor(q.value), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${l.accent}` }), gridColumn, gridRow }}>
-            {renderAvg(q.value, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', l.quarter.id, q.grade, e.currentTarget)))}
+            {renderAvg(q.value, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', l.quarter.id, q.grade, e.currentTarget)), q.grade)}
           </div>
         );
       }
@@ -810,7 +812,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               gridRow,
             }}
           >
-            {renderAvg(h.value, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', l.half.id, h.grade, e.currentTarget)))}
+            {renderAvg(h.value, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', l.half.id, h.grade, e.currentTarget)), h.grade)}
           </div>
         );
       }
@@ -828,7 +830,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             zIndex: 1,
           }}
         >
-          {renderAvg(z.value, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, e.currentTarget)))}
+          {renderAvg(z.value, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, e.currentTarget)), z.grade)}
         </div>
       );
     });
