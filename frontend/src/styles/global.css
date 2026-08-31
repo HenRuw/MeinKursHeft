@@ -56,6 +56,18 @@ select:focus {
   filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.95));
   border-color: #c0392b !important;
 }
+/* Feedback when a required text field (e.g. the course name) is submitted
+   empty: the field blinks its red border/glow a couple of times. Applied by
+   triggerShake(el, 'field-flash'), which restarts it on every attempt. */
+@keyframes field-flash {
+  0%, 100% { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0); }
+  25%, 75% { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.22); }
+  50% { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0); }
+}
+.field-flash {
+  animation: field-flash 0.7s ease-in-out;
+  border-color: #c0392b !important;
+}
 
 .wheel::-webkit-scrollbar {
   width: 0;

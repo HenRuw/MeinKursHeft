@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName } from '../lib/gradeMath.js';
 import { submitOnEnter } from '../lib/keys.js';
+import { triggerShake } from '../lib/shake.js';
 
 const label = { font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em', display: 'block', marginBottom: 5 };
 const field = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, width: '100%' };
@@ -71,6 +72,8 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const [name, setName] = useState(course?.name || '');
   const [selectedIds, setSelectedIds] = useState(new Set(initialSelectedIds));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const nameRef = useRef(null);
 
   // Creating a course drops you straight into "Schüler hinzufügen" -- adding
   // students is the first thing you want to do on a brand-new course.
@@ -140,7 +143,14 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const cancelRoster = () => setRosterMode('view');
 
   const submit = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      // No name yet: blink the field and show a hint underneath instead of
+      // silently doing nothing.
+      setNameError(true);
+      triggerShake(nameRef.current, 'field-flash');
+      nameRef.current?.focus();
+      return;
+    }
     onSubmit({ name: name.trim(), studentIds: selectedIds });
   };
 
@@ -172,7 +182,22 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
       <div style={{ display: 'flex', gap: 14 }}>
         <div style={{ flex: 1, maxWidth: 360 }}>
           <label style={label}>KURSNAME</label>
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={submitOnEnter(submit)} style={field} />
+          <input
+            ref={nameRef}
+            autoFocus
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(false);
+            }}
+            onKeyDown={submitOnEnter(submit)}
+            style={nameError ? { ...field, border: `1px solid ${colors.red}` } : field}
+          />
+          {nameError && (
+            <span style={{ display: 'block', marginTop: 5, fontSize: 11.5, fontWeight: 500, color: colors.red }}>
+              Kein Name eingetragen
+            </span>
+          )}
         </div>
       </div>
 
