@@ -161,7 +161,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const manageStudentsButton = onManageStudents && (
     <button
       onClick={onManageStudents}
-      style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13, color: colors.mutedStrong }}
+      style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13, color: colors.mutedStrong }}
     >
       Schülerdaten verwalten
     </button>

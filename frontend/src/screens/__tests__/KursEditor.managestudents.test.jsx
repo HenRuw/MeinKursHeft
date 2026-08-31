@@ -45,4 +45,13 @@ describe('KursEditor "Schülerdaten verwalten" button', () => {
     render(<KursEditor mode="edit" course={{ id: 1, name: 'K' }} {...common(undefined)} />);
     expect(screen.queryByText('Schülerdaten verwalten')).toBeNull();
   });
+
+  it('sits left-aligned directly next to Abbrechen (no auto margin)', () => {
+    render(<KursEditor mode="edit" course={{ id: 1, name: 'K' }} {...common(() => {})} />);
+    const manage = screen.getByText('Schülerdaten verwalten');
+    expect(manage.style.marginLeft).not.toBe('auto');
+    // It is the Abbrechen button's next sibling in the footer.
+    const abbrechen = screen.getByText('Abbrechen');
+    expect(abbrechen.nextElementSibling).toBe(manage);
+  });
 });
