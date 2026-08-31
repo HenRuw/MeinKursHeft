@@ -72,7 +72,9 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const [selectedIds, setSelectedIds] = useState(new Set(initialSelectedIds));
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const [rosterMode, setRosterMode] = useState('view'); // 'view' | 'remove' | 'add'
+  // Creating a course drops you straight into "Schüler hinzufügen" -- adding
+  // students is the first thing you want to do on a brand-new course.
+  const [rosterMode, setRosterMode] = useState(mode === 'create' ? 'add' : 'view'); // 'view' | 'remove' | 'add'
   const [removeChecked, setRemoveChecked] = useState(new Set());
   const [addChecked, setAddChecked] = useState(new Set());
   const [addSortBy, setAddSortBy] = useState('lastName');
