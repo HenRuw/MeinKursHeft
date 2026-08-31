@@ -643,7 +643,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                     )}
                   </span>
                   <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ marginLeft: -14 }}>
-                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={absent || setLocked} />
+                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} />
                   </span>
                   <RemarkPicker
                     remarks={remarksFor(s.id)}
