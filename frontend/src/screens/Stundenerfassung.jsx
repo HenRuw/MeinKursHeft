@@ -239,27 +239,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
     vp.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
   };
 
-  // A click on the tile currently flush against the left (right) edge pages
-  // the row toward earlier (later) units instead of selecting it — but only
-  // while there's actually room to scroll that way, so once the row is at its
-  // extreme the same edge tile becomes selectable again. Anything not at an
-  // edge just selects normally.
-  const onTileClick = (l, el) => {
-    const vp = tileViewportRef.current;
-    if (vp) {
-      const vpRect = vp.getBoundingClientRect();
-      const tRect = el.getBoundingClientRect();
-      const left = tRect.left - vpRect.left;
-      const right = tRect.right - vpRect.left;
-      const canScrollLeft = vp.scrollLeft > 1;
-      const canScrollRight = vp.scrollLeft + vp.clientWidth < vp.scrollWidth - 1;
-      const visible = Math.max(1, Math.floor(vp.clientWidth / (TILE_W + TILE_GAP)));
-      const page = Math.max(1, visible - 1) * (TILE_W + TILE_GAP);
-      if (left <= TILE_W * 0.5 && canScrollLeft) return vp.scrollBy({ left: -page, behavior: 'smooth' });
-      if (right >= vp.clientWidth - TILE_W * 0.5 && canScrollRight) return vp.scrollBy({ left: page, behavior: 'smooth' });
-    }
-    setActiveLessonId(l.id);
-  };
+  // Clicking any tile — including one flush against the left/right edge of
+  // the row — just selects that unit. Moving through the list is done by
+  // swiping or the scrollbar, not by clicking the edge tiles.
+  const onTileClick = (l) => setActiveLessonId(l.id);
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -335,7 +318,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   if (el) tileRefs.current[l.id] = el;
                   else delete tileRefs.current[l.id];
                 }}
-                onClick={(e) => onTileClick(l, e.currentTarget)}
+                onClick={() => onTileClick(l)}
                 style={{
                   flex: 'none',
                   width: TILE_W,
