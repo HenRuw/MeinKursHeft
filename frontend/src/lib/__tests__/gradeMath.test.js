@@ -184,12 +184,11 @@ describe('studentDisplayName / sortStudents', () => {
 });
 
 describe('writtenWorkKindLabel / WRITTEN_WORK_KINDS', () => {
-  test('has exactly the three required categories', () => {
-    expect(WRITTEN_WORK_KINDS.map((k) => k.value)).toEqual(['klassenarbeit', 'test', 'sonstige']);
+  test('has exactly the two required categories (Tests entfernt)', () => {
+    expect(WRITTEN_WORK_KINDS.map((k) => k.value)).toEqual(['klassenarbeit', 'sonstige']);
   });
   test('maps kind values to German labels', () => {
     expect(writtenWorkKindLabel('klassenarbeit')).toBe('Klassenarbeit');
-    expect(writtenWorkKindLabel('test')).toBe('Test');
     expect(writtenWorkKindLabel('sonstige')).toBe('Sonstige Leistungen');
   });
   test('falls back to the raw value for an unknown kind', () => {

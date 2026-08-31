@@ -92,7 +92,6 @@ export function sortStudents(students) {
 
 const WRITTEN_WORK_KINDS = [
   { value: 'klassenarbeit', label: 'Klassenarbeit' },
-  { value: 'test', label: 'Test' },
   { value: 'sonstige', label: 'Sonstige Leistungen' },
 ];
 
@@ -102,16 +101,15 @@ export function writtenWorkKindLabel(kind) {
 
 export { WRITTEN_WORK_KINDS };
 
-// Only Klassenarbeiten count as "schriftlich" — Tests and Sonstige Leistungen
-// are graded work but count toward Mitarbeit, alongside lesson grades.
+// Only Klassenarbeiten count as "schriftlich" — Sonstige Leistungen are
+// graded work but count toward Mitarbeit, alongside lesson grades.
 export const WRITTEN_WORK_GROUP = {
   klassenarbeit: 'schriftlich',
-  test: 'mitarbeit',
   sonstige: 'mitarbeit',
 };
 
 // Mitarbeit average: lesson grades (each weighted 1, i.e. a plain mean among
-// themselves) combined with any Test/Sonstige grades at their own weight.
+// themselves) combined with any Sonstige grades at their own weight.
 export function mitarbeitAverage(studentId, lessons, works) {
   const pairs = [
     ...lessons.map((l) => [num(l.grades.find((g) => g.student_id === studentId)?.grade), l.weight]),

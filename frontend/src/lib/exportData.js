@@ -39,7 +39,6 @@ export const EXPORT_TREE = [
     label: 'Schriftliche Leistungen',
     children: [
       { key: 'klassenarbeit', label: 'Klassenarbeiten' },
-      { key: 'test', label: 'Tests' },
       { key: 'sonstige', label: 'Sonstige Leistungen' },
       { key: 'bemerkungen', label: 'Bemerkungen' },
     ],

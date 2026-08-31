@@ -21,7 +21,6 @@ import { downloadWorkStatsImage } from '../lib/workStatsImage.js';
 // reads more naturally in the plural.
 const SECTION_LABELS = {
   klassenarbeit: 'Klassenarbeiten',
-  test: 'Tests',
   sonstige: 'Sonstige Leistungen',
 };
 

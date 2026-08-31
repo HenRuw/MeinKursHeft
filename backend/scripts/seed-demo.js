@@ -178,11 +178,11 @@ async function main() {
   // year -- q1/q2 make up 1. Halbjahr, q3/q4 make up 2. Halbjahr.
   const WORKS = [
     { kind: 'klassenarbeit', title: '1. Klassenarbeit', content: 'Terme, lineare Funktionen', date: '2026-09-25', weight: 2, quarter: q1 },
-    { kind: 'test', title: 'Kurztest Terme', content: 'Ausmultiplizieren, Ausklammern', date: '2026-09-11', weight: 1, quarter: q1 },
+    { kind: 'sonstige', title: 'Kurztest Terme', content: 'Ausmultiplizieren, Ausklammern', date: '2026-09-11', weight: 1, quarter: q1 },
     { kind: 'sonstige', title: 'Hausaufgabenheft', content: 'Vollständigkeit & Ordentlichkeit', date: '2026-10-16', weight: 0.5, quarter: q1 },
     { kind: 'klassenarbeit', title: '2. Klassenarbeit', content: 'Steigung, Sachaufgaben', date: '2026-11-06', weight: 2, quarter: q1 },
     { kind: 'klassenarbeit', title: '3. Klassenarbeit', content: 'Gleichungssysteme', date: '2026-12-02', weight: 2, quarter: q2 },
-    { kind: 'test', title: 'Kurztest Gleichungssysteme', content: 'Einsetzungs- & Additionsverfahren', date: '2026-11-27', weight: 1, quarter: q2 },
+    { kind: 'sonstige', title: 'Kurztest Gleichungssysteme', content: 'Einsetzungs- & Additionsverfahren', date: '2026-11-27', weight: 1, quarter: q2 },
     { kind: 'klassenarbeit', title: '4. Klassenarbeit', content: 'Textaufgaben', date: '2027-01-20', weight: 2, quarter: q2 },
     { kind: 'klassenarbeit', title: '5. Klassenarbeit', content: 'Quadratische Funktionen', date: '2027-02-26', weight: 2, quarter: q3 },
     { kind: 'klassenarbeit', title: '6. Klassenarbeit', content: 'Satz des Pythagoras', date: '2027-03-26', weight: 2, quarter: q3 },

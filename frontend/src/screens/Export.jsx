@@ -157,7 +157,6 @@ export default function Export({ courses, allStudents, klassen }) {
       if (selectedLeaves.has('muendlich.noten')) sections.push({ label: 'Noten Mitarbeit', report: buildMuendlicheNotenReport(bundles) });
       if (selectedLeaves.has('muendlich.bemerkungen')) sections.push({ label: 'Bemerkungen Mitarbeit', report: buildMuendlicheBemerkungenReport(bundles) });
       if (selectedLeaves.has('schriftlich.klassenarbeit')) sections.push({ label: 'Klassenarbeiten', report: buildWrittenWorkReport(bundles, 'klassenarbeit') });
-      if (selectedLeaves.has('schriftlich.test')) sections.push({ label: 'Tests', report: buildWrittenWorkReport(bundles, 'test') });
       if (selectedLeaves.has('schriftlich.sonstige')) sections.push({ label: 'Sonstige Leistungen', report: buildWrittenWorkReport(bundles, 'sonstige') });
       if (selectedLeaves.has('schriftlich.bemerkungen')) sections.push({ label: 'Bemerkungen Schriftlich', report: buildSchriftlichBemerkungenReport(bundles) });
       if (selectedLeaves.has('noten.quartalsnoten')) sections.push({ label: 'Quartalsnoten', report: buildQuartalsnotenReport(bundles) });
