@@ -545,7 +545,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             disabled={!newDate}
             style={{ padding: '9px', borderRadius: 8, background: newDate ? colors.teal : colors.divider, color: newDate ? '#fff' : colors.faint, fontSize: 12.5, fontWeight: 500 }}
           >
-            Stunde anlegen
+            {newDuration > 1 ? 'Stunden anlegen' : 'Stunde anlegen'}
           </button>
         </div>
       </Popover>
