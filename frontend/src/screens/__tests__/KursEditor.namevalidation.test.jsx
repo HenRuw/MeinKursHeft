@@ -16,9 +16,7 @@ function renderCreate(onSubmit) {
       onManageStudents={null}
     />
   );
-  // A brand-new course opens in "add students" mode; leave it to reveal the
-  // "Anlegen" button.
-  fireEvent.click(screen.getByText('Abbrechen'));
+  // A brand-new course opens on the view step, so "Anlegen" is already shown.
 }
 
 describe('KursEditor name validation on "Anlegen"', () => {

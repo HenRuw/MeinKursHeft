@@ -75,9 +75,11 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const [nameError, setNameError] = useState(false);
   const nameRef = useRef(null);
 
-  // Creating a course drops you straight into "Schüler hinzufügen" -- adding
-  // students is the first thing you want to do on a brand-new course.
-  const [rosterMode, setRosterMode] = useState(mode === 'create' ? 'add' : 'view'); // 'view' | 'remove' | 'add'
+  // Both modes start on the view step (name field + Anlegen/Speichern +
+  // Abbrechen). Adding students is one explicit click away ("+ Schüler
+  // hinzufügen"); starting here means the very first Abbrechen cleanly cancels
+  // the editor instead of just dropping into another sub-step.
+  const [rosterMode, setRosterMode] = useState('view'); // 'view' | 'remove' | 'add'
   const [removeChecked, setRemoveChecked] = useState(new Set());
   const [addChecked, setAddChecked] = useState(new Set());
   const [addSortBy, setAddSortBy] = useState('lastName');
@@ -140,6 +142,8 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
     setRosterMode('view');
   };
 
+  // The add/remove steps are always reached from the view step, so cancelling
+  // one simply returns there.
   const cancelRoster = () => setRosterMode('view');
 
   const submit = () => {
