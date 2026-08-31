@@ -116,6 +116,11 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const lesson = bundle.lessons.find((l) => l.id === activeLessonId) || null;
   const students = sortStudents(bundle.students);
 
+  // The detail panel widens as the Kommentar grows, so a long comment wraps
+  // to fewer lines instead of a tall, narrow column — clamped so it never
+  // eats the space the tile row needs to keep at least three tiles visible.
+  const detailWidth = Math.round(Math.min(380, 224 + Math.max(0, (lesson?.note || '').length - 40) * 1.4));
+
   const resetAddForm = () => {
     setAddOpen(false);
     setNewTopic('');
@@ -267,7 +272,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           onClick={() => activeLessonId && scrollToLesson(activeLessonId)}
           style={{
             flex: 'none',
-            width: 224,
+            width: detailWidth,
+            transition: 'width 160ms ease',
             minHeight: TILE_H,
             padding: '11px 13px',
             borderRadius: 10,
