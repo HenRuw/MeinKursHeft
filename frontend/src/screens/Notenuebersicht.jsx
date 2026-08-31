@@ -250,9 +250,13 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   const overrides = bundle.gradeOverrides || [];
   const avgLocks = bundle.averageLocks || [];
   const isAvgLocked = (studentId, kind, refId) => averageLockedFor(avgLocks, studentId, kind, refId);
-  const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade, locked }
+  const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade }
   const overrideAnchorRef = useRef(null);
-  const popoverLockRef = useRef(null);
+  // One ref per SPERRE-row column lock, keyed "kind-refId" for average columns,
+  // so a click on a locked average cell can shake that column's single top lock
+  // instead of every cell carrying its own padlock.
+  const columnLockRefs = useRef({});
+  const avgLockKey = (kind, refId) => `${kind}-${refId}`;
   // Every mutation here refetches the bundle itself rather than trusting the
   // WebSocket broadcast to bring the change back -- the live-sync socket isn't
   // guaranteed to reach the client (e.g. a reverse proxy that doesn't forward
@@ -260,22 +264,20 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   // database but never update the view. Mirrors the entry screens' .then(onRefresh).
   const refresh = () => onRefresh && onRefresh();
   const setOverrideGrade = (grade) => {
-    const { studentId, kind, refId, locked } = overrideEdit;
-    if (locked) return; // a locked average can't be changed
+    const { studentId, kind, refId } = overrideEdit;
     api.setGradeOverride(courseId, { studentId, kind, refId, grade }).then(refresh);
     setOverrideEdit(null);
   };
-  const openOverrideEdit = (studentId, kind, refId, grade, locked, el) => {
+  const openOverrideEdit = (studentId, kind, refId, grade, el) => {
     overrideAnchorRef.current = el;
-    setOverrideEdit({ studentId, kind, refId, grade, locked });
+    setOverrideEdit({ studentId, kind, refId, grade });
   };
-  // Freeze/unfreeze the average cell currently open in the popover. Locking
-  // closes it (the value is now fixed); unlocking keeps it open and editable.
-  const setAvgLock = (locked) => {
-    const { studentId, kind, refId } = overrideEdit;
-    api.setAverageLock(courseId, { studentId, kind, refId, locked }).then(refresh);
-    if (locked) setOverrideEdit(null);
-    else setOverrideEdit((o) => ({ ...o, locked: false }));
+  // Clicking an average cell: a locked one just shakes this column's top lock
+  // (the lock lives only in the SPERRE row now); an unlocked one opens the
+  // manual-override popover.
+  const avgCellClick = (studentId, kind, refId, grade) => (e) => {
+    if (averageLockedFor(avgLocks, studentId, kind, refId)) triggerShake(columnLockRefs.current[avgLockKey(kind, refId)]);
+    else openOverrideEdit(studentId, kind, refId, grade, e.currentTarget);
   };
 
   // --- column locks (the Notenübersicht lock row) ---
@@ -316,9 +318,9 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
     if (l.kind === 'hjNote') return toggleAvgColumnLock('hjNote', l.half.id);
     if (l.kind === 'zeugnis') return toggleAvgColumnLock('zeugnis', courseId);
   };
-  // Same content whether the cell is plain text (read elsewhere) or an
-  // editable button (only in the Schueleransicht) -- a manual override always
-  // gets the pencil badge, a locked average the padlock badge, everywhere.
+  // A manual override keeps its pencil badge; a locked average carries no
+  // padlock of its own -- the lock lives in the SPERRE row -- and is just
+  // greyed out to read as "not editable here".
   const renderAvg = (value, overridden, onClick, grade, locked) => {
     const inner = (
       <>
@@ -328,15 +330,10 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             ✎
           </span>
         )}
-        {locked && (
-          <span title="Gesperrt – gegen Bearbeitung geschützt" style={{ marginLeft: 3, fontSize: 8 }}>
-            🔒
-          </span>
-        )}
       </>
     );
     return onClick ? (
-      <button onClick={onClick} style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit' }}>
+      <button onClick={onClick} style={{ display: 'block', width: '100%', font: 'inherit', color: 'inherit', opacity: locked ? 0.45 : 1 }}>
         {inner}
       </button>
     ) : (
@@ -675,10 +672,22 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   // set and its weight are frozen; an open shackle (🔓) means editable.
   // Same per-column background/frame-border language as the weight cell below.
   const lockRowStyle = (extra) => ({ ...weightRowStyle(extra), padding: '3px 4px 3px' });
+  // The "kind-refId" key an average column's top lock is registered under, so
+  // a locked average cell can shake it (see avgCellClick); null for lesson/exam.
+  const lockRefKey = (l) => {
+    if (l.kind === 'mitAvg') return avgLockKey('mitAvg', l.quarter.id);
+    if (l.kind === 'schrAvg') return avgLockKey('schrAvg', l.quarter.id);
+    if (l.kind === 'qNote') return avgLockKey('qNote', l.quarter.id);
+    if (l.kind === 'hjNote') return avgLockKey('hjNote', l.half.id);
+    if (l.kind === 'zeugnis') return avgLockKey('zeugnis', courseId);
+    return null;
+  };
   const LockToggle = ({ l }) => {
     const locked = leafColumnLocked(l);
+    const key = lockRefKey(l);
     return (
       <button
+        ref={key ? (el) => { columnLockRefs.current[key] = el; } : undefined}
         onClick={(e) => {
           e.stopPropagation();
           leafToggleLock(l);
@@ -863,7 +872,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
               gridRow,
             }}
           >
-            {renderAvg(mit.value, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', l.quarter.id, mit.grade, isAvgLocked(s.id, 'mitAvg', l.quarter.id), e.currentTarget)), mit.grade, isAvgLocked(s.id, 'mitAvg', l.quarter.id))}
+            {renderAvg(mit.value, mit.overridden, allowGradeOverride && avgCellClick(s.id, 'mitAvg', l.quarter.id, mit.grade), mit.grade, isAvgLocked(s.id, 'mitAvg', l.quarter.id))}
           </div>
         );
       }
@@ -878,7 +887,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
               gridRow,
             }}
           >
-            {renderAvg(schr.value, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', l.quarter.id, schr.grade, isAvgLocked(s.id, 'schrAvg', l.quarter.id), e.currentTarget)), schr.grade, isAvgLocked(s.id, 'schrAvg', l.quarter.id))}
+            {renderAvg(schr.value, schr.overridden, allowGradeOverride && avgCellClick(s.id, 'schrAvg', l.quarter.id, schr.grade), schr.grade, isAvgLocked(s.id, 'schrAvg', l.quarter.id))}
           </div>
         );
       }
@@ -886,7 +895,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
         const q = avgs.qNoteByQuarter.get(l.quarter.id);
         return (
           <div key={key} style={{ ...td({ background: colors.qBg, color: q.value == null ? '#c4bba6' : gradeColor(q.value), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${l.accent}` }), gridColumn, gridRow }}>
-            {renderAvg(q.value, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', l.quarter.id, q.grade, isAvgLocked(s.id, 'qNote', l.quarter.id), e.currentTarget)), q.grade, isAvgLocked(s.id, 'qNote', l.quarter.id))}
+            {renderAvg(q.value, q.overridden, allowGradeOverride && avgCellClick(s.id, 'qNote', l.quarter.id, q.grade), q.grade, isAvgLocked(s.id, 'qNote', l.quarter.id))}
           </div>
         );
       }
@@ -901,7 +910,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
               gridRow,
             }}
           >
-            {renderAvg(h.value, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', l.half.id, h.grade, isAvgLocked(s.id, 'hjNote', l.half.id), e.currentTarget)), h.grade, isAvgLocked(s.id, 'hjNote', l.half.id))}
+            {renderAvg(h.value, h.overridden, allowGradeOverride && avgCellClick(s.id, 'hjNote', l.half.id, h.grade), h.grade, isAvgLocked(s.id, 'hjNote', l.half.id))}
           </div>
         );
       }
@@ -919,7 +928,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             zIndex: 1,
           }}
         >
-          {renderAvg(z.value, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, isAvgLocked(s.id, 'zeugnis', courseId), e.currentTarget)), z.grade, isAvgLocked(s.id, 'zeugnis', courseId))}
+          {renderAvg(z.value, z.overridden, allowGradeOverride && avgCellClick(s.id, 'zeugnis', courseId, z.grade), z.grade, isAvgLocked(s.id, 'zeugnis', courseId))}
         </div>
       );
     });
@@ -943,42 +952,22 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
         <Popover open={overrideEdit != null} anchorRef={overrideAnchorRef} onClose={() => setOverrideEdit(null)} width={220}>
           <div style={{ background: '#fff', border: `1px solid ${colors.borderStrong}`, borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,.18)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
-                {overrideEdit?.locked ? 'DURCHSCHNITT GESPERRT' : 'DURCHSCHNITT SETZEN'}
-              </span>
+              <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>DURCHSCHNITT SETZEN</span>
               <button onClick={() => setOverrideEdit(null)} style={{ fontSize: 13, color: colors.muted }}>
                 ✕
               </button>
             </div>
-            {/* A locked average is frozen: SplitKeys is disabled and only the
-                unlock button is offered. Unlocked, it behaves as before --
-                pick a grade (empty = reset, since the backend treats an empty
-                grade as "delete the override"), plus a Sperren button. */}
-            <span onClick={overrideEdit?.locked ? () => triggerShake(popoverLockRef.current) : undefined}>
-              <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} disabled={overrideEdit?.locked} />
-            </span>
-            {!overrideEdit?.locked && overrideEdit?.grade && (
+            {/* Only unlocked averages open this popover (a locked one shakes its
+                top lock instead). Pick a grade to override; an empty pick resets
+                it, since the backend treats an empty grade as "delete the
+                override". Locking itself lives in the SPERRE row, not here. */}
+            <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} />
+            {overrideEdit?.grade && (
               <button
                 onClick={() => setOverrideGrade(null)}
                 style={{ padding: '8px 12px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.mutedStrong, background: colors.cream }}
               >
                 Reset
-              </button>
-            )}
-            {overrideEdit?.locked ? (
-              <button
-                ref={popoverLockRef}
-                onClick={() => setAvgLock(false)}
-                style={{ padding: '8px 12px', borderRadius: 7, fontSize: 12, fontWeight: 500, color: '#fff', background: colors.gold }}
-              >
-                🔓 Entsperren
-              </button>
-            ) : (
-              <button
-                onClick={() => setAvgLock(true)}
-                style={{ padding: '8px 12px', border: `1px solid ${colors.goldBorder}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.gold, background: colors.goldBg }}
-              >
-                🔒 Sperren
               </button>
             )}
           </div>
