@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import Popover from './Popover.jsx';
+import { submitOnEnter } from '../lib/keys.js';
 
 // WhatsApp-style categorized picker, thematically adapted for classroom use.
 const EMOJI_CATEGORIES = [
@@ -238,6 +239,7 @@ export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCusto
                 <input
                   value={draftText}
                   onChange={(e) => setDraftText(e.target.value)}
+                  onKeyDown={submitOnEnter(submitDraft)}
                   placeholder="Beschreibung …"
                   style={{ flex: 1, minWidth: 0, padding: '8px 10px', border: '1px solid #ddd7cb', borderRadius: 7, fontSize: 12.5 }}
                 />
@@ -329,6 +331,7 @@ export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCusto
             <input
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
+              onKeyDown={submitOnEnter(saveEdit)}
               style={{ flex: 1, minWidth: 0, padding: '8px 10px', border: '1px solid #ddd7cb', borderRadius: 7, fontSize: 12.5 }}
             />
           </span>

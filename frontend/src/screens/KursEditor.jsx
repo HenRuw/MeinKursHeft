@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName } from '../lib/gradeMath.js';
+import { submitOnEnter } from '../lib/keys.js';
 
 const label = { font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em', display: 'block', marginBottom: 5 };
 const field = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, width: '100%' };
@@ -134,7 +135,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
       <div style={{ display: 'flex', gap: 14 }}>
         <div style={{ flex: 1, maxWidth: 360 }}>
           <label style={label}>KURSNAME</label>
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} style={field} />
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={submitOnEnter(submit)} style={field} />
         </div>
       </div>
 

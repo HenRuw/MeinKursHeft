@@ -60,10 +60,10 @@ export default function Quartalsdaten({ courses }) {
               <tr key={q.idx}>
                 <td style={{ padding: '4px 10px', fontWeight: 600 }}>{q.idx}. Quartal</td>
                 <td style={{ padding: '4px 10px' }}>
-                  <input type="date" defaultValue={q.start_date} onBlur={(e) => saveDate(q.idx, { startDate: e.target.value })} style={field} />
+                  <input type="date" defaultValue={q.start_date} onBlur={(e) => saveDate(q.idx, { startDate: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} style={field} />
                 </td>
                 <td style={{ padding: '4px 10px' }}>
-                  <input type="date" defaultValue={q.end_date} onBlur={(e) => saveDate(q.idx, { endDate: e.target.value })} style={field} />
+                  <input type="date" defaultValue={q.end_date} onBlur={(e) => saveDate(q.idx, { endDate: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} style={field} />
                 </td>
               </tr>
             ))}

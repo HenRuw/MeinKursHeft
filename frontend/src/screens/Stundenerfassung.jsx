@@ -4,6 +4,7 @@ import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName, studentKlasseLabel } from '../lib/gradeMath.js';
 import { formatShortDate, todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
+import { submitOnEnter } from '../lib/keys.js';
 import SplitKeys from '../components/SplitKeys.jsx';
 import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
@@ -238,10 +239,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               ✕
             </button>
           </div>
-          <input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} placeholder="Titel" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
-          <textarea rows={2} value={editContent} onChange={(e) => setEditContent(e.target.value)} placeholder="Stundeninhalt …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
-          <textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Bemerkung zur Stunde …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
-          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Titel" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <textarea rows={2} value={editContent} onChange={(e) => setEditContent(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Stundeninhalt …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
+          <textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Bemerkung zur Stunde …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
+          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <button onClick={deleteLesson} style={{ padding: '8px 12px', border: `1px solid ${colors.redBorder}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.red, background: colors.redBg }}>
               Löschen
@@ -272,12 +273,12 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               ✕
             </button>
           </div>
-          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} onKeyDown={submitOnEnter(createLesson)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: colors.mutedStrong }}>Länge</span>
             <Stepper value={newDuration} onChange={setNewDuration} min={1} max={6} suffix=" Std." />
           </div>
-          <input value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="Thema (optional)" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input value={newTopic} onChange={(e) => setNewTopic(e.target.value)} onKeyDown={submitOnEnter(createLesson)} placeholder="Thema (optional)" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
 
           <button
             onClick={createLesson}

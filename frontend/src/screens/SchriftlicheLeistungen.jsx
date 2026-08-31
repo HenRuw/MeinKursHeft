@@ -4,6 +4,7 @@ import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, writtenWorkKindLabel, num, fmt, wavg } from '../lib/gradeMath.js';
 import { todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
+import { submitOnEnter } from '../lib/keys.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
 import SplitKeys from '../components/SplitKeys.jsx';
@@ -261,10 +262,10 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
               </option>
             ))}
           </select>
-          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
-          <textarea rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
-          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
-          <input value={editWeight} onChange={(e) => setEditWeight(e.target.value)} placeholder="Gewicht" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <textarea rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
+          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input value={editWeight} onChange={(e) => setEditWeight(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Gewicht" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={saveEdit} style={{ flex: 1, padding: 9, borderRadius: 8, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
               Speichern
@@ -302,9 +303,9 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
               </option>
             ))}
           </select>
-          <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="z. B. 2. Klassenarbeit" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
-          <textarea rows={3} value={newContent} onChange={(e) => setNewContent(e.target.value)} placeholder="Themen, Aufgabentypen …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
-          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={submitOnEnter(createWork)} placeholder="z. B. 2. Klassenarbeit" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <textarea rows={3} value={newContent} onChange={(e) => setNewContent(e.target.value)} onKeyDown={submitOnEnter(createWork)} placeholder="Themen, Aufgabentypen …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
+          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} onKeyDown={submitOnEnter(createWork)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <button onClick={createWork} style={{ padding: 9, borderRadius: 8, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
             Anlegen
           </button>
