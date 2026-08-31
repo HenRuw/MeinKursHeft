@@ -121,7 +121,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   // The detail panel widens as the Kommentar grows, so a long comment wraps
   // to fewer lines instead of a tall, narrow column — clamped so it never
   // eats the space the tile row needs to keep at least three tiles visible.
-  const detailWidth = Math.round(Math.min(380, 224 + Math.max(0, (lesson?.note || '').length - 40) * 1.4));
+  const detailWidth = Math.round(Math.min(440, 280 + Math.max(0, (lesson?.note || '').length - 40) * 1.4));
 
   const resetAddForm = () => {
     setAddOpen(false);
@@ -245,14 +245,17 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
         {/* Detail panel (left): the selected unit's Von…bis, Gewicht,
-            Schulstunden, Thema and Kommentar. Clicking empty space in it
-            scrolls the tile row back to that unit; the pencil opens the
-            editor (the old per-tile gear button is gone). */}
+            Schulstunden, Thema and Kommentar. The date/Gewicht/Schulstunden
+            fields sit on one wrapping row so the block stays short and wide
+            rather than a tall column. Clicking empty space in it scrolls the
+            tile row back to that unit; the pencil in the top-right corner
+            opens the editor (the old per-tile gear button is gone). */}
         <div
           onClick={() => activeLessonId && scrollToLesson(activeLessonId)}
           style={{
+            position: 'relative',
             flex: 'none',
             width: detailWidth,
             transition: 'width 160ms ease',
@@ -269,30 +272,31 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         >
           {lesson ? (
             <>
-              {isMultiDay(lesson) ? (
-                <>
-                  <DetailRow label="von" value={formatLongDate(lesson.date)} />
-                  <DetailRow label="bis" value={formatLongDate(unitEnd(lesson))} />
-                </>
-              ) : (
-                <DetailRow label="Datum" value={formatLongDate(lesson.date)} />
-              )}
-              <div style={{ display: 'flex', gap: 16 }}>
-                <DetailRow label="Gewicht" value={formatWeight(lesson.weight)} />
-                <DetailRow label="Schulstunden" value={String(lesson.duration_hours)} />
-              </div>
-              <DetailRow label="Thema" value={lesson.topic || '—'} />
-              <DetailRow label="Kommentar" value={lesson.note || '—'} multiline />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   openEdit(lesson, e.currentTarget);
                 }}
                 title="Einheit bearbeiten"
-                style={{ alignSelf: 'flex-start', marginTop: 2, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', color: colors.mutedStrong, fontSize: 13 }}
+                style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', color: colors.mutedStrong, fontSize: 13 }}
               >
                 ✎
               </button>
+              {/* paddingRight keeps this first row clear of the corner pencil. */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, paddingRight: 30 }}>
+                {isMultiDay(lesson) ? (
+                  <>
+                    <DetailRow label="von" value={formatLongDate(lesson.date)} />
+                    <DetailRow label="bis" value={formatLongDate(unitEnd(lesson))} />
+                  </>
+                ) : (
+                  <DetailRow label="Datum" value={formatLongDate(lesson.date)} />
+                )}
+                <DetailRow label="Gewicht" value={formatWeight(lesson.weight)} />
+                <DetailRow label="Schulstunden" value={String(lesson.duration_hours)} />
+              </div>
+              <DetailRow label="Thema" value={lesson.topic || '—'} />
+              <DetailRow label="Kommentar" value={lesson.note || '—'} multiline />
             </>
           ) : (
             <span style={{ fontSize: 12, color: colors.muted }}>Keine Einheit ausgewählt.</span>
@@ -305,7 +309,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         <div
           ref={tileViewportRef}
           className="scroll-panel"
-          style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: TILE_GAP, overflowX: 'auto', scrollSnapType: 'x proximity', paddingBottom: 2 }}
+          style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'stretch', gap: TILE_GAP, overflowX: 'auto', scrollSnapType: 'x proximity', paddingBottom: 2 }}
         >
           {allLessons.map((l) => {
             const on = l.id === activeLessonId;
@@ -321,7 +325,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                 style={{
                   flex: 'none',
                   width: TILE_W,
-                  height: TILE_H,
+                  minHeight: TILE_H,
                   scrollSnapAlign: 'start',
                   display: 'flex',
                   flexDirection: 'column',
@@ -355,7 +359,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           title="Neue Einheit"
           style={{
             width: 56,
-            height: TILE_H,
+            minHeight: TILE_H,
             flex: 'none',
             display: 'flex',
             alignItems: 'center',
