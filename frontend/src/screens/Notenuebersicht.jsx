@@ -21,6 +21,7 @@ import {
 import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
+import { triggerShake } from '../lib/shake.js';
 import WeightInput from '../components/WeightInput.jsx';
 import SplitKeys from '../components/SplitKeys.jsx';
 import Popover from '../components/Popover.jsx';
@@ -249,6 +250,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const isAvgLocked = (studentId, kind, refId) => avgLocks.some((a) => a.student_id === studentId && a.kind === kind && a.ref_id === refId);
   const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade, locked }
   const overrideAnchorRef = useRef(null);
+  const popoverLockRef = useRef(null);
   const openOverrideEdit = (studentId, kind, refId, grade, locked, el) => {
     overrideAnchorRef.current = el;
     setOverrideEdit({ studentId, kind, refId, grade, locked });
@@ -944,7 +946,9 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
                 unlock button is offered. Unlocked, it behaves as before --
                 pick a grade (empty = reset, since the backend treats an empty
                 grade as "delete the override"), plus a Sperren button. */}
-            <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} disabled={overrideEdit?.locked} />
+            <span onClick={overrideEdit?.locked ? () => triggerShake(popoverLockRef.current) : undefined}>
+              <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} disabled={overrideEdit?.locked} />
+            </span>
             {!overrideEdit?.locked && overrideEdit?.grade && (
               <button
                 onClick={() => setOverrideGrade(null)}
@@ -955,6 +959,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             )}
             {overrideEdit?.locked ? (
               <button
+                ref={popoverLockRef}
                 onClick={() => setAvgLock(false)}
                 style={{ padding: '8px 12px', borderRadius: 7, fontSize: 12, fontWeight: 500, color: '#fff', background: colors.gold }}
               >

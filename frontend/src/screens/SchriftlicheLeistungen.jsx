@@ -5,6 +5,7 @@ import { sortStudents, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KIND
 import { todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
 import { submitOnEnter } from '../lib/keys.js';
+import { triggerShake } from '../lib/shake.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
 import SplitKeys from '../components/SplitKeys.jsx';
@@ -31,6 +32,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   // leaves this at its null default instead of reapplying a stale one.
   const [highlightedStudentId, setHighlightedStudentId] = useState(null);
   const addBtnRef = useRef(null);
+  const setLockRef = useRef(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newKind, setNewKind] = useState('klassenarbeit');
   const [newTitle, setNewTitle] = useState('');
@@ -332,7 +334,9 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
               {work.content && <span style={{ fontSize: 12, color: colors.mutedStrong, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{work.content}</span>}
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                 {setLocked && <span style={{ font: `600 9.5px ${fonts.mono}`, color: colors.gold, letterSpacing: '.06em' }}>GESPERRT</span>}
-                <LockButton locked={setLocked} onClick={toggleSetLock} size={22} title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'} />
+                <span ref={setLockRef} style={{ display: 'inline-flex' }}>
+                  <LockButton locked={setLocked} onClick={toggleSetLock} size={22} title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'} />
+                </span>
               </span>
             </div>
             {/* One shared scroll container (not a separate header) so the
@@ -366,7 +370,9 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>
-                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} />
+                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined}>
+                      <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} />
+                    </span>
                     <RemarkPicker
                       remarks={remarksFor(s.id)}
                       presets={presets}

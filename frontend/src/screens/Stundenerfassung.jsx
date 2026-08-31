@@ -5,6 +5,7 @@ import { sortStudents, studentDisplayName, studentKlasseLabel, formatWeight } fr
 import { formatShortDate, formatLongDate, formatDateRange, todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
 import { submitOnEnter } from '../lib/keys.js';
+import { triggerShake } from '../lib/shake.js';
 import SplitKeys from '../components/SplitKeys.jsx';
 import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
@@ -77,6 +78,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const addBtnRef = useRef(null);
   const tileViewportRef = useRef(null);
   const tileRefs = useRef({});
+  const setLockRef = useRef(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newDate, setNewDate] = useState(todayISO());
   const [newEndDate, setNewEndDate] = useState(todayISO());
@@ -551,12 +553,14 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             <span />
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               MITARBEITSNOTE
-              <LockButton
-                locked={setLocked}
-                onClick={toggleSetLock}
-                size={20}
-                title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'}
-              />
+              <span ref={setLockRef} style={{ display: 'inline-flex' }}>
+                <LockButton
+                  locked={setLocked}
+                  onClick={toggleSetLock}
+                  size={20}
+                  title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'}
+                />
+              </span>
               {setLocked && <span style={{ color: colors.gold, letterSpacing: 0 }}>GESPERRT</span>}
             </span>
             <span>BEMERKUNG</span>
@@ -627,7 +631,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       </span>
                     )}
                   </span>
-                  <span>
+                  <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined}>
                     <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={absent || setLocked} />
                   </span>
                   <RemarkPicker
