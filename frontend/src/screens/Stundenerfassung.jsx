@@ -48,6 +48,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const [newEndDate, setNewEndDate] = useState(todayISO());
   const [newDuration, setNewDuration] = useState(1);
   const [newTopic, setNewTopic] = useState('');
+  const [newNote, setNewNote] = useState('');
   const editAnchorRef = useRef(null);
   const [editLessonId, setEditLessonId] = useState(null);
   const [editTopic, setEditTopic] = useState('');
@@ -81,6 +82,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const resetAddForm = () => {
     setAddOpen(false);
     setNewTopic('');
+    setNewNote('');
     setNewDuration(1);
     setNewDate(todayISO());
     setNewEndDate(todayISO());
@@ -99,6 +101,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
       endDate,
       durationHours: newDuration,
       topic: newTopic.trim(),
+      note: newNote.trim(),
       weight: newDuration,
     });
     resetAddForm();
@@ -259,7 +262,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           </div>
           <input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Titel" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <textarea rows={2} value={editContent} onChange={(e) => setEditContent(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Stundeninhalt …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
-          <textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Bemerkung zur Stunde …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
+          <textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Kommentar …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
           <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <button onClick={deleteLesson} style={{ padding: '8px 12px', border: `1px solid ${colors.redBorder}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.red, background: colors.redBg }}>
@@ -327,6 +330,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} onKeyDown={submitOnEnter(createLesson)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           )}
           <input value={newTopic} onChange={(e) => setNewTopic(e.target.value)} onKeyDown={submitOnEnter(createLesson)} placeholder="Thema (optional)" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <textarea rows={2} value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={submitOnEnter(createLesson)} placeholder="Kommentar (optional)" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
 
           <button
             onClick={createLesson}
