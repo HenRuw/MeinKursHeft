@@ -73,22 +73,20 @@ export const EXPORT_FORMATS = [
   ['json', 'JSON (.json)'],
 ];
 
-// filter: { mode: 'klasse' | 'jahrgang', klasseId, jahrgang } | null
+// filter: { mode: 'klasse', klasseId } | null
 export function filterStudentsBy(students, filter) {
   if (filter?.mode === 'klasse') return students.filter((s) => String(s.klasse_id) === String(filter.klasseId));
-  if (filter?.mode === 'jahrgang') return students.filter((s) => String(s.klasse_jahrgang) === String(filter.jahrgang));
   return students;
 }
 
 export function buildStudentListReport(allStudents, filter) {
   const students = sortStudents(filterStudentsBy(allStudents, filter));
-  const headers = ['Nachname', 'Vorname', 'Klasse', 'Jahrgang'];
-  const rows = students.map((s) => [s.last_name, s.first_name, s.klasse_name || '', s.klasse_jahrgang ?? '']);
+  const headers = ['Nachname', 'Vorname', 'Klasse'];
+  const rows = students.map((s) => [s.last_name, s.first_name, s.klasse_name || '']);
   const json = students.map((s) => ({
     nachname: s.last_name,
     vorname: s.first_name,
     klasse: s.klasse_name || null,
-    jahrgang: s.klasse_jahrgang ?? null,
   }));
   return { headers, rows, json };
 }

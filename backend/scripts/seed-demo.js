@@ -14,10 +14,10 @@ const API_URL = process.env.API_URL || 'http://localhost:4000';
 const COURSE_NAME = 'Demo-Kurs (Beispieldaten)';
 
 // Each student lists which demo Klasse they belong to (created below if
-// missing); klasse also carries the Jahrgang it belongs to.
+// missing). A Klasse is just its name.
 const KLASSEN = [
-  { name: '9a', jahrgang: 9 },
-  { name: '9b', jahrgang: 9 },
+  { name: '9a' },
+  { name: '9b' },
 ];
 
 const STUDENTS = [

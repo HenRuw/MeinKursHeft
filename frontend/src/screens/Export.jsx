@@ -52,9 +52,8 @@ export default function Export({ courses, allStudents, klassen }) {
   const [courseMenuOpen, setCourseMenuOpen] = useState(false);
 
   const [schuelerlisteOn, setSchuelerlisteOn] = useState(true);
-  const [schuelerFilterMode, setSchuelerFilterMode] = useState('all'); // 'all' | 'klasse' | 'jahrgang'
+  const [schuelerFilterMode, setSchuelerFilterMode] = useState('all'); // 'all' | 'klasse'
   const [schuelerFilterKlasseId, setSchuelerFilterKlasseId] = useState(null);
-  const [schuelerFilterJahrgang, setSchuelerFilterJahrgang] = useState(null);
 
   const [selectedLeaves, setSelectedLeaves] = useState(() => new Set(ALL_LEAF_KEYS));
 
@@ -63,10 +62,8 @@ export default function Export({ courses, allStudents, klassen }) {
   const [error, setError] = useState('');
 
   const sortedCourses = [...courses].sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  const sortedKlassen = [...klassen].sort((a, b) => a.jahrgang - b.jahrgang || a.name.localeCompare(b.name, 'de'));
-  const jahrgaenge = [...new Set(klassen.map((k) => k.jahrgang))].sort((a, b) => a - b);
+  const sortedKlassen = [...klassen].sort((a, b) => a.name.localeCompare(b.name, 'de'));
   const effectiveKlasseId = schuelerFilterKlasseId ?? sortedKlassen[0]?.id ?? null;
-  const effectiveJahrgang = schuelerFilterJahrgang ?? jahrgaenge[0] ?? null;
 
   const markDirty = () => {
     setStatus('');
@@ -154,7 +151,7 @@ export default function Export({ courses, allStudents, klassen }) {
 
       const sections = [];
       if (schuelerlisteOn) {
-        const filter = schuelerFilterMode === 'all' ? null : { mode: schuelerFilterMode, klasseId: effectiveKlasseId, jahrgang: effectiveJahrgang };
+        const filter = schuelerFilterMode === 'all' ? null : { mode: schuelerFilterMode, klasseId: effectiveKlasseId };
         sections.push({ label: 'Schülerliste', report: buildStudentListReport(allStudents, filter) });
       }
       if (selectedLeaves.has('muendlich.noten')) sections.push({ label: 'Noten Mitarbeit', report: buildMuendlicheNotenReport(bundles) });
@@ -238,7 +235,6 @@ export default function Export({ courses, allStudents, klassen }) {
                   {[
                     ['all', 'Alle'],
                     ['klasse', 'Nach Klasse'],
-                    ['jahrgang', 'Nach Jahrgang'],
                   ].map(([key, text]) => (
                     <button
                       key={key}
@@ -262,15 +258,6 @@ export default function Export({ courses, allStudents, klassen }) {
                     {sortedKlassen.map((k) => (
                       <option key={k.id} value={k.id}>
                         {k.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {schuelerFilterMode === 'jahrgang' && (
-                  <select value={effectiveJahrgang ?? ''} onChange={(e) => { setSchuelerFilterJahrgang(Number(e.target.value)); markDirty(); }} style={select}>
-                    {jahrgaenge.map((j) => (
-                      <option key={j} value={j}>
-                        Jahrgang {j}
                       </option>
                     ))}
                   </select>

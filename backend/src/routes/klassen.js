@@ -8,9 +8,9 @@ function klassenRouter(db, notify) {
   });
 
   router.post('/klassen', (req, res) => {
-    const { name, jahrgang } = req.body || {};
-    if (!name || !jahrgang) return res.status(400).json({ error: 'name and jahrgang are required' });
-    const klasse = db.createKlasse({ name, jahrgang: Number(jahrgang) });
+    const { name } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const klasse = db.createKlasse({ name });
     notify('klassen');
     res.status(201).json(klasse);
   });

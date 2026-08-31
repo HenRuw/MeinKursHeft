@@ -48,7 +48,7 @@ function SelectAllCheckbox({ checked, indeterminate, onChange, label }) {
 }
 
 function StudentRow({ student, checked, onToggle }) {
-  const klasseLabel = student.klasse_name ? `${student.klasse_name} · Jg. ${student.klasse_jahrgang}` : '–';
+  const klasseLabel = student.klasse_name || '–';
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: `1px solid ${colors.divider}`, fontSize: 13, cursor: onToggle ? 'pointer' : 'default' }}>
       {onToggle && <input type="checkbox" checked={checked} onChange={onToggle} />}
@@ -222,7 +222,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
                 <option value="">Alle Klassen</option>
                 {klassen.map((k) => (
                   <option key={k.id} value={k.id}>
-                    {k.name} · Jg. {k.jahrgang}
+                    {k.name}
                   </option>
                 ))}
               </select>

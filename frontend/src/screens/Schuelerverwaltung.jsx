@@ -46,19 +46,16 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
   const fileInputRef = useRef(null);
 
   const sorted = sortStudentsBy(allStudents, sortBy);
-  const sortedKlassen = [...klassen].sort((a, b) => a.jahrgang - b.jahrgang || a.name.localeCompare(b.name, 'de'));
+  const sortedKlassen = [...klassen].sort((a, b) => a.name.localeCompare(b.name, 'de'));
 
   // Resolves a typed class name to a klasseId, creating the class on the fly
-  // if it doesn't exist yet. Jahrgang is derived from the class name's
-  // leading digits (e.g. "9a" -> 9), matching the existing naming convention.
+  // if it doesn't exist yet. A class is just its name -- no separate Jahrgang.
   const resolveKlasseId = async (name) => {
     const trimmed = name.trim();
     if (!trimmed) return { klasseId: null };
     const existing = klassen.find((k) => k.name.toLowerCase() === trimmed.toLowerCase());
     if (existing) return { klasseId: existing.id };
-    const jahrgang = Number((trimmed.match(/^\d+/) || [])[0]);
-    if (!jahrgang) return { error: `Jahrgang konnte aus "${trimmed}" nicht erkannt werden, z. B. "9a".` };
-    const created = await api.createKlasse({ name: trimmed, jahrgang });
+    const created = await api.createKlasse({ name: trimmed });
     await onRefreshKlassen();
     return { klasseId: created.id };
   };

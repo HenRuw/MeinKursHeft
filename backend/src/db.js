@@ -302,7 +302,7 @@ function close() {
 
 function listStudents() {
   return all(
-    `SELECT s.*, k.name AS klasse_name, k.jahrgang AS klasse_jahrgang
+    `SELECT s.*, k.name AS klasse_name
      FROM students s
      LEFT JOIN klassen k ON k.id = s.klasse_id
      ORDER BY s.last_name ASC, s.first_name ASC`
@@ -337,11 +337,14 @@ function deleteStudent(id) {
 // ---------- klassen ----------
 
 function listKlassen() {
-  return all('SELECT * FROM klassen ORDER BY jahrgang ASC, name ASC');
+  return all('SELECT * FROM klassen ORDER BY name ASC');
 }
 
-function createKlasse({ name, jahrgang }) {
-  run('INSERT INTO klassen (name, jahrgang) VALUES (?, ?)', [name, jahrgang]);
+// Jahrgang is no longer tracked -- a class is just its name. The column is
+// kept (NOT NULL) only so pre-existing databases don't need a destructive
+// migration; every new row just gets 0.
+function createKlasse({ name }) {
+  run('INSERT INTO klassen (name, jahrgang) VALUES (?, 0)', [name]);
   const id = lastId();
   persist();
   return get('SELECT * FROM klassen WHERE id = ?', [id]);
@@ -423,7 +426,7 @@ function deleteCourse(id) {
 
 function listEnrolledStudents(courseId) {
   return all(
-    `SELECT s.*, k.name AS klasse_name, k.jahrgang AS klasse_jahrgang
+    `SELECT s.*, k.name AS klasse_name
      FROM students s
      JOIN course_students cs ON cs.student_id = s.id
      LEFT JOIN klassen k ON k.id = s.klasse_id
