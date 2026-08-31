@@ -282,21 +282,26 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               >
                 ✎
               </button>
-              {/* Row 1: date (with Schulstunden right beside it); paddingRight
-                  keeps it clear of the corner pencil. Row 2: Thema and
-                  Kommentar side by side. */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, paddingRight: 30 }}>
-                {isMultiDay(lesson) ? (
-                  <>
-                    <DetailRow label="von" value={formatLongDate(lesson.date)} />
-                    <DetailRow label="bis" value={formatLongDate(unitEnd(lesson))} />
-                  </>
-                ) : (
-                  <DetailRow label="Datum" value={formatLongDate(lesson.date)} />
-                )}
-                <DetailRow label="Schulstunden" value={String(lesson.duration_hours)} />
+              {/* Two aligned columns across both rows -- date | Schulstunden
+                  and Thema | Kommentar -- so Schulstunden and Kommentar start
+                  at the same x. The matching paddingRight on both rows keeps
+                  the split identical and the right column clear of the pencil. */}
+              <div style={{ display: 'flex', gap: 16, paddingRight: 30 }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 16 }}>
+                  {isMultiDay(lesson) ? (
+                    <>
+                      <DetailRow label="von" value={formatLongDate(lesson.date)} />
+                      <DetailRow label="bis" value={formatLongDate(unitEnd(lesson))} />
+                    </>
+                  ) : (
+                    <DetailRow label="Datum" value={formatLongDate(lesson.date)} />
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <DetailRow label="Schulstunden" value={String(lesson.duration_hours)} />
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 16, paddingRight: 30 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <DetailRow label="Thema" value={lesson.topic || '—'} />
                 </div>
