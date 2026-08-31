@@ -210,7 +210,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
               <div>
-                <label style={label}>SORTIEREN</label>
+                <label style={label}>SORTIEREN NACH</label>
                 <select value={addSortBy} onChange={(e) => setAddSortBy(e.target.value)} style={select}>
                   {ADD_SORT_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -220,7 +220,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
                 </select>
               </div>
               <div>
-                <label style={label}>NACH KLASSE FILTERN</label>
+                <label style={label}>FILTERN NACH</label>
                 <select value={addFilterKlasse} onChange={(e) => setAddFilterKlasse(e.target.value)} style={select}>
                   <option value="">Alle Klassen</option>
                   {klassen.map((k) => (
