@@ -64,6 +64,12 @@ export default function App() {
   const [courseEditorCourse, setCourseEditorCourse] = useState(null); // the course being edited, or null when creating
   const [courseEditorEnrolledIds, setCourseEditorEnrolledIds] = useState(new Set());
   const [preEditorScreen, setPreEditorScreen] = useState('stunde');
+  // Bumped on every openCourseCreator/openCourseEditor and used as the
+  // KursEditor's React key, so opening the editor for a *different* course (or
+  // re-opening "Kurs anlegen") while already inside it remounts the editor
+  // with a fresh form instead of leaving the previous course's name/roster in
+  // its internal state. See openCourseCreator/openCourseEditor below.
+  const [courseEditorNonce, setCourseEditorNonce] = useState(0);
 
   const verwaltungBtnRef = useRef(null);
   const [verwaltungMenuOpen, setVerwaltungMenuOpen] = useState(false);
@@ -194,11 +200,20 @@ export default function App() {
     setScreen('student');
   };
 
+  // Remember the screen we came *from* only when we're not already in the
+  // editor -- otherwise opening one course's editor from inside another's
+  // would record 'kurs-editor' itself as the return target and "Abbrechen"/
+  // "Speichern" would leave you stuck on the editor.
+  const rememberPreEditorScreen = () => {
+    if (screen !== 'kurs-editor') setPreEditorScreen(screen);
+  };
+
   const openCourseCreator = () => {
     setCourseEditorMode('create');
     setCourseEditorCourse(null);
     setCourseEditorEnrolledIds(new Set());
-    setPreEditorScreen(screen);
+    rememberPreEditorScreen();
+    setCourseEditorNonce((n) => n + 1);
     setScreen('kurs-editor');
     closeSidebarOnNavigate();
   };
@@ -208,7 +223,8 @@ export default function App() {
     setCourseEditorMode('edit');
     setCourseEditorCourse(course);
     setCourseEditorEnrolledIds(new Set((target?.students || []).map((s) => s.id)));
-    setPreEditorScreen(screen);
+    rememberPreEditorScreen();
+    setCourseEditorNonce((n) => n + 1);
     setScreen('kurs-editor');
     closeSidebarOnNavigate();
   };
@@ -539,6 +555,7 @@ export default function App() {
         {screen === 'export' && <Export courses={courses} allStudents={allStudents} klassen={klassen} />}
         {screen === 'kurs-editor' && (
           <KursEditor
+            key={courseEditorNonce}
             mode={courseEditorMode}
             course={courseEditorCourse}
             allStudents={allStudents}
