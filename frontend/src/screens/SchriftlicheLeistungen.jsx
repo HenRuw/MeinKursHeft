@@ -13,6 +13,7 @@ import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
 import LockButton from '../components/LockButton.jsx';
 import CollapseArrow from '../components/CollapseArrow.jsx';
+import { downloadWorkStatsImage } from '../lib/workStatsImage.js';
 
 // WRITTEN_WORK_KINDS.label is singular (correct for "choose one kind" in a
 // dropdown or a single work's badge); a section header groups many, so it
@@ -22,6 +23,34 @@ const SECTION_LABELS = {
   test: 'Tests',
   sonstige: 'Sonstige Leistungen',
 };
+
+// The small round buttons in the top-right corner of a work card (statistics
+// + edit); `active` tints it teal (used for the edit button while its editor
+// is open). `right` is set per-button by the caller.
+const cornerBtnStyle = (active) => ({
+  position: 'absolute',
+  top: 11,
+  width: 22,
+  height: 22,
+  borderRadius: 99,
+  fontSize: 11.5,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: `1px solid ${active ? colors.teal : colors.borderStrong}`,
+  background: active ? colors.teal : '#efece5',
+  color: active ? '#fff' : '#4b5c58',
+});
+
+function BarChartIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <rect x="1" y="6" width="2.4" height="5" rx="0.4" fill="currentColor" />
+      <rect x="4.8" y="3" width="2.4" height="8" rx="0.4" fill="currentColor" />
+      <rect x="8.6" y="7.5" width="2.4" height="3.5" rx="0.4" fill="currentColor" />
+    </svg>
+  );
+}
 
 export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets, initialWork }) {
   const { isDesktop } = useViewport();
@@ -200,7 +229,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                             boxShadow: on ? '0 1px 4px rgba(0,0,0,.06)' : 'none',
                           }}
                         >
-                          <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingRight: 26 }}>
+                          <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingRight: 52 }}>
                             <span style={{ fontSize: 13.5, fontWeight: 600 }}>{w.title}</span>
                             <span style={{ font: `500 11px ${fonts.mono}`, opacity: 0.65 }}>{w.date}</span>
                           </span>
@@ -208,22 +237,15 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                           <span style={{ fontSize: 11.5, color: colors.muted }}>Ø {fmt(avg)}</span>
                         </button>
                         <button
+                          onClick={(e) => { e.stopPropagation(); downloadWorkStatsImage(w, students); }}
+                          title="Notenverteilung als Bild herunterladen"
+                          style={{ ...cornerBtnStyle(false), right: 39 }}
+                        >
+                          <BarChartIcon />
+                        </button>
+                        <button
                           onClick={(e) => openEdit(w, e.currentTarget)}
-                          style={{
-                            position: 'absolute',
-                            top: 11,
-                            right: 11,
-                            width: 22,
-                            height: 22,
-                            borderRadius: 99,
-                            fontSize: 11.5,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: `1px solid ${editWorkId === w.id ? colors.teal : colors.borderStrong}`,
-                            background: editWorkId === w.id ? colors.teal : '#efece5',
-                            color: editWorkId === w.id ? '#fff' : '#4b5c58',
-                          }}
+                          style={{ ...cornerBtnStyle(editWorkId === w.id), right: 11 }}
                         >
                           ✎
                         </button>
