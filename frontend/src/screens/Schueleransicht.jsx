@@ -120,8 +120,25 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
   const allWorks = [...bundle.writtenWorks].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: isMobile ? '16px 14px 28px' : '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: isMobile ? '0 14px 28px' : '0 24px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* The name + Zurück-Pfeil bar stays pinned to the top while the long
+          student page scrolls underneath. Its background matches the page so
+          scrolled content can't show through, and the container's top padding
+          moved here so it sticks flush at top:0. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          flexWrap: 'wrap',
+          position: 'sticky',
+          top: 0,
+          zIndex: 5,
+          background: colors.panelBg,
+          padding: isMobile ? '16px 0 12px' : '20px 0 12px',
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
         <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px 7px 9px', border: `1px solid ${colors.borderStrong}`, borderRadius: 8, background: '#fff', color: colors.mutedStrong, fontSize: 12.5 }}>
           ‹ Zurück
         </button>
