@@ -7,6 +7,15 @@ body,
   height: 100%;
   margin: 0;
 }
+#root {
+  /* Dynamic viewport height: on mobile in portrait the browser's address bar
+     shrinks the *visible* area, but height:100% tracks the larger layout
+     viewport, so the bottom of the app (and of its inner scroll regions) got
+     hidden under the chrome and felt unscrollable. dvh follows the visible
+     area; vh stays as a fallback for browsers without dvh. */
+  height: 100vh;
+  height: 100dvh;
+}
 body {
   background: #e9e6df;
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
@@ -106,6 +115,11 @@ select:focus {
 .scroll-panel {
   scrollbar-width: auto;
   scrollbar-color: #0f5b52 #e0dbd1;
+  /* Keep a scroll gesture inside the panel (no chaining to the page/body,
+     which on touch devices could otherwise leave a nested panel feeling
+     stuck) and use momentum scrolling on iOS. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .scroll-panel::-webkit-scrollbar {
   width: 14px;
