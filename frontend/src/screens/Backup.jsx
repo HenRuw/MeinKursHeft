@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
+import { useConfirm } from '../components/useConfirm.jsx';
 
 // Verwaltung › Backup: download a full JSON snapshot of the whole database,
 // or restore one. A restore replaces *everything*, so it asks for an explicit
 // confirmation and then reloads the page to pick up the fresh state cleanly.
 export default function Backup() {
+  const { confirm, confirmDialog } = useConfirm();
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -31,6 +33,20 @@ export default function Backup() {
     } catch {
       setError('Backup konnte nicht erstellt werden.');
     }
+  };
+
+  // A restore overwrites everything irreversibly, so confirm intent before we
+  // even open the file picker (there's a second, file-specific confirm after
+  // a valid backup is chosen).
+  const chooseFile = async () => {
+    const ok = await confirm({
+      title: 'Backup wiederherstellen?',
+      message:
+        'Beim Wiederherstellen wird der gesamte aktuelle Datenbestand unwiderruflich durch den Inhalt der Backupdatei ersetzt. Dieser Schritt kann nicht rückgängig gemacht werden. Fortfahren und eine Backupdatei auswählen?',
+      confirmLabel: 'Datei auswählen',
+    });
+    if (!ok) return;
+    fileRef.current?.click();
   };
 
   const onFile = async (e) => {
@@ -70,6 +86,7 @@ export default function Backup() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {confirmDialog}
       <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>Backup</div>
 
       <div style={card}>
@@ -91,7 +108,7 @@ export default function Backup() {
         </p>
         <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFile} style={{ display: 'none' }} />
         {!pending ? (
-          <button onClick={() => fileRef.current?.click()} style={outlineBtn}>
+          <button onClick={chooseFile} style={outlineBtn}>
             Backupdatei auswählen …
           </button>
         ) : (
