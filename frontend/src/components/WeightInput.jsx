@@ -12,7 +12,7 @@ const STEP = 0.5;
 // inside the popover shouldn't already commit you to text entry -- and only
 // a second, deliberate tap on the number swaps it into a real input and
 // brings up the keyboard, for typing an exact value directly.
-export default function WeightInput({ value, onChange, title }) {
+export default function WeightInput({ value, onChange, title, disabled }) {
   const btnRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -42,8 +42,9 @@ export default function WeightInput({ value, onChange, title }) {
     <>
       <button
         ref={btnRef}
-        onClick={() => setOpen(true)}
-        title={title || 'Gewicht'}
+        onClick={() => !disabled && setOpen(true)}
+        disabled={disabled}
+        title={disabled ? 'Gewicht gesperrt' : title || 'Gewicht'}
         style={{
           display: 'block',
           width: 34,
@@ -56,6 +57,8 @@ export default function WeightInput({ value, onChange, title }) {
           textAlign: 'center',
           font: `500 10px ${fonts.mono}`,
           color: colors.mutedStrong,
+          opacity: disabled ? 0.45 : 1,
+          cursor: disabled ? 'default' : 'pointer',
         }}
       >
         {formatWeight(value)}

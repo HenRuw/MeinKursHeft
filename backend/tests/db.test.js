@@ -128,6 +128,13 @@ describe('lessons, attendance and participation grades', () => {
     expect(db.listParticipationGrades(lesson.id)).toEqual([]);
   });
 
+  test('a locked grade set also freezes its weight', () => {
+    const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07', weight: 1 });
+    db.updateLesson(lesson.id, { gradesLocked: true });
+    expect(db.updateLesson(lesson.id, { weight: 5 }).weight).toBe(1); // ignored while locked
+    expect(db.updateLesson(lesson.id, { gradesLocked: false, weight: 5 }).weight).toBe(5); // unlock + set
+  });
+
   test('a locked grade set (grades_locked) blocks writes to every cell in it', () => {
     const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
     db.setParticipationGrade(lesson.id, student.id, '3');
@@ -204,6 +211,27 @@ describe('grade overrides', () => {
     db.setAverageLock({ ...key, locked: false });
     db.setGradeOverride({ ...key, grade: '5' });
     expect(db.listGradeOverrides(course.id)[0].grade).toBe('5');
+  });
+
+  test('a column lock freezes every student cell and the column weight', () => {
+    const course = db.createCourse({ name: 'Biologie 9' });
+    const s1 = db.createStudent({ firstName: 'Ada', lastName: 'A' });
+    const s2 = db.createStudent({ firstName: 'Bo', lastName: 'B' });
+    db.enrollStudent(course.id, s1.id);
+    db.enrollStudent(course.id, s2.id);
+    const q = db.listQuarters(course.id)[0];
+
+    db.setAverageLockColumn({ courseId: course.id, kind: 'mitAvg', refId: q.id, locked: true });
+    expect(db.isAverageColumnLocked({ courseId: course.id, kind: 'mitAvg', refId: q.id })).toBe(true);
+    expect(db.isAverageLocked({ courseId: course.id, studentId: s1.id, kind: 'mitAvg', refId: q.id })).toBe(true);
+
+    const before = db.listQuarters(course.id)[0].weight_mitarbeit;
+    db.updateQuarter(q.id, { weightMitarbeit: 9 });
+    expect(db.listQuarters(course.id)[0].weight_mitarbeit).toBe(before); // frozen
+
+    db.setAverageLockColumn({ courseId: course.id, kind: 'mitAvg', refId: q.id, locked: false });
+    db.updateQuarter(q.id, { weightMitarbeit: 9 });
+    expect(db.listQuarters(course.id)[0].weight_mitarbeit).toBe(9); // editable again
   });
 
   test('scopes overrides independently per kind, even with the same ref_id', () => {

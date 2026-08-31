@@ -35,6 +35,19 @@ function gradeOverridesRouter(db, notify) {
     res.json(record);
   });
 
+  // Locks/unlocks a whole average column (every enrolled student's cell of the
+  // given kind + ref_id) in one call -- used by the Notenübersicht lock row.
+  router.put('/courses/:id/average-lock-columns', (req, res) => {
+    const courseId = Number(req.params.id);
+    const { kind, refId, locked } = req.body || {};
+    if (!kind || refId == null) {
+      return res.status(400).json({ error: 'kind and refId are required' });
+    }
+    const record = db.setAverageLockColumn({ courseId, kind, refId: Number(refId), locked: !!locked });
+    notify('courses', courseId);
+    res.json(record);
+  });
+
   return router;
 }
 

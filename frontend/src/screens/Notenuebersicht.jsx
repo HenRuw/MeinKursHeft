@@ -66,8 +66,10 @@ const GRADE_SEP = '1px solid rgba(0,0,0,.08)';
 // Gewicht field -- lesson, exam, Ø SONSTIGE MITARBEIT/Ø KLASSENARBEITEN,
 // Q-Note, HJ-Note -- lines up
 // in one strip directly above the first student row.
-const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6, weight: 7 };
-const HEADER_ROWS = 7;
+// `lock` is its own strip directly above `weight`: one padlock per column that
+// freezes that column's whole data set and its Gewichtung against editing.
+const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTitle: 6, lock: 7, weight: 8 };
+const HEADER_ROWS = 8;
 const BODY_START = HEADER_ROWS + 1;
 
 function CollapseArrow({ collapsed, onClick, dark }) {
@@ -264,6 +266,45 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     api.setAverageLock(courseId, { studentId, kind, refId, locked });
     if (locked) setOverrideEdit(null);
     else setOverrideEdit((o) => ({ ...o, locked: false }));
+  };
+
+  // --- column locks (the Notenübersicht lock row) ---
+  // Only the course-wide view manages column locks; the embedded single-
+  // student view (Schueleransicht) toggles just that one student's cell.
+  const isCourseWide = !bundle.realCourseId;
+  // An average column is "locked" when every enrolled student's cell is --
+  // in the solo bundle that collapses to the one student shown there.
+  const isAvgColumnLocked = (kind, refId) => bundle.students.length > 0 && bundle.students.every((s) => isAvgLocked(s.id, kind, refId));
+  const toggleAvgColumnLock = (kind, refId) => {
+    const locked = !isAvgColumnLocked(kind, refId);
+    if (isCourseWide) api.setAverageLockColumn(courseId, { kind, refId, locked });
+    else {
+      const sid = bundle.students[0]?.id;
+      if (sid != null) api.setAverageLock(courseId, { studentId: sid, kind, refId, locked });
+    }
+  };
+  const toggleLessonLock = (lesson) => api.updateLesson(lesson.id, { gradesLocked: !lesson.grades_locked });
+  const toggleWorkLock = (work) => api.updateWrittenWork(work.id, { gradesLocked: !work.grades_locked });
+
+  // Whether a leaf column's data set + weight are locked, and how to toggle it.
+  const leafColumnLocked = (l) => {
+    if (l.kind === 'lesson') return !!l.lesson.grades_locked;
+    if (l.kind === 'exam') return !!l.work.grades_locked;
+    if (l.kind === 'mitAvg') return isAvgColumnLocked('mitAvg', l.quarter.id);
+    if (l.kind === 'schrAvg') return isAvgColumnLocked('schrAvg', l.quarter.id);
+    if (l.kind === 'qNote') return isAvgColumnLocked('qNote', l.quarter.id);
+    if (l.kind === 'hjNote') return isAvgColumnLocked('hjNote', l.half.id);
+    if (l.kind === 'zeugnis') return isAvgColumnLocked('zeugnis', courseId);
+    return false;
+  };
+  const leafToggleLock = (l) => {
+    if (l.kind === 'lesson') return toggleLessonLock(l.lesson);
+    if (l.kind === 'exam') return toggleWorkLock(l.work);
+    if (l.kind === 'mitAvg') return toggleAvgColumnLock('mitAvg', l.quarter.id);
+    if (l.kind === 'schrAvg') return toggleAvgColumnLock('schrAvg', l.quarter.id);
+    if (l.kind === 'qNote') return toggleAvgColumnLock('qNote', l.quarter.id);
+    if (l.kind === 'hjNote') return toggleAvgColumnLock('hjNote', l.half.id);
+    if (l.kind === 'zeugnis') return toggleAvgColumnLock('zeugnis', courseId);
   };
   // Same content whether the cell is plain text (read elsewhere) or an
   // editable button (only in the Schueleransicht) -- a manual override always
@@ -498,7 +539,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     if (l.kind === 'lesson') {
       const { dow, label } = formatShortDate(l.lesson.date);
       return (
-        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
+        <div key={`l${i}`} style={leafHeaderStyle({ gridColumn, gridRow: `${ROW.kindOrKlassen} / ${ROW.lock}`, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
           <span>{`${dow}\n${label}`}</span>
         </div>
       );
@@ -510,7 +551,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`e${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${rowStart} / ${ROW.weight}`,
+            gridRow: `${rowStart} / ${ROW.lock}`,
             background: KIND_BG[l.examKind],
             color: KIND_TEXT[l.examKind],
             borderRight: GRADE_SEP,
@@ -527,7 +568,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`ma${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`,
+            gridRow: `${ROW.kindOrKlassen} / ${ROW.lock}`,
             background: colors.mitBgStrong,
             color: colors.teal,
             fontWeight: 600,
@@ -547,7 +588,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`sa${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.kindOrKlassen} / ${ROW.weight}`,
+            gridRow: `${ROW.kindOrKlassen} / ${ROW.lock}`,
             background: colors.schBgStrong,
             color: colors.gold,
             fontWeight: 600,
@@ -564,7 +605,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`q${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.mitSchr} / ${ROW.weight}`,
+            gridRow: `${ROW.mitSchr} / ${ROW.lock}`,
             background: colors.qBg,
             color: colors.teal,
             fontWeight: 700,
@@ -586,7 +627,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`h${i}`}
           style={leafHeaderStyle({
             gridColumn,
-            gridRow: `${ROW.quarter} / ${ROW.weight}`,
+            gridRow: `${ROW.quarter} / ${ROW.lock}`,
             background: colors.hBg,
             color: colors.tealDark,
             fontWeight: 700,
@@ -604,7 +645,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         key="zeugnis"
         style={leafHeaderStyle({
           gridColumn,
-          gridRow: `${ROW.half} / ${ROW.weight}`,
+          gridRow: `${ROW.half} / ${ROW.lock}`,
           background: colors.sidebarBg,
           color: '#fff',
           fontWeight: 700,
@@ -615,6 +656,58 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         })}
       >
         ZEUGNIS
+      </div>
+    );
+  };
+
+  // --- dedicated lock row (one padlock per column, directly above the
+  // Gewichtung strip). A closed shackle (🔒) means the column's whole data
+  // set and its weight are frozen; an open shackle (🔓) means editable.
+  // Same per-column background/frame-border language as the weight cell below.
+  const lockRowStyle = (extra) => ({ ...weightRowStyle(extra), padding: '3px 4px 3px' });
+  const LockToggle = ({ l }) => {
+    const locked = leafColumnLocked(l);
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          leafToggleLock(l);
+        }}
+        title={locked ? 'Datensatz & Gewichtung entsperren' : 'Datensatz & Gewichtung sperren'}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 16, borderRadius: 4, fontSize: 11, lineHeight: 1, background: 'transparent' }}
+      >
+        {locked ? '🔒' : '🔓'}
+      </button>
+    );
+  };
+  const renderLockCell = (l, i) => {
+    const gridColumn = `${colLine(i)} / ${colLine(i) + 1}`;
+    const gridRow = `${ROW.lock} / ${ROW.weight}`;
+    const bg = {
+      lesson: colors.mitBgStrong,
+      exam: l.kind === 'exam' ? KIND_BG[l.examKind] : undefined,
+      mitAvg: colors.mitBgStrong,
+      schrAvg: colors.schBgStrong,
+      qNote: colors.qBg,
+      hjNote: colors.hBg,
+      zeugnis: colors.sidebarBg,
+    }[l.kind];
+    const borderRight =
+      l.kind === 'lesson' || l.kind === 'exam'
+        ? GRADE_SEP
+        : l.kind === 'mitAvg'
+          ? `${FRAME.mit.border}px solid ${FRAME.mit.color}`
+          : l.kind === 'schrAvg'
+            ? `${FRAME.schr.border}px solid ${FRAME.schr.color}`
+            : l.kind === 'qNote'
+              ? `3px solid ${l.accent}`
+              : l.kind === 'hjNote'
+                ? `${FRAME.half.border}px solid ${FRAME.half.color}`
+                : `${FRAME.year.border}px solid ${FRAME.year.color}`;
+    const sticky = l.kind === 'zeugnis' ? { position: isMobile ? 'static' : 'sticky', right: isMobile ? undefined : 0, zIndex: 2 } : null;
+    return (
+      <div key={`lock${i}`} style={{ ...lockRowStyle({ gridColumn, gridRow, background: bg, borderRight, ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) }), ...sticky }}>
+        <LockToggle l={l} />
       </div>
     );
   };
@@ -630,7 +723,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     if (l.kind === 'lesson') {
       return (
         <div key={`wl${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
-          <WeightInput value={l.lesson.weight} onChange={(weight) => api.updateLesson(l.lesson.id, { weight })} />
+          <WeightInput value={l.lesson.weight} onChange={(weight) => api.updateLesson(l.lesson.id, { weight })} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
@@ -640,35 +733,35 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`we${i}`}
           style={weightRowStyle({ gridColumn, gridRow, background: KIND_BG[l.examKind], borderRight: GRADE_SEP, ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) })}
         >
-          <WeightInput value={l.work.weight} onChange={(weight) => api.updateWrittenWork(l.work.id, { weight })} />
+          <WeightInput value={l.work.weight} onChange={(weight) => api.updateWrittenWork(l.work.id, { weight })} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
     if (l.kind === 'mitAvg') {
       return (
         <div key={`wma${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong, borderRight: `${FRAME.mit.border}px solid ${FRAME.mit.color}` })}>
-          <WeightInput value={l.quarter.weight_mitarbeit} onChange={setQuarterWeight(l.quarter, 'weightMitarbeit')} />
+          <WeightInput value={l.quarter.weight_mitarbeit} onChange={setQuarterWeight(l.quarter, 'weightMitarbeit')} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
     if (l.kind === 'schrAvg') {
       return (
         <div key={`wsa${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.schBgStrong, borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}` })}>
-          <WeightInput value={l.quarter.weight_schriftlich} onChange={setQuarterWeight(l.quarter, 'weightSchriftlich')} />
+          <WeightInput value={l.quarter.weight_schriftlich} onChange={setQuarterWeight(l.quarter, 'weightSchriftlich')} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
     if (l.kind === 'qNote') {
       return (
         <div key={`wq${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.qBg, borderRight: `3px solid ${l.accent}` })}>
-          <WeightInput value={l.quarter.weight_quarter} onChange={setQuarterWeight(l.quarter, 'weightQuarter')} />
+          <WeightInput value={l.quarter.weight_quarter} onChange={setQuarterWeight(l.quarter, 'weightQuarter')} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
     if (l.kind === 'hjNote') {
       return (
         <div key={`wh${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.hBg, borderRight: `${FRAME.half.border}px solid ${FRAME.half.color}` })}>
-          <WeightInput value={l.half.weight} onChange={setHalfWeight(l.half)} />
+          <WeightInput value={l.half.weight} onChange={setHalfWeight(l.half)} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
@@ -889,12 +982,24 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             style={{
               ...leafHeaderStyle({ background: '#efece5', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
               gridColumn: '1 / 2',
-              gridRow: `${ROW.half} / ${ROW.weight}`,
+              gridRow: `${ROW.half} / ${ROW.lock}`,
               position: isMobile ? 'static' : 'sticky',
               left: 0,
               zIndex: 3,
             }}
           />
+          <div
+            style={{
+              ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '3px 8px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+              gridColumn: '1 / 2',
+              gridRow: `${ROW.lock} / ${ROW.weight}`,
+              position: isMobile ? 'static' : 'sticky',
+              left: 0,
+              zIndex: 3,
+            }}
+          >
+            <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>SPERRE</span>
+          </div>
           <div
             style={{
               ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '4px 8px 6px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
@@ -910,6 +1015,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
 
           {groups.map(renderGroup)}
           {leaves.map(renderLeafHeader)}
+          {leaves.map(renderLockCell)}
           {leaves.map(renderWeightCell)}
 
           {students.map(renderBodyRow)}

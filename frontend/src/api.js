@@ -66,6 +66,8 @@ export const api = {
   setGradeOverride: (courseId, data) => put(`/api/courses/${courseId}/grade-overrides`, data),
   // average locks — freeze/unfreeze a single Ø/Q/HJ/Zeugnis cell against editing
   setAverageLock: (courseId, data) => put(`/api/courses/${courseId}/average-locks`, data),
+  // freeze/unfreeze a whole average column (all enrolled students) at once
+  setAverageLockColumn: (courseId, data) => put(`/api/courses/${courseId}/average-lock-columns`, data),
 
   // remarks
   createRemark: (data) => post('/api/remarks', data),

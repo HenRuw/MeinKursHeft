@@ -440,7 +440,10 @@ function listQuarters(courseId) {
 function updateHalf(id, { weight }) {
   const cur = get('SELECT * FROM halves WHERE id = ?', [id]);
   if (!cur) return null;
-  run('UPDATE halves SET weight = ? WHERE id = ?', [weight !== undefined ? weight : cur.weight, id]);
+  let nextWeight = weight !== undefined ? weight : cur.weight;
+  // A locked HJ-Note column freezes its weight.
+  if (weight !== undefined && isAverageColumnLocked({ courseId: cur.course_id, kind: 'hjNote', refId: id })) nextWeight = cur.weight;
+  run('UPDATE halves SET weight = ? WHERE id = ?', [nextWeight, id]);
   persist();
   return get('SELECT * FROM halves WHERE id = ?', [id]);
 }
@@ -455,6 +458,11 @@ function updateQuarter(id, patch) {
     weight_schriftlich: patch.weightSchriftlich !== undefined ? patch.weightSchriftlich : cur.weight_schriftlich,
     weight_quarter: patch.weightQuarter !== undefined ? patch.weightQuarter : cur.weight_quarter,
   };
+  // A locked Ø-Mitarbeit / Ø-Klassenarbeiten / Q-Note column freezes its own weight.
+  const cid = cur.course_id;
+  if (patch.weightMitarbeit !== undefined && isAverageColumnLocked({ courseId: cid, kind: 'mitAvg', refId: id })) next.weight_mitarbeit = cur.weight_mitarbeit;
+  if (patch.weightSchriftlich !== undefined && isAverageColumnLocked({ courseId: cid, kind: 'schrAvg', refId: id })) next.weight_schriftlich = cur.weight_schriftlich;
+  if (patch.weightQuarter !== undefined && isAverageColumnLocked({ courseId: cid, kind: 'qNote', refId: id })) next.weight_quarter = cur.weight_quarter;
   run(
     'UPDATE quarters SET start_date = ?, end_date = ?, weight_mitarbeit = ?, weight_schriftlich = ?, weight_quarter = ? WHERE id = ?',
     [next.start_date, next.end_date, next.weight_mitarbeit, next.weight_schriftlich, next.weight_quarter, id]
@@ -568,6 +576,9 @@ function updateLesson(id, patch) {
     weight: patch.weight !== undefined ? patch.weight : cur.weight,
     grades_locked: patch.gradesLocked !== undefined ? (patch.gradesLocked ? 1 : 0) : cur.grades_locked,
   };
+  // A locked grade set freezes its weight too -- ignore any weight change
+  // unless this same patch is the one unlocking it.
+  if (cur.grades_locked && patch.gradesLocked !== false) next.weight = cur.weight;
   run(
     'UPDATE lessons SET quarter_id = ?, date = ?, end_date = ?, duration_hours = ?, topic = ?, content = ?, note = ?, weight = ?, grades_locked = ? WHERE id = ?',
     [next.quarter_id, next.date, next.end_date, next.duration_hours, next.topic, next.content, next.note, next.weight, next.grades_locked, id]
@@ -656,6 +667,8 @@ function updateWrittenWork(id, patch) {
     weight: patch.weight !== undefined ? patch.weight : cur.weight,
     grades_locked: patch.gradesLocked !== undefined ? (patch.gradesLocked ? 1 : 0) : cur.grades_locked,
   };
+  // A locked grade set freezes its weight too (see updateLesson).
+  if (cur.grades_locked && patch.gradesLocked !== false) next.weight = cur.weight;
   run(
     'UPDATE written_works SET quarter_id = ?, kind = ?, title = ?, content = ?, date = ?, weight = ?, grades_locked = ? WHERE id = ?',
     [next.quarter_id, next.kind, next.title, next.content, next.date, next.weight, next.grades_locked, id]
@@ -737,6 +750,32 @@ function setAverageLock({ courseId, studentId, kind, refId, locked }) {
   }
   persist();
   return { course_id: courseId, student_id: studentId, kind, ref_id: refId, locked: isAverageLocked({ courseId, studentId, kind, refId }) };
+}
+
+// Column-level average lock: a whole Ø/Q/HJ/Zeugnis column is "locked" when
+// every enrolled student's cell in it is locked. Locking the column freezes
+// that column's weight too (updateQuarter/updateHalf below).
+function isAverageColumnLocked({ courseId, kind, refId }) {
+  const students = all('SELECT student_id FROM course_students WHERE course_id = ?', [courseId]);
+  if (!students.length) return false;
+  return students.every((s) => isAverageLocked({ courseId, studentId: s.student_id, kind, refId }));
+}
+
+function setAverageLockColumn({ courseId, kind, refId, locked }) {
+  const students = all('SELECT student_id FROM course_students WHERE course_id = ?', [courseId]);
+  students.forEach((s) => {
+    if (locked) {
+      run(
+        `INSERT INTO average_locks (course_id, student_id, kind, ref_id) VALUES (?, ?, ?, ?)
+         ON CONFLICT(course_id, student_id, kind, ref_id) DO NOTHING`,
+        [courseId, s.student_id, kind, refId]
+      );
+    } else {
+      run('DELETE FROM average_locks WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, s.student_id, kind, refId]);
+    }
+  });
+  persist();
+  return { course_id: courseId, kind, ref_id: refId, locked: isAverageColumnLocked({ courseId, kind, refId }) };
 }
 
 // ---------- bundle (everything a course screen needs, in one shot) ----------
@@ -835,6 +874,8 @@ module.exports = {
   listAverageLocks,
   isAverageLocked,
   setAverageLock,
+  isAverageColumnLocked,
+  setAverageLockColumn,
   // bundle
   getCourseBundle,
 };
