@@ -68,14 +68,20 @@ export default function SplitKeys({ value, onChange, disabled, size }) {
         );
       })}
       </span>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 'none', fontSize: 11.5, color: '#6c7a76', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+      {/* "nicht bewertbar" stacked on two lines with the checkbox below, in a
+          fixed-width column so the 1–6 grade boxes beside it keep their full
+          original width (the grid grade column is widened by this block's
+          width + gap to match). */}
+      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 'none', width: 62, fontSize: 11.5, lineHeight: 1.1, textAlign: 'center', color: '#6c7a76', cursor: 'pointer', userSelect: 'none' }}>
+        <span>nicht</span>
+        <span>bewertbar</span>
         <input
           type="checkbox"
+          aria-label="nicht bewertbar"
           checked={nbSelected}
           onChange={() => onChange(nbSelected ? null : NB)}
           style={{ width: 15, height: 15, accentColor: '#6c7a76', cursor: 'pointer' }}
         />
-        nicht bewertbar
       </label>
     </span>
   );

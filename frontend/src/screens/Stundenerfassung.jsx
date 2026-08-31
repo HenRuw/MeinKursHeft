@@ -536,7 +536,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '26px 168px 118px 108px 286px 1fr',
+              gridTemplateColumns: '26px 168px 118px 108px 356px 1fr',
               alignItems: 'center',
               gap: 14,
               padding: '8px 24px',
@@ -582,7 +582,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   key={s.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '26px 168px 118px 108px 286px 1fr',
+                    gridTemplateColumns: '26px 168px 118px 108px 356px 1fr',
                     alignItems: 'center',
                     gap: 14,
                     padding: '7px 24px',

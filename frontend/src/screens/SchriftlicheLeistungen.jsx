@@ -359,7 +359,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                     key={s.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '26px 200px 286px 1fr',
+                      gridTemplateColumns: '26px 200px 356px 1fr',
                       alignItems: 'center',
                       gap: 14,
                       padding: '7px 24px',
