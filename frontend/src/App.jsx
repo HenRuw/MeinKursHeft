@@ -470,38 +470,44 @@ export default function App() {
       </Popover>
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: colors.panelBg, borderBottom: `1px solid ${colors.border}`, flex: 'none' }}>
-          {/* Opener shown only while the sidebar is collapsed -- a dark
-              (not white) hamburger with a border. While the sidebar is open
-              its own dark hamburger is the toggle, so there's only ever one
-              hamburger and it always sits on a dark button. */}
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Menü öffnen"
-              style={{ width: 40, height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,.22)', background: colors.sidebarBg, color: '#fff', fontSize: 16 }}
-            >
-              ☰
-            </button>
-          )}
-          {/* On desktop the sidebar already shows the ScoreSpace title, so the
-              top bar carries none (no duplicate on the white strip). On
-              mobile, where the sidebar is an off-canvas drawer, it shows the
-              current course name (or the app title before a course loads). */}
-          {!isDesktop && (
-            <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {bundle ? bundle.course.name : 'ScoreSpace'}
-            </span>
-          )}
-        </div>
+        {/* The top strip only exists when it actually carries something: the
+            hamburger opener (shown while the sidebar is collapsed) and/or the
+            mobile course-name title. On desktop with the sidebar open it would
+            be empty, so it's dropped entirely and the course heading moves up. */}
+        {(!sidebarOpen || !isDesktop) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: colors.panelBg, borderBottom: `1px solid ${colors.border}`, flex: 'none' }}>
+            {/* Opener shown only while the sidebar is collapsed -- a dark
+                (not white) hamburger with a border. While the sidebar is open
+                its own dark hamburger is the toggle, so there's only ever one
+                hamburger and it always sits on a dark button. */}
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Menü öffnen"
+                style={{ width: 40, height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,.22)', background: colors.sidebarBg, color: '#fff', fontSize: 16 }}
+              >
+                ☰
+              </button>
+            )}
+            {/* On desktop the sidebar already shows the ScoreSpace title, so the
+                top bar carries none (no duplicate on the white strip). On
+                mobile, where the sidebar is an off-canvas drawer, it shows the
+                current course name (or the app title before a course loads). */}
+            {!isDesktop && (
+              <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {bundle ? bundle.course.name : 'ScoreSpace'}
+              </span>
+            )}
+          </div>
+        )}
         {!NO_HEADER_SCREENS.includes(screen) && (
-          <header style={{ padding: isDesktop ? '18px 24px 0' : '14px 16px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border, flex: 'none' }}>
+          <header style={{ padding: isDesktop ? '13px 24px 0' : '14px 16px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border, flex: 'none' }}>
             {isDesktop && (
               <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>
                 {bundle ? bundle.course.name : courses.length ? '…' : 'Noch kein Kurs angelegt'}
               </div>
             )}
-            <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: isDesktop ? 16 : 8, alignItems: 'center', rowGap: 8 }}>
+            <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: isDesktop ? 12 : 8, alignItems: 'center', rowGap: 8 }}>
               {TABS.map(([key, label]) => (
                 <button
                   key={key}
