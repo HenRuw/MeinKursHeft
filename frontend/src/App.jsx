@@ -305,7 +305,7 @@ export default function App() {
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
           <div>
-            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>Notenbuch</div>
+            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>ScoreSpace</div>
             <div style={{ font: `400 11px ${fonts.mono}`, color: '#7f918c', marginTop: 6, letterSpacing: '.06em' }}>
               SCHULJAHR 2026/27
             </div>
@@ -459,7 +459,7 @@ export default function App() {
               ☰
             </button>
             <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {bundle ? bundle.course.name : 'Notenbuch'}
+              {bundle ? bundle.course.name : 'ScoreSpace'}
             </span>
           </div>
         )}
