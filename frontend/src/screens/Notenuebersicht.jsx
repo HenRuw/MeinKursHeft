@@ -626,7 +626,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             borderRight: `3px solid ${l.accent}`,
           })}
         >
-          <span>{l.quarter.idx}.Q-Note</span>
+          <span>{l.quarter.idx}.Q-NOTE</span>
         </div>
       );
     }
