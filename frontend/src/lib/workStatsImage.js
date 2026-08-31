@@ -37,27 +37,32 @@ export function downloadWorkStatsImage(work, students, course) {
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
-  // Course name as a small kicker above the work title.
+  // Header, all in one uniform typeface for a tidy look: the work name as the
+  // headline, then the course, then the date — each on its own line.
+  const FONT = "Georgia, 'Times New Roman', serif";
+
+  ctx.fillStyle = '#16211f';
+  ctx.font = `600 30px ${FONT}`;
+  ctx.fillText(work.title || 'Schriftliche Leistung', pad, 56);
+
+  let headerY = 84;
   if (course?.name) {
-    ctx.fillStyle = '#8b968f';
-    ctx.font = '600 13px Arial, sans-serif';
-    ctx.fillText(course.name, pad, 34);
+    ctx.fillStyle = '#6c7a76';
+    ctx.font = `400 18px ${FONT}`;
+    ctx.fillText(course.name, pad, headerY);
+    headerY += 26;
   }
 
-  ctx.fillStyle = '#16211f';
-  ctx.font = "600 30px Georgia, 'Times New Roman', serif";
-  ctx.fillText(work.title || 'Schriftliche Leistung', pad, 60);
-
-  ctx.fillStyle = '#6c7a76';
-  ctx.font = '400 17px Arial, sans-serif';
-  ctx.fillText(formatLongDate(work.date), pad, 88);
+  ctx.fillStyle = '#8b968f';
+  ctx.font = `400 16px ${FONT}`;
+  ctx.fillText(formatLongDate(work.date), pad, headerY);
 
   ctx.fillStyle = '#16211f';
-  ctx.font = '500 18px Arial, sans-serif';
+  ctx.font = `500 18px ${FONT}`;
   ctx.fillText(
     n ? `Durchschnitt: ${fmt(avg)}     Median: ${fmt(median)}     (${n} Bewertung${n === 1 ? '' : 'en'})` : 'Keine Bewertungen',
     pad,
-    122
+    headerY + 34
   );
 
   const chartTop = 170;
