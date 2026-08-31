@@ -65,6 +65,11 @@ const NAME_BORDER_COLOR = colors.tealDark;
 // and every body cell so it runs as one continuous line top to bottom.
 const GRADE_SEP = '1px solid rgba(0,0,0,.08)';
 
+// Keeps a leading Ø or "1."/"2." … number in a column heading from wrapping
+// onto its own line: binds it to the first word with a non-breaking space so
+// it always sits directly before that word.
+const bindLead = (label) => (label || '').replace(/^(Ø|\d+\.)\s+/, '$1 ');
+
 // Header grid rows, top to bottom; body rows start right after. `weight` is
 // its own row rather than living at the bottom of each label cell, so every
 // Gewicht field -- lesson, exam, Ø SONSTIGE MITARBEIT/Ø KLASSENARBEITEN,
@@ -474,7 +479,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
       <>
         <CollapseArrow collapsed={g.collapsed} onClick={g.onToggle} dark={g.level === 'year'} />
         {!narrow && (
-          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{g.label}</span>
+          <span style={{ minWidth: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{bindLead(g.label)}</span>
         )}
       </>
     );
@@ -567,7 +572,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null),
           })}
         >
-          <span>{l.work.title}</span>
+          <span>{bindLead(l.work.title)}</span>
         </div>
       );
     }
@@ -587,7 +592,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
           {/* Even when this frame is collapsed to just its own average
               column, the horizontal "Ø …" name stays (per request) rather
               than switching to a vertical frame heading. */}
-          <span>Ø SONSTIGE MITARBEIT</span>
+          <span>{bindLead('Ø SONSTIGE MITARBEIT')}</span>
         </div>
       );
     }
@@ -604,7 +609,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
             borderRight: `${FRAME.schr.border}px solid ${FRAME.schr.color}`,
           })}
         >
-          <span>Ø KLASSENARBEITEN</span>
+          <span>{bindLead('Ø KLASSENARBEITEN')}</span>
         </div>
       );
     }
