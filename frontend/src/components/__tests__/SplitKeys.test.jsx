@@ -94,6 +94,17 @@ describe('SplitKeys', () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
+  test('unchecking "nicht bewertbar" restores the grade entered before it', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<SplitKeys value="2+" onChange={onChange} />);
+    // Parent flips to the nb marker (as it would after checking the box)…
+    rerender(<SplitKeys value="nb" onChange={onChange} />);
+    const box = screen.getByRole('checkbox', { name: /nicht bewertbar/i });
+    await user.click(box);
+    expect(onChange).toHaveBeenCalledWith('2+');
+  });
+
   test('with "nicht bewertbar" checked no digit reads as selected', () => {
     render(<SplitKeys value="nb" onChange={() => {}} />);
     // digit "1"'s middle cell keeps its unselected white background

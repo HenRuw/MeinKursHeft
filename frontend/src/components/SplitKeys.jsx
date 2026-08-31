@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { GRADE_DIGITS, NB, num, gradeColor } from '../lib/gradeMath.js';
 
 // The +/mid/− grade picker used everywhere a single grade is entered.
@@ -8,6 +9,12 @@ import { GRADE_DIGITS, NB, num, gradeColor } from '../lib/gradeMath.js';
 export default function SplitKeys({ value, onChange, disabled, size }) {
   const s = size || { zone: 17, mid: 22, font: 14, zoneFont: 11.5 };
   const nbSelected = value === NB;
+  // Remember the last real grade (anything that isn't the nb marker) so that
+  // toggling nb off restores it instead of clearing the cell.
+  const prevGradeRef = useRef(null);
+  useEffect(() => {
+    if (value !== NB) prevGradeRef.current = value;
+  }, [value]);
   const digit = nbSelected ? null : value ? value[0] : null;
   const tendency = value && value[1] ? value[1] : '';
 
@@ -79,7 +86,7 @@ export default function SplitKeys({ value, onChange, disabled, size }) {
           type="checkbox"
           aria-label="nicht bewertbar"
           checked={nbSelected}
-          onChange={() => onChange(nbSelected ? null : NB)}
+          onChange={() => onChange(nbSelected ? (prevGradeRef.current ?? null) : NB)}
           style={{ width: 15, height: 15, accentColor: '#6c7a76', cursor: 'pointer' }}
         />
       </label>
