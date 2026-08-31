@@ -341,6 +341,18 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   };
 
   const students = sortStudents(bundle.students);
+
+  // "26/27", derived from the quarters' date range, shown in the otherwise
+  // empty top-left header cell above the Name column.
+  const schoolYearLabel = (() => {
+    const years = bundle.quarters
+      .flatMap((q) => [q.start_date, q.end_date])
+      .filter(Boolean)
+      .map((d) => Number(String(d).slice(0, 4)))
+      .filter((y) => !Number.isNaN(y));
+    if (!years.length) return '';
+    return `${String(Math.min(...years)).slice(2)}/${String(Math.max(...years)).slice(2)}`;
+  })();
   const { leaves, groups } = buildColumns(bundle, collapsed, toggles);
 
   const setQuarterWeight = (quarter, field) => (weight) => api.updateQuarter(quarter.id, { [field]: weight }).then(refresh);
@@ -968,10 +980,8 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
               horizontally. A separate body grid follows, sharing the same
               fixed column template so the two stay column-aligned. */}
           <div style={{ display: 'grid', width: 'max-content', gridTemplateColumns, position: 'sticky', top: 0, zIndex: 4 }}>
-            {/* No label here (was "SCHÜLER:IN") -- the name column is
-                self-explanatory from its own contents below, and removing it
-                leaves the Gewichtung cell right underneath as the only text in
-                this column, unambiguous either way. */}
+            {/* The name column is self-explanatory from its own contents, so
+                this otherwise-empty top-left cell carries the school year. */}
             <div
               style={{
                 ...leafHeaderStyle({ background: '#efece5', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
@@ -981,7 +991,11 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
                 left: 0,
                 zIndex: 3,
               }}
-            />
+            >
+              {schoolYearLabel && (
+                <span style={{ margin: 'auto', font: `500 26px ${fonts.serif}`, color: colors.tealDark, letterSpacing: '.02em' }}>{schoolYearLabel}</span>
+              )}
+            </div>
             <div
               style={{
                 ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '3px 8px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
