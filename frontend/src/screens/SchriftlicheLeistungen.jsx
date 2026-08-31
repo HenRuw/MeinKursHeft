@@ -404,7 +404,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
             {/* One shared scroll container (not a separate header) so the
                 "#"/name columns can stay pinned via position:sticky while
                 the grade/remark columns scroll sideways on a narrow screen
-                — sticky's `left` accounts for the row's own 24px padding,
+                — sticky's `left` accounts for the row's own 12px left padding,
                 same reasoning as Stundenerfassung's roster. */}
             <div ref={rosterScrollRef} className="scroll-panel" style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
               {students.map((s, i) => {
@@ -415,7 +415,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 // Opaque backing for the pinned "#"/name columns: without it
                 // the sideways-scrolling grade/remark cells show through the
                 // transparent grid gaps and, lacking a z-index, even paint over
-                // the name. The horizontal box-shadows fill the 24px row
+                // the name. The horizontal box-shadows fill the 12px row
                 // padding on the left and the 14px gap between # and name.
                 const pinnedBg = rowBg ?? colors.panelBg;
                 return (
@@ -424,18 +424,18 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                     data-arrow-row={s.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '26px 200px 356px 1fr',
+                      gridTemplateColumns: '20px 200px 356px 1fr',
                       alignItems: 'center',
                       gap: 14,
-                      padding: '7px 24px',
+                      padding: '7px 24px 7px 12px',
                       borderBottom: `1px solid ${colors.divider}`,
                       borderLeft: `4px solid ${highlighted ? colors.highlight : 'transparent'}`,
                       background: rowBg,
                       minWidth: 'max-content',
                     }}
                   >
-                    <span style={{ position: 'sticky', left: 24, zIndex: 2, background: pinnedBg, boxShadow: `-24px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 64, zIndex: 2, background: pinnedBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
+                    <span style={{ position: 'sticky', left: 12, zIndex: 2, background: pinnedBg, boxShadow: `-12px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 46, zIndex: 2, background: pinnedBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>

@@ -580,7 +580,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         // screen this row simply doesn't fit, so it needs to scroll
         // sideways, and the header only stays aligned with the columns
         // beneath it if both scroll as one. The "#" and name columns stay
-        // pinned via position:sticky (offset by the row's own 24px padding,
+        // pinned via position:sticky (offset by the row's own 12px left padding,
         // since sticky's `left` is measured from the scrollport edge, not
         // from the row's padding box) so a student stays identifiable while
         // swiping right to reach attendance/grade/remarks.
@@ -588,10 +588,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '26px 168px 118px 108px 356px 1fr',
+              gridTemplateColumns: '20px 168px 118px 108px 356px 1fr',
               alignItems: 'center',
               gap: 14,
-              padding: '8px 24px',
+              padding: '8px 24px 8px 12px',
               background: '#efece5',
               borderBottom: `1px solid ${colors.border}`,
               font: `500 9.5px ${fonts.mono}`,
@@ -603,8 +603,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               minWidth: 'max-content',
             }}
           >
-            <span style={{ position: 'sticky', left: 24, background: '#efece5' }}>#</span>
-            <span style={{ position: 'sticky', left: 64, background: '#efece5' }}>SCHÜLER:IN</span>
+            <span style={{ position: 'sticky', left: 12, background: '#efece5' }}>#</span>
+            <span style={{ position: 'sticky', left: 46, background: '#efece5' }}>SCHÜLER:IN</span>
             <span>ANWESENHEIT</span>
             <span />
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: -14 }}>
@@ -641,18 +641,18 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   data-arrow-row={s.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '26px 168px 118px 108px 356px 1fr',
+                    gridTemplateColumns: '20px 168px 118px 108px 356px 1fr',
                     alignItems: 'center',
                     gap: 14,
-                    padding: '7px 24px',
+                    padding: '7px 24px 7px 12px',
                     borderBottom: `1px solid ${colors.divider}`,
                     borderLeft: `4px solid ${highlighted ? colors.highlight : 'transparent'}`,
                     background: rowBg,
                     minWidth: 'max-content',
                   }}
                 >
-                  <span style={{ position: 'sticky', left: 24, zIndex: 2, background: pinnedBg, boxShadow: `-24px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                  <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 64, zIndex: 2, background: pinnedBg, boxShadow: `14px 0 0 0 ${pinnedBg}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ position: 'sticky', left: 12, zIndex: 2, background: pinnedBg, boxShadow: `-12px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                  <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 46, zIndex: 2, background: pinnedBg, boxShadow: `14px 0 0 0 ${pinnedBg}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
                     <span style={{ flex: 'none', width: 26, height: 26, borderRadius: 99, background: '#e3e8e5', color: absent ? colors.faint : colors.mutedStrong, font: `600 10px ${fonts.mono}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {s.first_name[0]}
                       {s.last_name[0]}
