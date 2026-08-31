@@ -163,7 +163,7 @@ function buildColumns(bundle, collapsed, toggles) {
           groups.push({
             key: `quarter-${quarter.id}`,
             level: 'quarter',
-            label: `${quarter.idx}. Quartal`,
+            label: `${quarter.idx}. QUARTAL`,
             start: quarterStart,
             end: quarterEnd,
             collapsed: qCollapsed,
