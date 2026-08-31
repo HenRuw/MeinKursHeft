@@ -66,6 +66,8 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   const [addOpen, setAddOpen] = useState(false);
   const [newKind, setNewKind] = useState('klassenarbeit');
   const [newTitle, setNewTitle] = useState('');
+  const [titleError, setTitleError] = useState(false);
+  const titleRef = useRef(null);
   const [newContent, setNewContent] = useState('');
   const [newDate, setNewDate] = useState(todayISO());
   const editAnchorRef = useRef(null);
@@ -104,7 +106,15 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
   const students = sortStudents(bundle.students);
 
   const createWork = async () => {
-    if (!newTitle.trim() || !newDate) return;
+    if (!newTitle.trim()) {
+      // No name yet: blink the field and show a hint instead of silently
+      // doing nothing.
+      setTitleError(true);
+      triggerShake(titleRef.current, 'field-flash');
+      titleRef.current?.focus();
+      return;
+    }
+    if (!newDate) return;
     const quarter = quarterForDate(quarters, newDate);
     if (!quarter) return;
     const created = await api.createWrittenWork(bundle.course.id, {
@@ -260,7 +270,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
         })}
         <button
           ref={addBtnRef}
-          onClick={() => setAddOpen((v) => !v)}
+          onClick={() => { setAddOpen((v) => !v); setTitleError(false); }}
           style={{ width: '100%', padding: 12, border: `1px dashed ${addOpen ? colors.teal : colors.borderStrong}`, borderRadius: 9, color: addOpen ? colors.teal : colors.mutedStrong, fontSize: 12.5 }}
         >
           + Neue Schriftliche Leistung
@@ -308,7 +318,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
         </div>
       </Popover>
 
-      <Popover open={addOpen} anchorRef={addBtnRef} onClose={() => setAddOpen(false)} width={296}>
+      <Popover open={addOpen} anchorRef={addBtnRef} onClose={() => { setAddOpen(false); setTitleError(false); }} width={296}>
         <div
           style={{
             background: '#fff',
@@ -334,7 +344,17 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
               </option>
             ))}
           </select>
-          <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={submitOnEnter(createWork)} placeholder="z. B. 2. Klassenarbeit" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input
+            ref={titleRef}
+            value={newTitle}
+            onChange={(e) => { setNewTitle(e.target.value); if (titleError) setTitleError(false); }}
+            onKeyDown={submitOnEnter(createWork)}
+            placeholder="z. B. 2. Klassenarbeit"
+            style={{ padding: '8px 10px', border: `1px solid ${titleError ? colors.red : colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+          />
+          {titleError && (
+            <span style={{ marginTop: -4, fontSize: 11.5, fontWeight: 500, color: colors.red }}>Kein Name eingetragen</span>
+          )}
           <textarea rows={3} value={newContent} onChange={(e) => setNewContent(e.target.value)} onKeyDown={submitOnEnter(createWork)} placeholder="Themen, Aufgabentypen …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
           <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} onKeyDown={submitOnEnter(createWork)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <button onClick={createWork} style={{ padding: 9, borderRadius: 8, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
