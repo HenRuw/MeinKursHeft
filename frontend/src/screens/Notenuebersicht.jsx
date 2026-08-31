@@ -24,6 +24,7 @@ import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
 import { triggerShake } from '../lib/shake.js';
+import { useArrowStudentNav } from '../lib/keys.js';
 import WeightInput from '../components/WeightInput.jsx';
 import SplitKeys from '../components/SplitKeys.jsx';
 import Popover from '../components/Popover.jsx';
@@ -249,7 +250,7 @@ function calcAverages(bundle, overrides, studentId, courseId) {
 
 const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
 
-export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride, highlightStudentId }) {
+export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride, highlightStudentId, arrowNav = true }) {
   // Schueleransicht embeds this component with a bundle.course.id swapped
   // for a synthetic one (so its collapse preferences below don't leak into
   // the real course-wide Notenübersicht) -- realCourseId is the actual id
@@ -363,6 +364,20 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   };
 
   const students = sortStudents(bundle.students);
+
+  // Up/Down arrow keys walk a marker down the student rows. It starts from
+  // whichever row is already highlighted (e.g. after coming back from a
+  // student's Schueleransicht), so the keyboard picks up where you left off.
+  const scrollPanelRef = useRef(null);
+  const [keyboardStudentId, setKeyboardStudentId] = useState(null);
+  const markedStudentId = keyboardStudentId ?? highlightStudentId ?? null;
+  useArrowStudentNav({
+    orderedIds: students.map((s) => s.id),
+    selectedId: markedStudentId,
+    setSelectedId: setKeyboardStudentId,
+    containerRef: scrollPanelRef,
+    enabled: arrowNav,
+  });
 
   // "26/27", derived from the quarters' date range, shown in the otherwise
   // empty top-left header cell above the Name column.
@@ -824,11 +839,13 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
     const avgs = calcAverages(bundle, overrides, s.id, courseId);
 
     // Highlighted when you come back from this student's Schueleransicht via
-    // its "Zurück" button, so the row you just looked at is easy to relocate.
-    const highlighted = s.id === highlightStudentId;
+    // its "Zurück" button, or while the arrow keys are walking the rows — so
+    // the row in question is easy to relocate.
+    const highlighted = s.id === markedStudentId;
     const nameCell = (
       <div
         key="name"
+        data-arrow-row={s.id}
         style={{
           ...td({
             justifyContent: 'flex-start',
@@ -998,7 +1015,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
         </Popover>
       )}
 
-      <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
+      <div ref={scrollPanelRef} className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ width: 'max-content' }}>
           {/* Header grid: the frame/label/Sperre/Gewichtung rows. Sticky at
               the top so they stay pinned while the student rows below scroll

@@ -4,7 +4,7 @@ import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName, studentKlasseLabel, WRITTEN_WORK_KINDS, num, fmt, wavg } from '../lib/gradeMath.js';
 import { todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
-import { submitOnEnter } from '../lib/keys.js';
+import { submitOnEnter, useArrowStudentNav } from '../lib/keys.js';
 import { triggerShake } from '../lib/shake.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
@@ -104,6 +104,17 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
 
   const work = bundle.writtenWorks.find((w) => w.id === activeWorkId) || null;
   const students = sortStudents(bundle.students);
+
+  // Up/Down arrow keys walk the highlight marker down the roster (first Down
+  // lands on the first student), only while a work's roster is on screen.
+  const rosterScrollRef = useRef(null);
+  useArrowStudentNav({
+    orderedIds: students.map((s) => s.id),
+    selectedId: highlightedStudentId,
+    setSelectedId: setHighlightedStudentId,
+    containerRef: rosterScrollRef,
+    enabled: !!work,
+  });
 
   const createWork = async () => {
     if (!newTitle.trim()) {
@@ -388,7 +399,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 the grade/remark columns scroll sideways on a narrow screen
                 — sticky's `left` accounts for the row's own 24px padding,
                 same reasoning as Stundenerfassung's roster. */}
-            <div className="scroll-panel" style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
+            <div ref={rosterScrollRef} className="scroll-panel" style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
               {students.map((s, i) => {
                 // The row a grade was clicked for, coming from the
                 // Notenübersicht — see highlightedStudentId's own comment.
@@ -403,6 +414,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 return (
                   <div
                     key={s.id}
+                    data-arrow-row={s.id}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '26px 200px 356px 1fr',

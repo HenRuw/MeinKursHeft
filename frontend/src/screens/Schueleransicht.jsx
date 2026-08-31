@@ -162,7 +162,7 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
             regardless of the course's data, so a fixed height here with
             room to spare is more reliable than trying to measure it. */}
         <div style={{ height: 420, display: 'flex', flexDirection: 'column' }}>
-          <Notenuebersicht bundle={soloBundle} onRefresh={onRefresh} onOpenStudent={noop} onOpenLesson={onOpenLesson} onOpenWork={onOpenWork} allowGradeOverride />
+          <Notenuebersicht bundle={soloBundle} onRefresh={onRefresh} onOpenStudent={noop} onOpenLesson={onOpenLesson} onOpenWork={onOpenWork} allowGradeOverride arrowNav={false} />
         </div>
       </CollapsibleSection>
 

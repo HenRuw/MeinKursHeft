@@ -4,7 +4,7 @@ import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName, studentKlasseLabel, formatWeight } from '../lib/gradeMath.js';
 import { formatShortDate, formatLongDate, formatDateRange, todayISO } from '../lib/dates.js';
 import { quarterForDate } from '../lib/recurrence.js';
-import { submitOnEnter } from '../lib/keys.js';
+import { submitOnEnter, useArrowStudentNav } from '../lib/keys.js';
 import { triggerShake } from '../lib/shake.js';
 import SplitKeys from '../components/SplitKeys.jsx';
 import RemarkPicker from '../components/RemarkPicker.jsx';
@@ -76,6 +76,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   // just leaves this at its null default instead of reapplying a stale one.
   const [highlightedStudentId, setHighlightedStudentId] = useState(null);
   const addBtnRef = useRef(null);
+  const rosterScrollRef = useRef(null);
   const tileViewportRef = useRef(null);
   const tileRefs = useRef({});
   // A freshly created unit's id, remembered so we can scroll its tile into
@@ -120,6 +121,16 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
 
   const lesson = bundle.lessons.find((l) => l.id === activeLessonId) || null;
   const students = sortStudents(bundle.students);
+
+  // Up/Down arrow keys walk the highlight marker down the roster (first Down
+  // lands on the first student), only while a lesson's roster is on screen.
+  useArrowStudentNav({
+    orderedIds: students.map((s) => s.id),
+    selectedId: highlightedStudentId,
+    setSelectedId: setHighlightedStudentId,
+    containerRef: rosterScrollRef,
+    enabled: !!lesson,
+  });
 
   // The detail panel widens as the Kommentar grows, so a long comment wraps
   // to fewer lines instead of a tall, narrow column — clamped so it never
@@ -564,7 +575,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         // since sticky's `left` is measured from the scrollport edge, not
         // from the row's padding box) so a student stays identifiable while
         // swiping right to reach attendance/grade/remarks.
-        <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
+        <div ref={rosterScrollRef} className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
           <div
             style={{
               display: 'grid',
@@ -618,6 +629,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               return (
                 <div
                   key={s.id}
+                  data-arrow-row={s.id}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '26px 168px 118px 108px 356px 1fr',
