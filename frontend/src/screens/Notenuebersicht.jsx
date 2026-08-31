@@ -203,11 +203,12 @@ function buildColumns(bundle, collapsed, toggles) {
     });
   }
   leaves.push({ kind: 'zeugnis', width: COL_WIDTH.zeugnis });
-  // start:-1 makes this group's grid-column begin at column 1 (Name's own
-  // column), not column 2 -- unlike every other frame, the year frame has no
-  // separate Name cell of its own to cover that column in its header row, so
-  // its background has to reach one column further left to avoid a gap.
-  groups.push({ key: 'year', level: 'year', label: 'GANZES SCHULJAHR', start: -1, end: leaves.length, collapsed: collapsed.year, onToggle: toggles.year });
+  // start:0 makes this frame begin at the first data column (column 2), the
+  // same left edge the half and quarter frames start from -- so GANZES
+  // SCHULJAHR shares their start point instead of reaching one column further
+  // left over Name's own column. The Name header cell is extended up into this
+  // (year) row to fill column 1, so nothing gaps where the bar used to reach.
+  groups.push({ key: 'year', level: 'year', label: 'GANZES SCHULJAHR', start: 0, end: leaves.length, collapsed: collapsed.year, onToggle: toggles.year });
 
   return { leaves, groups };
 }
@@ -999,7 +1000,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
               style={{
                 ...leafHeaderStyle({ background: '#efece5', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
                 gridColumn: '1 / 2',
-                gridRow: `${ROW.half} / ${ROW.lock}`,
+                gridRow: `${ROW.year} / ${ROW.lock}`,
                 position: isMobile ? 'static' : 'sticky',
                 left: 0,
                 zIndex: 3,
