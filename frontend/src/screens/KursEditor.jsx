@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { colors, fonts } from '../theme.js';
 import { sortStudents, studentDisplayName } from '../lib/gradeMath.js';
 import { submitOnEnter } from '../lib/keys.js';
@@ -31,6 +31,22 @@ function sortStudentsBy(students, sortBy) {
   });
 }
 
+// "Alle auswählen" checkbox shown above a checklist. `indeterminate` (some
+// but not all rows checked) can't be set through a prop, so it's applied to
+// the DOM node via a ref.
+function SelectAllCheckbox({ checked, indeterminate, onChange, label }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>
+      <input ref={ref} type="checkbox" checked={checked} onChange={onChange} />
+      {label}
+    </label>
+  );
+}
+
 function StudentRow({ student, checked, onToggle }) {
   const klasseLabel = student.klasse_name ? `${student.klasse_name} · Jg. ${student.klasse_jahrgang}` : '–';
   return (
@@ -60,9 +76,27 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const [removeChecked, setRemoveChecked] = useState(new Set());
   const [addChecked, setAddChecked] = useState(new Set());
   const [addSortBy, setAddSortBy] = useState('lastName');
+  const [addFilterKlasse, setAddFilterKlasse] = useState(''); // '' = alle Klassen; else a klasse id (as string)
 
   const enrolled = sortStudents(allStudents.filter((s) => selectedIds.has(s.id)));
   const notEnrolled = sortStudentsBy(allStudents.filter((s) => !selectedIds.has(s.id)), addSortBy);
+  // Add mode can additionally narrow the not-enrolled list to a single Klasse.
+  const notEnrolledFiltered = addFilterKlasse ? notEnrolled.filter((s) => String(s.klasse_id) === addFilterKlasse) : notEnrolled;
+
+  // "Alle auswählen" derivations, one per checklist. The add-mode toggle only
+  // ever touches the currently *visible* (filtered) rows, so a selection made
+  // under one Klasse filter survives switching to another.
+  const removeAllChecked = enrolled.length > 0 && enrolled.every((s) => removeChecked.has(s.id));
+  const removeSomeChecked = enrolled.some((s) => removeChecked.has(s.id));
+  const toggleRemoveAll = () => setRemoveChecked(removeAllChecked ? new Set() : new Set(enrolled.map((s) => s.id)));
+  const addAllChecked = notEnrolledFiltered.length > 0 && notEnrolledFiltered.every((s) => addChecked.has(s.id));
+  const addSomeChecked = notEnrolledFiltered.some((s) => addChecked.has(s.id));
+  const toggleAddAll = () =>
+    setAddChecked((prev) => {
+      const next = new Set(prev);
+      notEnrolledFiltered.forEach((s) => (addAllChecked ? next.delete(s.id) : next.add(s.id)));
+      return next;
+    });
 
   const startRemoving = () => {
     setRemoveChecked(new Set(selectedIds));
@@ -86,6 +120,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
 
   const startAdding = () => {
     setAddChecked(new Set());
+    setAddFilterKlasse('');
     setRosterMode('add');
   };
   const toggleAddChecked = (id) =>
@@ -158,7 +193,16 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           </>
         )}
         {rosterMode === 'remove' && (
-          <span style={{ fontSize: 13, fontWeight: 500 }}>Schüler:innen entfernen — angehakte werden nach dem Bestätigen entfernt</span>
+          <>
+            <SelectAllCheckbox
+              checked={removeAllChecked}
+              indeterminate={removeSomeChecked && !removeAllChecked}
+              onChange={toggleRemoveAll}
+              label="Alle auswählen"
+            />
+            <span style={{ fontSize: 12.5, color: colors.mutedStrong }}>Angehakte werden nach dem Bestätigen entfernt</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.mutedStrong }}>{removeChecked.size} ausgewählt</span>
+          </>
         )}
         {rosterMode === 'add' && (
           <>
@@ -172,6 +216,23 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
                 ))}
               </select>
             </div>
+            <div>
+              <label style={label}>KLASSE</label>
+              <select value={addFilterKlasse} onChange={(e) => setAddFilterKlasse(e.target.value)} style={select}>
+                <option value="">Alle Klassen</option>
+                {klassen.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name} · Jg. {k.jahrgang}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <SelectAllCheckbox
+              checked={addAllChecked}
+              indeterminate={addSomeChecked && !addAllChecked}
+              onChange={toggleAddAll}
+              label="Alle auswählen"
+            />
             <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.mutedStrong }}>{addChecked.size} ausgewählt</span>
           </>
         )}
@@ -189,12 +250,14 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
             <StudentRow key={s.id} student={s} checked={removeChecked.has(s.id)} onToggle={() => toggleRemoveChecked(s.id)} />
           ))}
         {rosterMode === 'add' &&
-          (notEnrolled.length ? (
-            notEnrolled.map((s) => (
+          (notEnrolledFiltered.length ? (
+            notEnrolledFiltered.map((s) => (
               <StudentRow key={s.id} student={s} checked={addChecked.has(s.id)} onToggle={() => toggleAddChecked(s.id)} />
             ))
           ) : (
-            <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>Alle Schüler:innen sind bereits im Kurs.</div>
+            <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>
+              {addFilterKlasse ? 'Keine hinzufügbaren Schüler:innen in dieser Klasse.' : 'Alle Schüler:innen sind bereits im Kurs.'}
+            </div>
           ))}
       </div>
 
