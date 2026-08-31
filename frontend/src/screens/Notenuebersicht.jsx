@@ -88,6 +88,19 @@ const ROW = { year: 1, half: 2, quarter: 3, mitSchr: 4, kindOrKlassen: 5, examTi
 const HEADER_ROWS = 8;
 const BODY_START = HEADER_ROWS + 1;
 
+// The collapse state a course starts from before the user has touched it:
+// only the first Halbjahr (idx 1) stays expanded, every later half is
+// collapsed down to its Halbjahresnote. Once the user opens/closes anything
+// the persisted state takes over (see usePersisted below), so this default
+// only ever applies on the very first visit.
+export function defaultCollapsed(halves) {
+  const half = {};
+  for (const h of halves) {
+    if (h.idx !== 1) half[h.id] = true;
+  }
+  return { year: false, half, quarter: {}, mit: {}, schr: {} };
+}
+
 // Builds the flat, collapse-aware column list the whole grid is laid out
 // from: `leaves` is one entry per actual data/average column, in on-screen
 // order (Name is always grid column 1 and handled separately, not a leaf).
@@ -331,13 +344,10 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   };
 
   const { isMobile } = useViewport();
-  const [collapsed, setCollapsed] = usePersisted(`notenuebersicht:${bundle.course.id}:collapsed`, {
-    year: false,
-    half: {},
-    quarter: {},
-    mit: {},
-    schr: {},
-  });
+  const [collapsed, setCollapsed] = usePersisted(
+    `notenuebersicht:${bundle.course.id}:collapsed`,
+    defaultCollapsed(bundle.halves)
+  );
   const toggles = {
     year: () => setCollapsed((c) => ({ ...c, year: !c.year })),
     half: (id) => setCollapsed((c) => ({ ...c, half: { ...c.half, [id]: !c.half[id] } })),
