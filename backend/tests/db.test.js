@@ -87,6 +87,11 @@ describe('lessons, attendance and participation grades', () => {
     expect(lesson).toMatchObject({ course_id: course.id, quarter_id: quarterId, topic: 'Terme' });
   });
 
+  test('a new lesson defaults to unlocked (grades_locked = 0)', () => {
+    const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
+    expect(lesson.grades_locked).toBe(0);
+  });
+
   test('a single-hour unit collapses end_date onto date and weighs 1', () => {
     const lesson = db.createLesson({ courseId: course.id, quarterId, date: '2026-09-07' });
     expect(lesson).toMatchObject({ date: '2026-09-07', end_date: '2026-09-07', duration_hours: 1, weight: 1 });
@@ -168,6 +173,7 @@ describe('written works and grades', () => {
 
     const grade = db.setWrittenWorkGrade(work.id, student.id, '2-');
     expect(grade).toMatchObject({ grade: '2-' });
+    expect(work.grades_locked).toBe(0); // a new work defaults to unlocked
   });
 });
 
@@ -188,6 +194,15 @@ describe('grade overrides', () => {
 
     db.deleteGradeOverride({ courseId: course.id, studentId: student.id, kind: 'qNote', refId: quarterId });
     expect(db.listGradeOverrides(course.id)).toEqual([]);
+  });
+
+  test('an average column defaults to unlocked (open) with no lock rows', () => {
+    const course = db.createCourse({ name: 'Kunst 8' });
+    const student = db.createStudent({ firstName: 'Ida', lastName: 'Vogel' });
+    db.enrollStudent(course.id, student.id);
+    const q = db.listQuarters(course.id)[0];
+    expect(db.listAverageLocks(course.id)).toEqual([]);
+    expect(db.isAverageColumnLocked({ courseId: course.id, kind: 'mitAvg', refId: q.id })).toBe(false);
   });
 
   test('a locked average blocks overriding and resetting until it is unlocked', () => {

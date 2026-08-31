@@ -17,6 +17,8 @@ import {
   mitarbeitAverage,
   schriftlichAverage,
   resolveAverage,
+  averageLockedFor,
+  averageColumnLocked,
 } from '../lib/gradeMath.js';
 import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
@@ -247,7 +249,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const courseId = bundle.realCourseId ?? bundle.course.id;
   const overrides = bundle.gradeOverrides || [];
   const avgLocks = bundle.averageLocks || [];
-  const isAvgLocked = (studentId, kind, refId) => avgLocks.some((a) => a.student_id === studentId && a.kind === kind && a.ref_id === refId);
+  const isAvgLocked = (studentId, kind, refId) => averageLockedFor(avgLocks, studentId, kind, refId);
   const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade, locked }
   const overrideAnchorRef = useRef(null);
   const popoverLockRef = useRef(null);
@@ -276,7 +278,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const isCourseWide = !bundle.realCourseId;
   // An average column is "locked" when every enrolled student's cell is --
   // in the solo bundle that collapses to the one student shown there.
-  const isAvgColumnLocked = (kind, refId) => bundle.students.length > 0 && bundle.students.every((s) => isAvgLocked(s.id, kind, refId));
+  const isAvgColumnLocked = (kind, refId) => averageColumnLocked(avgLocks, bundle.students, kind, refId);
   const toggleAvgColumnLock = (kind, refId) => {
     const locked = !isAvgColumnLocked(kind, refId);
     if (isCourseWide) api.setAverageLockColumn(courseId, { kind, refId, locked });

@@ -7,6 +7,8 @@ import {
   isNb,
   NB,
   wavg,
+  averageLockedFor,
+  averageColumnLocked,
   parseWeight,
   formatWeight,
   studentDisplayName,
@@ -110,6 +112,30 @@ describe('wavg', () => {
     expect(wavg([])).toBeNull();
     expect(wavg([[null, 1]])).toBeNull();
     expect(wavg([[2, 0]])).toBeNull();
+  });
+});
+
+describe('average locks (default open)', () => {
+  const students = [{ id: 1 }, { id: 2 }];
+  const lock = (studentId, kind, refId) => ({ student_id: studentId, kind, ref_id: refId });
+
+  test('a cell with no lock row reads as unlocked', () => {
+    expect(averageLockedFor([], 1, 'mitAvg', 7)).toBe(false);
+    expect(averageLockedFor(undefined, 1, 'mitAvg', 7)).toBe(false);
+  });
+  test('a cell reads locked only for its own student/kind/refId', () => {
+    const locks = [lock(1, 'mitAvg', 7)];
+    expect(averageLockedFor(locks, 1, 'mitAvg', 7)).toBe(true);
+    expect(averageLockedFor(locks, 2, 'mitAvg', 7)).toBe(false);
+    expect(averageLockedFor(locks, 1, 'qNote', 7)).toBe(false);
+  });
+  test('a column defaults to open (no locks) and only locks when every student is locked', () => {
+    expect(averageColumnLocked([], students, 'mitAvg', 7)).toBe(false);
+    expect(averageColumnLocked([lock(1, 'mitAvg', 7)], students, 'mitAvg', 7)).toBe(false); // partial
+    expect(averageColumnLocked([lock(1, 'mitAvg', 7), lock(2, 'mitAvg', 7)], students, 'mitAvg', 7)).toBe(true);
+  });
+  test('an empty roster reads as unlocked, never locked', () => {
+    expect(averageColumnLocked([], [], 'mitAvg', 7)).toBe(false);
   });
 });
 

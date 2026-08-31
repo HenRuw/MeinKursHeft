@@ -144,6 +144,19 @@ export function resolveAverage(overrides, studentId, kind, refId, calculated) {
   return override ? { value: num(override.grade), overridden: true, grade: override.grade } : { value: calculated, overridden: false, grade: null };
 }
 
+// Whether a single average cell is locked, given the course's average-lock
+// rows. Defaults to false (open) when no matching lock row exists.
+export function averageLockedFor(locks, studentId, kind, refId) {
+  return (locks || []).some((l) => l.student_id === studentId && l.kind === kind && l.ref_id === refId);
+}
+
+// Whether a whole average column is locked: true only when there is at least
+// one student and every one of them has a lock for this kind + refId. An empty
+// roster (or no locks) reads as unlocked, so a column defaults to open.
+export function averageColumnLocked(locks, students, kind, refId) {
+  return students.length > 0 && students.every((s) => averageLockedFor(locks, s.id, kind, refId));
+}
+
 // Inserts exactly one line break near the middle of a label, at the nearest
 // word boundary, so column headers wrap to exactly two lines.
 export function wrapLabel(label) {
