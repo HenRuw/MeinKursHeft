@@ -326,20 +326,20 @@ export default function App() {
               }),
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Menü einklappen"
+            style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#9fb0ab', fontSize: 18 }}
+          >
+            ☰
+          </button>
           <div>
             <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>ScoreSpace</div>
             <div style={{ font: `400 11px ${fonts.mono}`, color: '#7f918c', marginTop: 6, letterSpacing: '.06em' }}>
               SCHULJAHR 2026/27
             </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Menü einklappen"
-            style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#9fb0ab', fontSize: 16 }}
-          >
-            ✕
-          </button>
         </div>
         <div style={{ padding: '16px 12px 8px', flex: 1, overflow: 'auto' }}>
           <div style={{ font: `500 10px ${fonts.mono}`, color: '#6f817c', letterSpacing: '.1em', padding: '0 6px 8px' }}>
