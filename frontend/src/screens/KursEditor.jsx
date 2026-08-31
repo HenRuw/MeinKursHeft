@@ -205,36 +205,39 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
           </>
         )}
         {rosterMode === 'add' && (
-          <>
-            <div>
-              <label style={label}>SORTIEREN</label>
-              <select value={addSortBy} onChange={(e) => setAddSortBy(e.target.value)} style={select}>
-                {ADD_SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <label style={label}>SORTIEREN</label>
+                <select value={addSortBy} onChange={(e) => setAddSortBy(e.target.value)} style={select}>
+                  {ADD_SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={label}>KLASSE</label>
+                <select value={addFilterKlasse} onChange={(e) => setAddFilterKlasse(e.target.value)} style={select}>
+                  <option value="">Alle Klassen</option>
+                  {klassen.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.mutedStrong }}>{addChecked.size} ausgewählt</span>
             </div>
-            <div>
-              <label style={label}>KLASSE</label>
-              <select value={addFilterKlasse} onChange={(e) => setAddFilterKlasse(e.target.value)} style={select}>
-                <option value="">Alle Klassen</option>
-                {klassen.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Select-all sits on its own row below the sort/filter controls. */}
             <SelectAllCheckbox
               checked={addAllChecked}
               indeterminate={addSomeChecked && !addAllChecked}
               onChange={toggleAddAll}
               label="Alle auswählen"
             />
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.mutedStrong }}>{addChecked.size} ausgewählt</span>
-          </>
+          </div>
         )}
       </div>
 
