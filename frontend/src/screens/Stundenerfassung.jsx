@@ -315,6 +315,31 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           )}
         </div>
 
+        {/* "+" tile: pinned as far left as possible in the unit row — left of
+            the tile viewport so it never scrolls away and sits right at the
+            start when there are no units yet. */}
+        <button
+          ref={addBtnRef}
+          onClick={() => setAddOpen((v) => !v)}
+          title="Neue Einheit"
+          style={{
+            width: 56,
+            minHeight: TILE_H,
+            flex: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: `1px dashed ${addOpen ? colors.teal : colors.borderStrong}`,
+            borderRadius: 10,
+            fontSize: 24,
+            fontWeight: 300,
+            color: addOpen ? colors.teal : colors.muted,
+            background: addOpen ? colors.tealTint : 'transparent',
+          }}
+        >
+          +
+        </button>
+
         {/* Tile row (middle): scrolls/swipes horizontally, at least three
             tiles visible on a normal window. Clicking the tile at the very
             left/right edge pages the row (see onTileClick). */}
@@ -360,32 +385,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             );
           })}
           {!allLessons.length && (
-            <span style={{ alignSelf: 'center', fontSize: 12.5, color: colors.mutedStrong, paddingLeft: 4 }}>Noch keine Einheit — rechts über „+“ anlegen.</span>
+            <span style={{ alignSelf: 'center', fontSize: 12.5, color: colors.mutedStrong, paddingLeft: 4 }}>Noch keine Einheit — links über „+“ anlegen.</span>
           )}
         </div>
-
-        {/* "+" tile: right of the tile viewport, so it never scrolls away. */}
-        <button
-          ref={addBtnRef}
-          onClick={() => setAddOpen((v) => !v)}
-          title="Neue Einheit"
-          style={{
-            width: 56,
-            minHeight: TILE_H,
-            flex: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: `1px dashed ${addOpen ? colors.teal : colors.borderStrong}`,
-            borderRadius: 10,
-            fontSize: 24,
-            fontWeight: 300,
-            color: addOpen ? colors.teal : colors.muted,
-            background: addOpen ? colors.tealTint : 'transparent',
-          }}
-        >
-          +
-        </button>
       </div>
 
       <Popover open={editLessonId != null} anchorRef={editAnchorRef} onClose={() => setEditLessonId(null)} width={280}>
@@ -463,7 +465,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         </div>
       </Popover>
 
-      <Popover open={addOpen} anchorRef={addBtnRef} onClose={resetAddForm} align="right" width={296}>
+      <Popover open={addOpen} anchorRef={addBtnRef} onClose={resetAddForm} align="left" width={296}>
         <div
           style={{
             background: '#fff',
