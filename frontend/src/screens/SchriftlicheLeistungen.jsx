@@ -173,7 +173,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '4px 2px' }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CollapseArrow collapsed={isCollapsed} />
+                  <CollapseArrow collapsed={isCollapsed} openGlyph="▾" />
                   <span style={{ font: `600 10.5px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>{SECTION_LABELS[k.value].toUpperCase()}</span>
                 </span>
                 <span style={{ font: `500 10px ${fonts.mono}`, color: colors.faint }}>{worksForKind.length}</span>
