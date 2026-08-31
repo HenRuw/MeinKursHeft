@@ -27,6 +27,7 @@ import { triggerShake } from '../lib/shake.js';
 import WeightInput from '../components/WeightInput.jsx';
 import SplitKeys from '../components/SplitKeys.jsx';
 import Popover from '../components/Popover.jsx';
+import LockIcon from '../components/LockIcon.jsx';
 
 // Klassenarbeiten sit in the KLASSENARBEITEN (amber) frame; Tests and
 // Sonstige Leistungen count toward SONSTIGE MITARBEIT, so they get a tint
@@ -668,8 +669,8 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   };
 
   // --- dedicated lock row (one padlock per column, directly above the
-  // Gewichtung strip). A closed shackle (🔒) means the column's whole data
-  // set and its weight are frozen; an open shackle (🔓) means editable.
+  // Gewichtung strip). A closed shackle means the column's whole data set and
+  // its weight are frozen; an open shackle means editable.
   // Same per-column background/frame-border language as the weight cell below.
   const lockRowStyle = (extra) => ({ ...weightRowStyle(extra), padding: '3px 4px 3px' });
   // The "kind-refId" key an average column's top lock is registered under, so
@@ -693,9 +694,9 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
           leafToggleLock(l);
         }}
         title={locked ? 'Datensatz & Gewichtung entsperren' : 'Datensatz & Gewichtung sperren'}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 16, borderRadius: 4, fontSize: 11, lineHeight: 1, background: 'transparent' }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 16, borderRadius: 4, background: 'transparent', color: locked ? colors.gold : colors.faint }}
       >
-        {locked ? '🔒' : '🔓'}
+        <LockIcon open={!locked} size={13} />
       </button>
     );
   };

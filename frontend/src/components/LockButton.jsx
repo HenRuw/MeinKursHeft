@@ -1,9 +1,11 @@
 import { colors } from '../theme.js';
+import LockIcon from './LockIcon.jsx';
 
 // Small padlock toggle for locking a whole grade set (Notensatz) or an
 // average column/cell against editing. It is always clickable -- so a lock
-// can always be lifted again -- and defaults to the open shackle (🔓) when
-// `locked` is falsy, switching to the closed shackle (🔒) when locked.
+// can always be lifted again -- and defaults to the open shackle when
+// `locked` is falsy, switching to the closed shackle when locked. Uses an SVG
+// icon (not the 🔒/🔓 emojis) so the two states look different everywhere.
 export default function LockButton({ locked = false, onClick, size = 22, title }) {
   return (
     <button
@@ -25,7 +27,7 @@ export default function LockButton({ locked = false, onClick, size = 22, title }
         cursor: 'pointer',
       }}
     >
-      {locked ? '🔒' : '🔓'}
+      <LockIcon open={!locked} size={Math.round(size * 0.62)} />
     </button>
   );
 }

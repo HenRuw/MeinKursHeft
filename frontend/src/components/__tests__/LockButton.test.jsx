@@ -5,13 +5,13 @@ import LockButton from '../LockButton.jsx';
 
 describe('LockButton', () => {
   test('defaults to the open shackle when no locked prop is given', () => {
-    render(<LockButton onClick={() => {}} />);
-    expect(screen.getByRole('button')).toHaveTextContent('🔓');
+    const { container } = render(<LockButton onClick={() => {}} />);
+    expect(container.querySelector('svg')).toHaveAttribute('data-state', 'open');
   });
 
   test('shows the closed shackle when locked', () => {
-    render(<LockButton locked onClick={() => {}} />);
-    expect(screen.getByRole('button')).toHaveTextContent('🔒');
+    const { container } = render(<LockButton locked onClick={() => {}} />);
+    expect(container.querySelector('svg')).toHaveAttribute('data-state', 'closed');
   });
 
   test('is always clickable and fires onClick (open state)', async () => {
