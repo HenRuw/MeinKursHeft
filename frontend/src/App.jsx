@@ -524,6 +524,7 @@ export default function App() {
               <Schueleransicht
                 bundle={bundle}
                 studentId={studentId}
+                onRefresh={onRefreshBundle}
                 onBack={() => setScreen(fromScreen)}
                 onOpenLesson={(id, sid) => openLessonForEditing(id, 'student', sid)}
                 onOpenWork={(id, sid) => openWorkForEditing(id, 'student', sid)}

@@ -44,7 +44,7 @@ function CollapsibleSection({ title, collapsed, onToggle, headerExtra, children 
 
 const ATTENDANCE_TABLE_HEADERS = ['DATUM', 'THEMA', 'ART', 'DETAIL'];
 
-export default function Schueleransicht({ bundle, studentId, onBack, onOpenLesson, onOpenWork }) {
+export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, onOpenLesson, onOpenWork }) {
   const { isMobile } = useViewport();
   const student = bundle.students.find((s) => s.id === studentId);
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
@@ -144,7 +144,7 @@ export default function Schueleransicht({ bundle, studentId, onBack, onOpenLesso
             regardless of the course's data, so a fixed height here with
             room to spare is more reliable than trying to measure it. */}
         <div style={{ height: 420, display: 'flex', flexDirection: 'column' }}>
-          <Notenuebersicht bundle={soloBundle} onOpenStudent={noop} onOpenLesson={onOpenLesson} onOpenWork={onOpenWork} allowGradeOverride />
+          <Notenuebersicht bundle={soloBundle} onRefresh={onRefresh} onOpenStudent={noop} onOpenLesson={onOpenLesson} onOpenWork={onOpenWork} allowGradeOverride />
         </div>
       </CollapsibleSection>
 

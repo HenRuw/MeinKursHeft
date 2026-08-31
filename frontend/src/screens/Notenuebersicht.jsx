@@ -241,7 +241,7 @@ function calcAverages(bundle, overrides, studentId, courseId) {
 
 const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
 
-export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride }) {
+export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride }) {
   // Schueleransicht embeds this component with a bundle.course.id swapped
   // for a synthetic one (so its collapse preferences below don't leak into
   // the real course-wide Notenübersicht) -- realCourseId is the actual id
@@ -253,21 +253,27 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade, locked }
   const overrideAnchorRef = useRef(null);
   const popoverLockRef = useRef(null);
-  const openOverrideEdit = (studentId, kind, refId, grade, locked, el) => {
-    overrideAnchorRef.current = el;
-    setOverrideEdit({ studentId, kind, refId, grade, locked });
-  };
+  // Every mutation here refetches the bundle itself rather than trusting the
+  // WebSocket broadcast to bring the change back -- the live-sync socket isn't
+  // guaranteed to reach the client (e.g. a reverse proxy that doesn't forward
+  // WebSocket upgrades), and without a local refetch a click would change the
+  // database but never update the view. Mirrors the entry screens' .then(onRefresh).
+  const refresh = () => onRefresh && onRefresh();
   const setOverrideGrade = (grade) => {
     const { studentId, kind, refId, locked } = overrideEdit;
     if (locked) return; // a locked average can't be changed
-    api.setGradeOverride(courseId, { studentId, kind, refId, grade });
+    api.setGradeOverride(courseId, { studentId, kind, refId, grade }).then(refresh);
     setOverrideEdit(null);
+  };
+  const openOverrideEdit = (studentId, kind, refId, grade, locked, el) => {
+    overrideAnchorRef.current = el;
+    setOverrideEdit({ studentId, kind, refId, grade, locked });
   };
   // Freeze/unfreeze the average cell currently open in the popover. Locking
   // closes it (the value is now fixed); unlocking keeps it open and editable.
   const setAvgLock = (locked) => {
     const { studentId, kind, refId } = overrideEdit;
-    api.setAverageLock(courseId, { studentId, kind, refId, locked });
+    api.setAverageLock(courseId, { studentId, kind, refId, locked }).then(refresh);
     if (locked) setOverrideEdit(null);
     else setOverrideEdit((o) => ({ ...o, locked: false }));
   };
@@ -281,14 +287,14 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const isAvgColumnLocked = (kind, refId) => averageColumnLocked(avgLocks, bundle.students, kind, refId);
   const toggleAvgColumnLock = (kind, refId) => {
     const locked = !isAvgColumnLocked(kind, refId);
-    if (isCourseWide) api.setAverageLockColumn(courseId, { kind, refId, locked });
+    if (isCourseWide) api.setAverageLockColumn(courseId, { kind, refId, locked }).then(refresh);
     else {
       const sid = bundle.students[0]?.id;
-      if (sid != null) api.setAverageLock(courseId, { studentId: sid, kind, refId, locked });
+      if (sid != null) api.setAverageLock(courseId, { studentId: sid, kind, refId, locked }).then(refresh);
     }
   };
-  const toggleLessonLock = (lesson) => api.updateLesson(lesson.id, { gradesLocked: !lesson.grades_locked });
-  const toggleWorkLock = (work) => api.updateWrittenWork(work.id, { gradesLocked: !work.grades_locked });
+  const toggleLessonLock = (lesson) => api.updateLesson(lesson.id, { gradesLocked: !lesson.grades_locked }).then(refresh);
+  const toggleWorkLock = (work) => api.updateWrittenWork(work.id, { gradesLocked: !work.grades_locked }).then(refresh);
 
   // Whether a leaf column's data set + weight are locked, and how to toggle it.
   const leafColumnLocked = (l) => {
@@ -357,8 +363,8 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   const students = sortStudents(bundle.students);
   const { leaves, groups } = buildColumns(bundle, collapsed, toggles);
 
-  const setQuarterWeight = (quarter, field) => (weight) => api.updateQuarter(quarter.id, { [field]: weight });
-  const setHalfWeight = (half) => (weight) => api.updateHalf(half.id, { weight });
+  const setQuarterWeight = (quarter, field) => (weight) => api.updateQuarter(quarter.id, { [field]: weight }).then(refresh);
+  const setHalfWeight = (half) => (weight) => api.updateHalf(half.id, { weight }).then(refresh);
 
   // Leaf index (0-based, Name excluded) -> grid column *line*: column 1 is
   // Name, so leaf 0 starts at line 2.
@@ -727,7 +733,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
     if (l.kind === 'lesson') {
       return (
         <div key={`wl${i}`} style={weightRowStyle({ gridColumn, gridRow, background: colors.mitBgStrong, borderRight: GRADE_SEP })}>
-          <WeightInput value={l.lesson.weight} onChange={(weight) => api.updateLesson(l.lesson.id, { weight })} disabled={leafColumnLocked(l)} />
+          <WeightInput value={l.lesson.weight} onChange={(weight) => api.updateLesson(l.lesson.id, { weight }).then(refresh)} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
@@ -737,7 +743,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
           key={`we${i}`}
           style={weightRowStyle({ gridColumn, gridRow, background: KIND_BG[l.examKind], borderRight: GRADE_SEP, ...(l.firstInKind ? { borderLeft: `2px solid ${colors.borderStrong}` } : null) })}
         >
-          <WeightInput value={l.work.weight} onChange={(weight) => api.updateWrittenWork(l.work.id, { weight })} disabled={leafColumnLocked(l)} />
+          <WeightInput value={l.work.weight} onChange={(weight) => api.updateWrittenWork(l.work.id, { weight }).then(refresh)} disabled={leafColumnLocked(l)} />
         </div>
       );
     }
