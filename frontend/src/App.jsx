@@ -45,6 +45,10 @@ export default function App() {
   const [bundle, setBundle] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [fromScreen, setFromScreen] = useState('stunde');
+  // When you leave a student's Schueleransicht via its "Zurück" button, the
+  // Notenübersicht it sends you back to highlights that student's row so it's
+  // easy to find again. Cleared as soon as you leave the Notenübersicht.
+  const [matrixHighlightStudentId, setMatrixHighlightStudentId] = useState(null);
   const [allStudents, setAllStudents] = useState([]);
   const [klassen, setKlassen] = useState([]);
   const [presets, setPresets] = useState([]);
@@ -130,6 +134,9 @@ export default function App() {
   }, [screen]);
   useEffect(() => {
     if (screen !== 'ka') setFocusWork(null);
+  }, [screen]);
+  useEffect(() => {
+    if (screen !== 'matrix') setMatrixHighlightStudentId(null);
   }, [screen]);
 
   useEffect(
@@ -557,6 +564,7 @@ export default function App() {
                 onOpenLesson={(id, sid) => openLessonForEditing(id, 'matrix', sid)}
                 onOpenWork={(id, sid) => openWorkForEditing(id, 'matrix', sid)}
                 allowGradeOverride
+                highlightStudentId={matrixHighlightStudentId}
               />
             )}
             {screen === 'student' && (
@@ -564,7 +572,12 @@ export default function App() {
                 bundle={bundle}
                 studentId={studentId}
                 onRefresh={onRefreshBundle}
-                onBack={() => setScreen(fromScreen)}
+                onBack={() => {
+                  // Coming back to the Notenübersicht: highlight the student
+                  // you were just looking at so it's easy to relocate.
+                  if (fromScreen === 'matrix') setMatrixHighlightStudentId(studentId);
+                  setScreen(fromScreen);
+                }}
                 onOpenLesson={(id, sid) => openLessonForEditing(id, 'student', sid)}
                 onOpenWork={(id, sid) => openWorkForEditing(id, 'student', sid)}
               />

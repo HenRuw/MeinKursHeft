@@ -249,7 +249,7 @@ function calcAverages(bundle, overrides, studentId, courseId) {
 
 const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
 
-export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride }) {
+export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride, highlightStudentId }) {
   // Schueleransicht embeds this component with a bundle.course.id swapped
   // for a synthetic one (so its collapse preferences below don't leak into
   // the real course-wide Notenübersicht) -- realCourseId is the actual id
@@ -823,6 +823,9 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
     const row = rowIdx + 1;
     const avgs = calcAverages(bundle, overrides, s.id, courseId);
 
+    // Highlighted when you come back from this student's Schueleransicht via
+    // its "Zurück" button, so the row you just looked at is easy to relocate.
+    const highlighted = s.id === highlightStudentId;
     const nameCell = (
       <div
         key="name"
@@ -830,7 +833,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
           ...td({
             justifyContent: 'flex-start',
             textAlign: 'left',
-            background: rowIdx % 2 ? colors.cream : '#fff',
+            background: highlighted ? colors.highlightBg : rowIdx % 2 ? colors.cream : '#fff',
             borderRight: `${2}px solid ${NAME_BORDER_COLOR}`,
           }),
           gridColumn: '1 / 2',
@@ -838,6 +841,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
           position: 'sticky',
           left: 0,
           zIndex: 1,
+          boxShadow: highlighted ? `inset 4px 0 0 0 ${colors.highlight}` : undefined,
         }}
       >
         <button onClick={() => onOpenStudent(s.id, 'matrix')} style={{ textAlign: 'left', fontWeight: 500, fontSize: 13 }}>
