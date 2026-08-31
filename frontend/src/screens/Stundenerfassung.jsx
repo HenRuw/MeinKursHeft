@@ -89,6 +89,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const [editContent, setEditContent] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDate, setEditDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editDuration, setEditDuration] = useState(1);
+  const [editWeight, setEditWeight] = useState('1');
 
   const allLessons = [...bundle.lessons].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -150,10 +153,31 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
     setEditContent(l.content);
     setEditNote(l.note);
     setEditDate(l.date);
+    setEditEndDate(unitEnd(l));
+    setEditDuration(l.duration_hours);
+    setEditWeight(formatWeight(l.weight));
+  };
+
+  // Changing the Schulstunden count in the editor re-syncs the weight to the
+  // new hour count (same rule as when the unit was created); you can still
+  // override the weight afterwards in this same form or in the Notenübersicht.
+  const changeEditDuration = (v) => {
+    setEditDuration(v);
+    setEditWeight(formatWeight(v));
   };
 
   const saveEdit = async () => {
-    await api.updateLesson(editLessonId, { topic: editTopic, content: editContent, note: editNote, date: editDate });
+    const endDate = editDuration > 1 && editEndDate >= editDate ? editEndDate : editDate;
+    const w = parseFloat(String(editWeight).replace(',', '.'));
+    await api.updateLesson(editLessonId, {
+      topic: editTopic,
+      content: editContent,
+      note: editNote,
+      date: editDate,
+      endDate,
+      durationHours: editDuration,
+      weight: Number.isFinite(w) && w > 0 ? w : editDuration,
+    });
     setEditLessonId(null);
     onRefresh();
   };
@@ -276,9 +300,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   e.stopPropagation();
                   openEdit(lesson, e.currentTarget);
                 }}
-                style={{ alignSelf: 'flex-start', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', color: colors.mutedStrong, fontSize: 11.5 }}
+                title="Einheit bearbeiten"
+                style={{ alignSelf: 'flex-start', marginTop: 2, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', color: colors.mutedStrong, fontSize: 13 }}
               >
-                ✎ Bearbeiten
+                ✎
               </button>
             </>
           ) : (
@@ -373,15 +398,56 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>STUNDE BEARBEITEN</span>
+            <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>EINHEIT BEARBEITEN</span>
             <button onClick={() => setEditLessonId(null)} style={{ fontSize: 13, color: colors.muted }}>
               ✕
             </button>
           </div>
-          <input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Titel" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Thema" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: colors.mutedStrong }}>Länge</span>
+            <Stepper value={editDuration} onChange={changeEditDuration} min={1} max={12} />
+            <span style={{ fontSize: 12, color: colors.mutedStrong }}>Schulstunden</span>
+          </div>
+          {editDuration > 1 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 30, fontSize: 12, color: colors.mutedStrong }}>von:</span>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => { setEditDate(e.target.value); if (editEndDate < e.target.value) setEditEndDate(e.target.value); }}
+                  onKeyDown={submitOnEnter(saveEdit)}
+                  style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+                />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 30, fontSize: 12, color: colors.mutedStrong }}>bis:</span>
+                <input
+                  type="date"
+                  value={editEndDate}
+                  min={editDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  onKeyDown={submitOnEnter(saveEdit)}
+                  style={{ flex: 1, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+                />
+              </label>
+            </div>
+          ) : (
+            <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: colors.mutedStrong }}>Gewicht</span>
+            <input
+              value={editWeight}
+              onChange={(e) => setEditWeight(e.target.value)}
+              onKeyDown={submitOnEnter(saveEdit)}
+              inputMode="decimal"
+              style={{ width: 70, padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }}
+            />
+          </label>
           <textarea rows={2} value={editContent} onChange={(e) => setEditContent(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Stundeninhalt …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
           <textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Kommentar …" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
-          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <button onClick={deleteLesson} style={{ padding: '8px 12px', border: `1px solid ${colors.redBorder}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.red, background: colors.redBg }}>
               Löschen
