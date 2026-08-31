@@ -317,7 +317,6 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
           <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <textarea rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, resize: 'vertical' }} />
           <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
-          <input value={editWeight} onChange={(e) => setEditWeight(e.target.value)} onKeyDown={submitOnEnter(saveEdit)} placeholder="Gewicht" style={{ padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5 }} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={saveEdit} style={{ flex: 1, padding: 9, borderRadius: 8, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
               Speichern
