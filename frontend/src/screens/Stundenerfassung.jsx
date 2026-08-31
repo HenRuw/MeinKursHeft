@@ -555,7 +555,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             <span style={{ position: 'sticky', left: 64, background: '#efece5' }}>SCHÜLER:IN</span>
             <span>ANWESENHEIT</span>
             <span />
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: -14 }}>
               MITARBEITSNOTE
               <span ref={setLockRef} style={{ display: 'inline-flex' }}>
                 <LockButton
@@ -635,7 +635,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       </span>
                     )}
                   </span>
-                  <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined}>
+                  <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ marginLeft: -14 }}>
                     <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={absent || setLocked} />
                   </span>
                   <RemarkPicker

@@ -374,7 +374,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>
-                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined}>
+                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ marginLeft: -14 }}>
                       <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} />
                     </span>
                     <RemarkPicker
