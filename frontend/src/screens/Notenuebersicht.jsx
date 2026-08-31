@@ -60,7 +60,9 @@ const FRAME = {
 // wraps: the date/Q-Note/HJ-Note/Zeugnis columns had real slack; the "Ø …"
 // average columns are floored by their bound "Ø WORD" token so they shrink
 // least; Name stays wide enough not to ellipsise typical student names.
-const COL_WIDTH = { name: 210, lesson: 54, exam: 70, mitAvg: 76, schrAvg: 68, qNote: 64, hjNote: 68, zeugnis: 58 };
+// schrAvg is wide enough for "Ø KLASSENARBEITEN" to wrap onto two lines (not
+// three), and zeugnis wide enough for "ZEUGNIS" to stay on a single line.
+export const COL_WIDTH = { name: 210, lesson: 54, exam: 70, mitAvg: 76, schrAvg: 84, qNote: 64, hjNote: 68, zeugnis: 68 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
 // Thin vertical rule separating one individual grade column (a single lesson
