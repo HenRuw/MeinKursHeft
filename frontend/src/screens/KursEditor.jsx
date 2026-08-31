@@ -297,6 +297,19 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
             notEnrolledFiltered.map((s) => (
               <StudentRow key={s.id} student={s} checked={addChecked.has(s.id)} onToggle={() => toggleAddChecked(s.id)} />
             ))
+          ) : allStudents.length === 0 ? (
+            // No students exist anywhere yet -- "alle bereits im Kurs" would be
+            // misleading; point the way to where students are actually created.
+            <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>
+              Noch keine Schüler:innen im System.{' '}
+              {onManageStudents ? (
+                <button onClick={onManageStudents} style={{ color: colors.teal, fontWeight: 500, textDecoration: 'underline' }}>
+                  In der Schülerverwaltung anlegen
+                </button>
+              ) : (
+                'Lege sie zuerst in der Schülerverwaltung an.'
+              )}
+            </div>
           ) : (
             <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>
               {addFilterKlasse ? 'Keine hinzufügbaren Schüler:innen in dieser Klasse.' : 'Alle Schüler:innen sind bereits im Kurs.'}
