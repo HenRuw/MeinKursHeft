@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
 import { studentDisplayName } from '../lib/gradeMath.js';
@@ -6,6 +6,16 @@ import { parseStudentsFile } from '../lib/studentImport.js';
 import { useViewport } from '../lib/useViewport.js';
 
 const selectStyle = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, background: '#fff' };
+
+// A checkbox whose `indeterminate` (some but not all rows checked) can only be
+// set on the DOM node, not via a prop.
+function SelectAllCheckbox({ checked, indeterminate, onChange }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return <input ref={ref} type="checkbox" checked={checked} onChange={onChange} aria-label="Alle auswählen" />;
+}
 
 const SORT_OPTIONS = [
   { value: 'lastName', label: 'Nachname' },
@@ -40,6 +50,8 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
   const [editLast, setEditLast] = useState('');
   const [editKlasseName, setEditKlasseName] = useState('');
   const [sortBy, setSortBy] = useState('lastName');
+  const [filterKlasse, setFilterKlasse] = useState(''); // '' = alle Klassen; else a klasse id (as string)
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [importPreview, setImportPreview] = useState(null); // [{ firstName, lastName, skip }]
   const [importError, setImportError] = useState('');
   const [importing, setImporting] = useState(false);
@@ -47,6 +59,37 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
 
   const sorted = sortStudentsBy(allStudents, sortBy);
   const sortedKlassen = [...klassen].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  // The currently listed students, optionally narrowed to one Klasse.
+  const visible = filterKlasse ? sorted.filter((s) => String(s.klasse_id) === filterKlasse) : sorted;
+
+  const toggleSelected = (id) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allVisibleSelected = visible.length > 0 && visible.every((s) => selectedIds.has(s.id));
+  const someVisibleSelected = visible.some((s) => selectedIds.has(s.id));
+  const toggleSelectAll = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      visible.forEach((s) => (allVisibleSelected ? next.delete(s.id) : next.add(s.id)));
+      return next;
+    });
+  const selectedVisibleCount = visible.filter((s) => selectedIds.has(s.id)).length;
+
+  const deleteSelected = async () => {
+    const ids = visible.filter((s) => selectedIds.has(s.id)).map((s) => s.id);
+    if (!ids.length) return;
+    for (const id of ids) await api.deleteStudent(id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    onRefreshAllStudents();
+  };
 
   // Resolves a typed class name to a klasseId, creating the class on the fly
   // if it doesn't exist yet. A class is just its name -- no separate Jahrgang.
@@ -135,11 +178,6 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
     onRefreshAllStudents();
   };
 
-  const removeStudent = async (id) => {
-    await api.deleteStudent(id);
-    onRefreshAllStudents();
-  };
-
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24 }}>
       <section style={{ maxWidth: 680 }}>
@@ -203,7 +241,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: colors.mutedStrong }}>Sortieren nach:</span>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={selectStyle}>
             {SORT_OPTIONS.map((o) => (
@@ -212,10 +250,32 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
               </option>
             ))}
           </select>
+          <span style={{ fontSize: 12, color: colors.mutedStrong, marginLeft: 6 }}>Filtern nach:</span>
+          <select value={filterKlasse} onChange={(e) => setFilterKlasse(e.target.value)} style={selectStyle}>
+            <option value="">Alle Klassen</option>
+            {sortedKlassen.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name}
+              </option>
+            ))}
+          </select>
+          {/* Delete-by-selection: tick rows below, then remove them here. */}
+          <button
+            onClick={deleteSelected}
+            disabled={!selectedVisibleCount}
+            style={{ marginLeft: 'auto', padding: '7px 13px', borderRadius: 7, border: `1px solid ${selectedVisibleCount ? colors.redBorder : colors.borderStrong}`, background: selectedVisibleCount ? colors.redBg : '#fff', color: selectedVisibleCount ? colors.red : colors.faint, fontSize: 12.5, fontWeight: 500 }}
+          >
+            {selectedVisibleCount ? `${selectedVisibleCount} löschen` : 'Löschen'}
+          </button>
         </div>
 
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12.5, fontWeight: 500, color: colors.mutedStrong, cursor: 'pointer' }}>
+          <SelectAllCheckbox checked={allVisibleSelected} indeterminate={someVisibleSelected && !allVisibleSelected} onChange={toggleSelectAll} />
+          Alle auswählen
+        </label>
+
         <div style={{ border: `1px solid ${colors.borderCard}`, borderRadius: 11, background: colors.cardBg }}>
-          {sorted.map((s) =>
+          {visible.map((s) =>
             editingId === s.id ? (
               <div key={s.id} style={{ padding: '9px 14px', borderTop: `1px solid ${colors.divider}` }}>
                 <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
@@ -237,20 +297,22 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
                 </form>
               </div>
             ) : (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: `1px solid ${colors.divider}`, fontSize: 13, flexWrap: 'wrap' }}>
+              <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: `1px solid ${colors.divider}`, fontSize: 13, flexWrap: 'wrap', cursor: 'pointer', background: selectedIds.has(s.id) ? colors.highlightBg : undefined }}>
+                <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelected(s.id)} aria-label={`${studentDisplayName(s)} auswählen`} />
                 <span style={{ width: isMobile ? 140 : 200, flex: 'none', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                 <span style={{ fontSize: 11.5, color: colors.muted }}>{s.klasse_name || '–'}</span>
                 <span style={{ flex: 1 }} />
-                <button onClick={() => startEdit(s)} style={{ fontSize: 12, color: colors.teal, marginRight: 12 }}>
+                <button type="button" onClick={() => startEdit(s)} style={{ fontSize: 12, color: colors.teal }}>
                   Bearbeiten
                 </button>
-                <button onClick={() => removeStudent(s.id)} style={{ fontSize: 12, color: colors.red }}>
-                  Löschen
-                </button>
-              </div>
+              </label>
             )
           )}
-          {!sorted.length && <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>Noch keine Schüler:innen angelegt.</div>}
+          {!visible.length && (
+            <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>
+              {filterKlasse ? 'Keine Schüler:innen in dieser Klasse.' : 'Noch keine Schüler:innen angelegt.'}
+            </div>
+          )}
         </div>
       </section>
     </div>
