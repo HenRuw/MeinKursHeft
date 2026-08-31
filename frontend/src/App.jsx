@@ -484,9 +484,15 @@ export default function App() {
               ☰
             </button>
           )}
-          <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {isDesktop ? 'ScoreSpace' : bundle ? bundle.course.name : 'ScoreSpace'}
-          </span>
+          {/* On desktop the sidebar already shows the ScoreSpace title, so the
+              top bar carries none (no duplicate on the white strip). On
+              mobile, where the sidebar is an off-canvas drawer, it shows the
+              current course name (or the app title before a course loads). */}
+          {!isDesktop && (
+            <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {bundle ? bundle.course.name : 'ScoreSpace'}
+            </span>
+          )}
         </div>
         {!NO_HEADER_SCREENS.includes(screen) && (
           <header style={{ padding: isDesktop ? '18px 24px 0' : '14px 16px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border, flex: 'none' }}>
