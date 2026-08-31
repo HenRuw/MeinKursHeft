@@ -55,7 +55,7 @@ const FRAME = {
 // Every kind but zeugnis carries a WeightInput (free-text "Gewicht" field)
 // in its header -- those are a touch wider than the display-only zeugnis
 // column so the input isn't flush against the column's own edges.
-const COL_WIDTH = { name: 202, lesson: 54, exam: 62, mitAvg: 58, schrAvg: 58, qNote: 62, hjNote: 62, zeugnis: 54 };
+const COL_WIDTH = { name: 220, lesson: 66, exam: 74, mitAvg: 70, schrAvg: 70, qNote: 74, hjNote: 74, zeugnis: 66 };
 const NAME_BORDER_COLOR = colors.tealDark;
 
 // Thin vertical rule separating one individual grade column (a single lesson
