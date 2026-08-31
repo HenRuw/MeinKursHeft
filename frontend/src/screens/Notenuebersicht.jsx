@@ -1010,7 +1010,7 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
                 zIndex: 3,
               }}
             >
-              <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>SPERRE</span>
+              <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>BEARBEITUNGSSPERRE</span>
             </div>
             <div
               style={{
