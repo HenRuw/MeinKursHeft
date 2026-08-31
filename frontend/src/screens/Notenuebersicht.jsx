@@ -801,8 +801,10 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   };
 
   // --- body rendering ---
+  // The body is its own grid below the sticky header grid, so its rows are
+  // 1-based (row 1 = first student), not offset by the header's height.
   const renderBodyRow = (s, rowIdx) => {
-    const row = BODY_START + rowIdx;
+    const row = rowIdx + 1;
     const avgs = calcAverages(bundle, overrides, s.id, courseId);
 
     const nameCell = (
@@ -977,56 +979,65 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
       )}
 
       <div className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
-        <div style={{ display: 'grid', width: 'max-content', gridTemplateColumns }}>
-          {/* No label here (was "SCHÜLER:IN") -- the name column is
-              self-explanatory from its own contents below, and removing it
-              leaves the Gewichtung cell right underneath as the only text in
-              this column, unambiguous either way. */}
-          <div
-            style={{
-              ...leafHeaderStyle({ background: '#efece5', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
-              gridColumn: '1 / 2',
-              gridRow: `${ROW.half} / ${ROW.lock}`,
-              position: isMobile ? 'static' : 'sticky',
-              left: 0,
-              zIndex: 3,
-            }}
-          />
-          <div
-            style={{
-              ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '3px 8px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
-              gridColumn: '1 / 2',
-              gridRow: `${ROW.lock} / ${ROW.weight}`,
-              position: isMobile ? 'static' : 'sticky',
-              left: 0,
-              zIndex: 3,
-            }}
-          >
-            <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>SPERRE</span>
+        <div style={{ width: 'max-content' }}>
+          {/* Header grid: the frame/label/Sperre/Gewichtung rows. Sticky at
+              the top so they stay pinned while the student rows below scroll
+              under them -- vertically what the Name/Zeugnis columns do
+              horizontally. A separate body grid follows, sharing the same
+              fixed column template so the two stay column-aligned. */}
+          <div style={{ display: 'grid', width: 'max-content', gridTemplateColumns, position: 'sticky', top: 0, zIndex: 4 }}>
+            {/* No label here (was "SCHÜLER:IN") -- the name column is
+                self-explanatory from its own contents below, and removing it
+                leaves the Gewichtung cell right underneath as the only text in
+                this column, unambiguous either way. */}
+            <div
+              style={{
+                ...leafHeaderStyle({ background: '#efece5', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+                gridColumn: '1 / 2',
+                gridRow: `${ROW.half} / ${ROW.lock}`,
+                position: isMobile ? 'static' : 'sticky',
+                left: 0,
+                zIndex: 3,
+              }}
+            />
+            <div
+              style={{
+                ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '3px 8px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+                gridColumn: '1 / 2',
+                gridRow: `${ROW.lock} / ${ROW.weight}`,
+                position: isMobile ? 'static' : 'sticky',
+                left: 0,
+                zIndex: 3,
+              }}
+            >
+              <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>SPERRE</span>
+            </div>
+            <div
+              style={{
+                ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '4px 8px 6px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
+                gridColumn: '1 / 2',
+                gridRow: `${ROW.weight} / ${BODY_START}`,
+                position: isMobile ? 'static' : 'sticky',
+                left: 0,
+                zIndex: 3,
+              }}
+            >
+              <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>GEWICHTUNG</span>
+            </div>
+
+            {groups.map(renderGroup)}
+            {leaves.map(renderLeafHeader)}
+            {leaves.map(renderLockCell)}
+            {leaves.map(renderWeightCell)}
           </div>
-          <div
-            style={{
-              ...weightRowStyle({ background: '#efece5', justifyContent: 'flex-end', padding: '4px 8px 6px', borderRight: `2px solid ${NAME_BORDER_COLOR}` }),
-              gridColumn: '1 / 2',
-              gridRow: `${ROW.weight} / ${BODY_START}`,
-              position: isMobile ? 'static' : 'sticky',
-              left: 0,
-              zIndex: 3,
-            }}
-          >
-            <span style={{ font: `500 10px ${fonts.mono}`, color: colors.mutedStrong, letterSpacing: '.06em' }}>GEWICHTUNG</span>
+
+          <div style={{ display: 'grid', width: 'max-content', gridTemplateColumns }}>
+            {students.map(renderBodyRow)}
+
+            {!students.length && (
+              <div style={{ ...td({ justifyContent: 'flex-start' }), gridColumn: `1 / ${totalCols + 1}`, gridRow: '1 / 2' }}>Noch niemand eingeschrieben.</div>
+            )}
           </div>
-
-          {groups.map(renderGroup)}
-          {leaves.map(renderLeafHeader)}
-          {leaves.map(renderLockCell)}
-          {leaves.map(renderWeightCell)}
-
-          {students.map(renderBodyRow)}
-
-          {!students.length && (
-            <div style={{ ...td({ justifyContent: 'flex-start' }), gridColumn: `1 / ${totalCols + 1}`, gridRow: `${BODY_START} / ${BODY_START + 1}` }}>Noch niemand eingeschrieben.</div>
-          )}
         </div>
       </div>
     </div>

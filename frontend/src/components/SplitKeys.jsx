@@ -3,9 +3,8 @@ import { GRADE_DIGITS, NB, num, gradeColor } from '../lib/gradeMath.js';
 // The +/mid/− grade picker used everywhere a single grade is entered.
 // Requirement: clicking + or − colors the middle field together with the
 // active +/− zone in the grade's own color (gradient dark green -> yellow -> dark red).
-// A separate "n.b." key sits after the 1–6 columns to mark a slot as
-// "nicht bewertbar" (see gradeMath's NB) — mutually exclusive with a digit,
-// toggled off by clicking it again.
+// A "nicht bewertbar" checkbox sits beside the 1–6 columns to mark a slot as
+// unassessable (see gradeMath's NB) — mutually exclusive with a digit.
 export default function SplitKeys({ value, onChange, disabled, size }) {
   const s = size || { zone: 17, mid: 22, font: 14, zoneFont: 11.5 };
   const nbSelected = value === NB;
@@ -13,7 +12,8 @@ export default function SplitKeys({ value, onChange, disabled, size }) {
   const tendency = value && value[1] ? value[1] : '';
 
   return (
-    <span style={{ display: 'flex', gap: 6, alignItems: 'stretch', opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+    <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+      <span style={{ display: 'flex', gap: 6, alignItems: 'stretch', flex: 1, minWidth: 150 }}>
       {GRADE_DIGITS.map((g) => {
         const selected = digit === g;
         const color = selected ? gradeColor(num(g + tendency)) : null;
@@ -67,21 +67,16 @@ export default function SplitKeys({ value, onChange, disabled, size }) {
           </span>
         );
       })}
-      <button
-        onClick={() => onChange(nbSelected ? null : NB)}
-        title="Nicht bewertbar"
-        style={{
-          flex: 'none',
-          width: 34,
-          borderRadius: 8,
-          border: `1px solid ${nbSelected ? '#6c7a76' : '#e2ddd2'}`,
-          background: nbSelected ? '#6c7a76' : '#fff',
-          color: nbSelected ? '#fff' : '#9a958b',
-          font: `600 ${s.zoneFont}px 'IBM Plex Mono',monospace`,
-        }}
-      >
-        n.b.
-      </button>
+      </span>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 'none', fontSize: 11.5, color: '#6c7a76', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+        <input
+          type="checkbox"
+          checked={nbSelected}
+          onChange={() => onChange(nbSelected ? null : NB)}
+          style={{ width: 15, height: 15, accentColor: '#6c7a76', cursor: 'pointer' }}
+        />
+        nicht bewertbar
+      </label>
     </span>
   );
 }
