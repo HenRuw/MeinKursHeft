@@ -394,6 +394,12 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                 // Notenübersicht — see highlightedStudentId's own comment.
                 const highlighted = s.id === highlightedStudentId;
                 const rowBg = highlighted ? colors.highlightBg : undefined;
+                // Opaque backing for the pinned "#"/name columns: without it
+                // the sideways-scrolling grade/remark cells show through the
+                // transparent grid gaps and, lacking a z-index, even paint over
+                // the name. The horizontal box-shadows fill the 24px row
+                // padding on the left and the 14px gap between # and name.
+                const pinnedBg = rowBg ?? colors.panelBg;
                 return (
                   <div
                     key={s.id}
@@ -409,8 +415,8 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       minWidth: 'max-content',
                     }}
                   >
-                    <span style={{ position: 'sticky', left: 24, background: rowBg ?? colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 64, background: rowBg ?? colors.panelBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
+                    <span style={{ position: 'sticky', left: 24, zIndex: 2, background: pinnedBg, boxShadow: `-24px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 64, zIndex: 2, background: pinnedBg, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>

@@ -609,6 +609,12 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               // Notenübersicht — see highlightedStudentId's own comment.
               const highlighted = s.id === highlightedStudentId;
               const rowBg = highlighted ? colors.highlightBg : undefined;
+              // Opaque backing for the pinned "#"/name columns so the
+              // sideways-scrolling attendance/grade/remark cells can't show
+              // through the transparent grid gaps or paint over them. Shadows
+              // fill the 24px left padding, the 14px gap before the name and
+              // the 14px gap after it.
+              const pinnedBg = rowBg ?? colors.panelBg;
               return (
                 <div
                   key={s.id}
@@ -624,8 +630,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                     minWidth: 'max-content',
                   }}
                 >
-                  <span style={{ position: 'sticky', left: 24, background: rowBg ?? colors.panelBg, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                  <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 64, background: rowBg ?? colors.panelBg, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ position: 'sticky', left: 24, zIndex: 2, background: pinnedBg, boxShadow: `-24px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                  <button onClick={() => onOpenStudent(s.id, 'stunde')} style={{ position: 'sticky', left: 64, zIndex: 2, background: pinnedBg, boxShadow: `14px 0 0 0 ${pinnedBg}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
                     <span style={{ flex: 'none', width: 26, height: 26, borderRadius: 99, background: '#e3e8e5', color: absent ? colors.faint : colors.mutedStrong, font: `600 10px ${fonts.mono}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {s.first_name[0]}
                       {s.last_name[0]}
