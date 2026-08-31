@@ -167,6 +167,19 @@ CREATE TABLE IF NOT EXISTS grade_overrides (
   grade TEXT NOT NULL,
   UNIQUE(course_id, student_id, kind, ref_id)
 );
+
+-- Locks a single average cell (Ø Mitarbeit/Ø Klassenarbeiten/Q-Note/HJ-Note/
+-- Zeugnis) against editing. Keyed exactly like grade_overrides -- the mere
+-- presence of a row means "locked" -- so an average can be frozen whether or
+-- not it currently carries a manual override.
+CREATE TABLE IF NOT EXISTS average_locks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK(kind IN ('mitAvg','schrAvg','qNote','hjNote','zeugnis')),
+  ref_id INTEGER NOT NULL,
+  UNIQUE(course_id, student_id, kind, ref_id)
+);
 `;
 
 async function init(customPath) {
@@ -681,7 +694,12 @@ function listGradeOverrides(courseId) {
   return all('SELECT * FROM grade_overrides WHERE course_id = ?', [courseId]);
 }
 
+// A locked average cell can neither be overridden nor reset, so its value
+// stays put; toggling the lock itself goes through setAverageLock.
 function setGradeOverride({ courseId, studentId, kind, refId, grade }) {
+  if (isAverageLocked({ courseId, studentId, kind, refId })) {
+    return get('SELECT * FROM grade_overrides WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, studentId, kind, refId]);
+  }
   run(
     `INSERT INTO grade_overrides (course_id, student_id, kind, ref_id, grade) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(course_id, student_id, kind, ref_id) DO UPDATE SET grade = excluded.grade`,
@@ -692,8 +710,33 @@ function setGradeOverride({ courseId, studentId, kind, refId, grade }) {
 }
 
 function deleteGradeOverride({ courseId, studentId, kind, refId }) {
+  if (isAverageLocked({ courseId, studentId, kind, refId })) return;
   run('DELETE FROM grade_overrides WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, studentId, kind, refId]);
   persist();
+}
+
+// ---------- average locks ----------
+
+function listAverageLocks(courseId) {
+  return all('SELECT * FROM average_locks WHERE course_id = ?', [courseId]);
+}
+
+function isAverageLocked({ courseId, studentId, kind, refId }) {
+  return !!get('SELECT id FROM average_locks WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, studentId, kind, refId]);
+}
+
+function setAverageLock({ courseId, studentId, kind, refId, locked }) {
+  if (locked) {
+    run(
+      `INSERT INTO average_locks (course_id, student_id, kind, ref_id) VALUES (?, ?, ?, ?)
+       ON CONFLICT(course_id, student_id, kind, ref_id) DO NOTHING`,
+      [courseId, studentId, kind, refId]
+    );
+  } else {
+    run('DELETE FROM average_locks WHERE course_id = ? AND student_id = ? AND kind = ? AND ref_id = ?', [courseId, studentId, kind, refId]);
+  }
+  persist();
+  return { course_id: courseId, student_id: studentId, kind, ref_id: refId, locked: isAverageLocked({ courseId, studentId, kind, refId }) };
 }
 
 // ---------- bundle (everything a course screen needs, in one shot) ----------
@@ -726,8 +769,9 @@ function getCourseBundle(courseId) {
   }));
 
   const gradeOverrides = listGradeOverrides(courseId);
+  const averageLocks = listAverageLocks(courseId);
 
-  return { course, students, quarters, halves, lessons, writtenWorks, gradeOverrides };
+  return { course, students, quarters, halves, lessons, writtenWorks, gradeOverrides, averageLocks };
 }
 
 module.exports = {
@@ -788,6 +832,9 @@ module.exports = {
   listGradeOverrides,
   setGradeOverride,
   deleteGradeOverride,
+  listAverageLocks,
+  isAverageLocked,
+  setAverageLock,
   // bundle
   getCourseBundle,
 };

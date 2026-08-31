@@ -183,6 +183,29 @@ describe('grade overrides', () => {
     expect(db.listGradeOverrides(course.id)).toEqual([]);
   });
 
+  test('a locked average blocks overriding and resetting until it is unlocked', () => {
+    const course = db.createCourse({ name: 'Chemie 10' });
+    const student = db.createStudent({ firstName: 'Tim', lastName: 'Krämer' });
+    db.enrollStudent(course.id, student.id);
+    const quarterId = db.listQuarters(course.id)[0].id;
+    const key = { courseId: course.id, studentId: student.id, kind: 'qNote', refId: quarterId };
+
+    db.setGradeOverride({ ...key, grade: '2' });
+    db.setAverageLock({ ...key, locked: true });
+    expect(db.isAverageLocked(key)).toBe(true);
+
+    // override change and reset are both no-ops while locked
+    db.setGradeOverride({ ...key, grade: '5' });
+    expect(db.listGradeOverrides(course.id)[0].grade).toBe('2');
+    db.deleteGradeOverride(key);
+    expect(db.listGradeOverrides(course.id)).toHaveLength(1);
+
+    // unlock, then editing works again
+    db.setAverageLock({ ...key, locked: false });
+    db.setGradeOverride({ ...key, grade: '5' });
+    expect(db.listGradeOverrides(course.id)[0].grade).toBe('5');
+  });
+
   test('scopes overrides independently per kind, even with the same ref_id', () => {
     const course = db.createCourse({ name: 'Physik 11' });
     const student = db.createStudent({ firstName: 'Lea', lastName: 'Hoffmann' });

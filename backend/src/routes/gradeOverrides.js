@@ -22,6 +22,19 @@ function gradeOverridesRouter(db, notify) {
     res.status(204).end();
   });
 
+  // Locks/unlocks a single average cell (its presence in average_locks is the
+  // lock). While locked, the grade-override PUT above is a no-op server-side.
+  router.put('/courses/:id/average-locks', (req, res) => {
+    const courseId = Number(req.params.id);
+    const { studentId, kind, refId, locked } = req.body || {};
+    if (!studentId || !kind || refId == null) {
+      return res.status(400).json({ error: 'studentId, kind and refId are required' });
+    }
+    const record = db.setAverageLock({ courseId, studentId: Number(studentId), kind, refId: Number(refId), locked: !!locked });
+    notify('courses', courseId);
+    res.json(record);
+  });
+
   return router;
 }
 

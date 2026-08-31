@@ -258,27 +258,43 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
   // grade-override API calls and the Zeugnis average need to hit.
   const courseId = bundle.realCourseId ?? bundle.course.id;
   const overrides = bundle.gradeOverrides || [];
-  const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade }
+  const avgLocks = bundle.averageLocks || [];
+  const isAvgLocked = (studentId, kind, refId) => avgLocks.some((a) => a.student_id === studentId && a.kind === kind && a.ref_id === refId);
+  const [overrideEdit, setOverrideEdit] = useState(null); // { studentId, kind, refId, grade, locked }
   const overrideAnchorRef = useRef(null);
-  const openOverrideEdit = (studentId, kind, refId, grade, el) => {
+  const openOverrideEdit = (studentId, kind, refId, grade, locked, el) => {
     overrideAnchorRef.current = el;
-    setOverrideEdit({ studentId, kind, refId, grade });
+    setOverrideEdit({ studentId, kind, refId, grade, locked });
   };
   const setOverrideGrade = (grade) => {
-    const { studentId, kind, refId } = overrideEdit;
+    const { studentId, kind, refId, locked } = overrideEdit;
+    if (locked) return; // a locked average can't be changed
     api.setGradeOverride(courseId, { studentId, kind, refId, grade });
     setOverrideEdit(null);
   };
+  // Freeze/unfreeze the average cell currently open in the popover. Locking
+  // closes it (the value is now fixed); unlocking keeps it open and editable.
+  const setAvgLock = (locked) => {
+    const { studentId, kind, refId } = overrideEdit;
+    api.setAverageLock(courseId, { studentId, kind, refId, locked });
+    if (locked) setOverrideEdit(null);
+    else setOverrideEdit((o) => ({ ...o, locked: false }));
+  };
   // Same content whether the cell is plain text (read elsewhere) or an
-  // editable button (only in the Schueleransicht) -- a manual override
-  // always gets the little pencil badge, everywhere it's shown.
-  const renderAvg = (value, overridden, onClick, grade) => {
+  // editable button (only in the Schueleransicht) -- a manual override always
+  // gets the pencil badge, a locked average the padlock badge, everywhere.
+  const renderAvg = (value, overridden, onClick, grade, locked) => {
     const inner = (
       <>
         {isNb(grade) ? 'n.b.' : fmt(value)}
         {overridden && (
           <span title="Manuell eingetragen – nicht berechnet" style={{ marginLeft: 3, fontSize: 8 }}>
             ✎
+          </span>
+        )}
+        {locked && (
+          <span title="Gesperrt – gegen Bearbeitung geschützt" style={{ marginLeft: 3, fontSize: 8 }}>
+            🔒
           </span>
         )}
       </>
@@ -774,7 +790,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               gridRow,
             }}
           >
-            {renderAvg(mit.value, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', l.quarter.id, mit.grade, e.currentTarget)), mit.grade)}
+            {renderAvg(mit.value, mit.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'mitAvg', l.quarter.id, mit.grade, isAvgLocked(s.id, 'mitAvg', l.quarter.id), e.currentTarget)), mit.grade, isAvgLocked(s.id, 'mitAvg', l.quarter.id))}
           </div>
         );
       }
@@ -789,7 +805,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               gridRow,
             }}
           >
-            {renderAvg(schr.value, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', l.quarter.id, schr.grade, e.currentTarget)), schr.grade)}
+            {renderAvg(schr.value, schr.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'schrAvg', l.quarter.id, schr.grade, isAvgLocked(s.id, 'schrAvg', l.quarter.id), e.currentTarget)), schr.grade, isAvgLocked(s.id, 'schrAvg', l.quarter.id))}
           </div>
         );
       }
@@ -797,7 +813,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         const q = avgs.qNoteByQuarter.get(l.quarter.id);
         return (
           <div key={key} style={{ ...td({ background: colors.qBg, color: q.value == null ? '#c4bba6' : gradeColor(q.value), ...GRADE_TYPE_SCALE.summary, borderRight: `3px solid ${l.accent}` }), gridColumn, gridRow }}>
-            {renderAvg(q.value, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', l.quarter.id, q.grade, e.currentTarget)), q.grade)}
+            {renderAvg(q.value, q.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'qNote', l.quarter.id, q.grade, isAvgLocked(s.id, 'qNote', l.quarter.id), e.currentTarget)), q.grade, isAvgLocked(s.id, 'qNote', l.quarter.id))}
           </div>
         );
       }
@@ -812,7 +828,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
               gridRow,
             }}
           >
-            {renderAvg(h.value, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', l.half.id, h.grade, e.currentTarget)), h.grade)}
+            {renderAvg(h.value, h.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'hjNote', l.half.id, h.grade, isAvgLocked(s.id, 'hjNote', l.half.id), e.currentTarget)), h.grade, isAvgLocked(s.id, 'hjNote', l.half.id))}
           </div>
         );
       }
@@ -830,7 +846,7 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
             zIndex: 1,
           }}
         >
-          {renderAvg(z.value, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, e.currentTarget)), z.grade)}
+          {renderAvg(z.value, z.overridden, allowGradeOverride && ((e) => openOverrideEdit(s.id, 'zeugnis', courseId, z.grade, isAvgLocked(s.id, 'zeugnis', courseId), e.currentTarget)), z.grade, isAvgLocked(s.id, 'zeugnis', courseId))}
         </div>
       );
     });
@@ -854,25 +870,39 @@ export default function Notenuebersicht({ bundle, onOpenStudent, onOpenLesson, o
         <Popover open={overrideEdit != null} anchorRef={overrideAnchorRef} onClose={() => setOverrideEdit(null)} width={220}>
           <div style={{ background: '#fff', border: `1px solid ${colors.borderStrong}`, borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,.18)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>NOTE MANUELL SETZEN</span>
+              <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
+                {overrideEdit?.locked ? 'DURCHSCHNITT GESPERRT' : 'DURCHSCHNITT SETZEN'}
+              </span>
               <button onClick={() => setOverrideEdit(null)} style={{ fontSize: 13, color: colors.muted }}>
                 ✕
               </button>
             </div>
-            <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} />
-            {/* Only when this cell already carries a manual override --
-                openOverrideEdit seeds `grade` from the resolved average's
-                own `grade` field, which is null unless resolveAverage found
-                one. Resetting is just setOverrideGrade(null): the same PUT
-                every other pick here already goes through, and the backend
-                already treats an empty grade as "delete the override" (see
-                the route's own comment) -- there's no separate reset call. */}
-            {overrideEdit?.grade && (
+            {/* A locked average is frozen: SplitKeys is disabled and only the
+                unlock button is offered. Unlocked, it behaves as before --
+                pick a grade (empty = reset, since the backend treats an empty
+                grade as "delete the override"), plus a Sperren button. */}
+            <SplitKeys value={overrideEdit?.grade ?? null} onChange={setOverrideGrade} disabled={overrideEdit?.locked} />
+            {!overrideEdit?.locked && overrideEdit?.grade && (
               <button
                 onClick={() => setOverrideGrade(null)}
                 style={{ padding: '8px 12px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.mutedStrong, background: colors.cream }}
               >
                 Reset
+              </button>
+            )}
+            {overrideEdit?.locked ? (
+              <button
+                onClick={() => setAvgLock(false)}
+                style={{ padding: '8px 12px', borderRadius: 7, fontSize: 12, fontWeight: 500, color: '#fff', background: colors.gold }}
+              >
+                🔓 Entsperren
+              </button>
+            ) : (
+              <button
+                onClick={() => setAvgLock(true)}
+                style={{ padding: '8px 12px', border: `1px solid ${colors.goldBorder}`, borderRadius: 7, fontSize: 12, fontWeight: 500, color: colors.gold, background: colors.goldBg }}
+              >
+                🔒 Sperren
               </button>
             )}
           </div>
