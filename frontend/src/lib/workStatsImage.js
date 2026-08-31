@@ -52,17 +52,43 @@ export function downloadWorkStatsImage(work, students) {
     122
   );
 
-  const chartTop = 160;
-  const chartBottom = H - 70;
-  const chartLeft = pad;
+  const chartTop = 170;
+  const chartBottom = H - 88;
+  const chartLeft = pad + 40; // room for the y-axis title and tick labels
   const chartRight = W - pad;
   const chartH = chartBottom - chartTop;
   const chartW = chartRight - chartLeft;
 
-  ctx.strokeStyle = '#e2ddd2';
-  ctx.lineWidth = 1;
+  // Y-axis scale: whole-number ticks from 0 up to a rounded maximum so the
+  // "Anzahl" axis stays readable no matter how many students there are.
+  const step = Math.max(1, Math.ceil(maxCount / 5));
+  const yMax = Math.max(step, Math.ceil(maxCount / step) * step);
+
+  // Horizontal gridlines + y-axis tick labels (Anzahl der Bewertungen).
+  ctx.textBaseline = 'middle';
+  for (let t = 0; t <= yMax; t += step) {
+    const y = chartBottom - (t / yMax) * chartH;
+    if (t > 0) {
+      ctx.strokeStyle = '#eef0ea';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(chartLeft, y + 0.5);
+      ctx.lineTo(chartRight, y + 0.5);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#8b968f';
+    ctx.font = '500 14px Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(t), chartLeft - 10, y);
+  }
+  ctx.textBaseline = 'alphabetic';
+
+  // Axes: solid y-axis (left) and x-axis (bottom).
+  ctx.strokeStyle = '#b9c1bb';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(chartLeft, chartBottom + 0.5);
+  ctx.moveTo(chartLeft + 0.5, chartTop);
+  ctx.lineTo(chartLeft + 0.5, chartBottom + 0.5);
   ctx.lineTo(chartRight, chartBottom + 0.5);
   ctx.stroke();
 
@@ -71,27 +97,36 @@ export function downloadWorkStatsImage(work, students) {
   [1, 2, 3, 4, 5, 6].forEach((d, i) => {
     const c = counts[i];
     const x = chartLeft + i * slot + (slot - barW) / 2;
-    const h = (c / maxCount) * (chartH - 12);
+    const h = (c / yMax) * chartH;
     const y = chartBottom - h;
     if (c > 0) {
       ctx.fillStyle = gradeColor(d);
       ctx.fillRect(x, y, barW, h);
-    }
-    ctx.textAlign = 'center';
-    if (c > 0) {
       ctx.fillStyle = '#16211f';
       ctx.font = '600 16px Arial, sans-serif';
+      ctx.textAlign = 'center';
       ctx.fillText(String(c), x + barW / 2, y - 8);
     }
     ctx.fillStyle = '#4b5c58';
     ctx.font = '600 19px Arial, sans-serif';
-    ctx.fillText(String(d), x + barW / 2, chartBottom + 28);
+    ctx.textAlign = 'center';
+    ctx.fillText(String(d), x + barW / 2, chartBottom + 26);
   });
 
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#8b968f';
-  ctx.font = '500 13px Arial, sans-serif';
-  ctx.fillText('Note', chartRight, chartBottom + 52);
+  // Axis titles ("Note" along x, "Anzahl" rotated along y).
+  ctx.fillStyle = '#4b5c58';
+  ctx.font = '600 15px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Note', chartLeft + chartW / 2, chartBottom + 54);
+
+  ctx.save();
+  ctx.translate(pad - 14, chartTop + chartH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#4b5c58';
+  ctx.font = '600 15px Arial, sans-serif';
+  ctx.fillText('Anzahl', 0, 0);
+  ctx.restore();
 
   const slug = (work.title || 'klausur').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'klausur';
   const link = document.createElement('a');
