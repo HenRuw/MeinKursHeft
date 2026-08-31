@@ -36,7 +36,9 @@ const NO_HEADER_SCREENS = [...VERWALTUNG_SCREENS, 'kurs-editor'];
 
 export default function App() {
   const { isDesktop } = useViewport();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // The sidebar collapses/expands on every viewport via the hamburger. It
+  // starts open on a desktop (in-flow) and closed on phones/tablets (drawer).
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 1023 : true));
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState(null);
   const [screen, setScreen] = useState('stunde');
@@ -285,14 +287,20 @@ export default function App() {
       )}
       <aside
         style={{
-          width: 232,
           flex: 'none',
           background: colors.sidebarBg,
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
           ...(isDesktop
-            ? {}
+            ? {
+                // In-flow on desktop: collapse its width to 0 instead of
+                // sliding it off-screen, so the main area reclaims the space.
+                width: sidebarOpen ? 232 : 0,
+                transition: 'width 200ms ease',
+              }
             : {
+                width: 232,
                 position: 'fixed',
                 top: 0,
                 left: 0,
@@ -310,15 +318,13 @@ export default function App() {
               SCHULJAHR 2026/27
             </div>
           </div>
-          {!isDesktop && (
-            <button
-              onClick={() => setSidebarOpen(false)}
-              aria-label="Menü schließen"
-              style={{ width: 32, height: 32, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#9fb0ab', fontSize: 16 }}
-            >
-              ✕
-            </button>
-          )}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Menü einklappen"
+            style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#9fb0ab', fontSize: 16 }}
+          >
+            ✕
+          </button>
         </div>
         <div style={{ padding: '16px 12px 8px', flex: 1, overflow: 'auto' }}>
           <div style={{ font: `500 10px ${fonts.mono}`, color: '#6f817c', letterSpacing: '.1em', padding: '0 6px 8px' }}>
@@ -449,20 +455,18 @@ export default function App() {
       </Popover>
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {!isDesktop && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: colors.panelBg, borderBottom: `1px solid ${colors.border}`, flex: 'none' }}>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Menü öffnen"
-              style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, background: '#fff', fontSize: 16 }}
-            >
-              ☰
-            </button>
-            <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {bundle ? bundle.course.name : 'ScoreSpace'}
-            </span>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: colors.panelBg, borderBottom: `1px solid ${colors.border}`, flex: 'none' }}>
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label="Menü umschalten"
+            style={{ width: 40, height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, background: '#fff', fontSize: 16 }}
+          >
+            ☰
+          </button>
+          <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {isDesktop ? 'ScoreSpace' : bundle ? bundle.course.name : 'ScoreSpace'}
+          </span>
+        </div>
         {!NO_HEADER_SCREENS.includes(screen) && (
           <header style={{ padding: isDesktop ? '18px 24px 0' : '14px 16px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border, flex: 'none' }}>
             {isDesktop && (
