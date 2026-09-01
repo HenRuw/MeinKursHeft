@@ -11,6 +11,11 @@ const input = { padding: '7px 9px', border: `1px solid ${colors.borderStrong}`, 
 // Purely a suggestion; every field stays editable in the wizard.
 const advanceClassName = (name) => String(name).replace(/\d+/, (n) => String(Number(n) + 1));
 
+// A school-year label bumps *every* number so "2026/27" -> "2027/28" (and a
+// single "2026" -> "2027"). Digit length is preserved so "27" -> "28".
+const advanceYearLabel = (label) =>
+  String(label).replace(/\d+/g, (n) => String(Number(n) + 1).padStart(n.length, '0'));
+
 export default function Schuljahre({ years, currentYearId, classes, onRefreshYears, onRefreshKlassen, onSelectYear }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
@@ -70,7 +75,7 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
   const openWizard = async () => {
     const courses = await api.listCourses(currentYearId);
     setWizard({
-      label: currentYear ? advanceClassName(currentYear.label) : '',
+      label: currentYear ? advanceYearLabel(currentYear.label) : '',
       copyQuarters: true,
       classRows: sortedClasses.map((c) => ({ fromClassId: c.id, from: c.name, name: advanceClassName(c.name), take: true })),
       courseRows: courses.map((c) => ({ courseId: c.id, name: c.name, take: true })),
