@@ -1,4 +1,4 @@
-# ScoreSpace - Technisches Geruest (Proof of Concept)
+# meinKursHeft - Technisches Geruest (Proof of Concept)
 
 Notenplattform fuer Lehrer (muendliche und schriftliche Noten). Dieses Geruest
 zeigt nur das Zusammenspiel von Frontend, Backend und Datenbank inklusive
@@ -8,7 +8,7 @@ Live-Synchronisation - noch ohne fachliche Funktionalitaet oder Design.
 
 - **Frontend**: React Native Web (Expo, SDK 57)
 - **Backend**: Node.js, Express, Socket.IO
-- **Datenbank**: SQLite (`sql.js`, dateibasiert unter `backend/data/scorespace.sqlite`)
+- **Datenbank**: SQLite (`sql.js`, dateibasiert unter `backend/data/meinkursheft.sqlite`)
 
 ## Architektur
 

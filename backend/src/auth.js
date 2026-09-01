@@ -11,7 +11,7 @@ const express = require('express');
 // session cookie is an HMAC-signed token keyed by AUTH_SECRET, so it cannot be
 // forged without knowing that server-side secret.
 
-const COOKIE_NAME = 'scorespace_session';
+const COOKIE_NAME = 'meinkursheft_session';
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // ~1 year — "remember me"
 const DEFAULT_ACCOUNT_ID = '1';
 

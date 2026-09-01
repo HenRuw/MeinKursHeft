@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const { AsyncLocalStorage } = require('async_hooks');
 const initSqlJs = require('sql.js');
 
-const DEFAULT_DB_PATH = path.join(__dirname, '..', 'data', 'scorespace.sqlite');
+const DEFAULT_DB_PATH = path.join(__dirname, '..', 'data', 'meinkursheft.sqlite');
 
 // The primary account keeps the original, suffix-less database filename so
 // existing setups, scripts and backups are unaffected. Additional accounts get
@@ -29,14 +29,14 @@ function defaultDbPathForBranch() {
   }
   if (!branch || branch === 'main' || branch === 'master' || branch === 'HEAD') return DEFAULT_DB_PATH;
   const slug = branch.replace(/[^a-zA-Z0-9._-]+/g, '-');
-  return path.join(__dirname, '..', 'data', `scorespace.${slug}.sqlite`);
+  return path.join(__dirname, '..', 'data', `meinkursheft.${slug}.sqlite`);
 }
 
 // Turns the primary account's database path into a per-account one by inserting
-// a `.user<id>` marker right after the leading `scorespace` token, so account 2
+// a `.user<id>` marker right after the leading `meinkursheft` token, so account 2
 // lives in its own file next to account 1's:
-//   data/scorespace.sqlite        -> data/scorespace.user2.sqlite
-//   data/scorespace.<branch>.sqlite -> data/scorespace.user2.<branch>.sqlite
+//   data/meinkursheft.sqlite        -> data/meinkursheft.user2.sqlite
+//   data/meinkursheft.<branch>.sqlite -> data/meinkursheft.user2.<branch>.sqlite
 // The primary account (id '1') is returned unchanged, so its file, all scripts
 // and every existing backup keep working exactly as before. Deriving from the
 // resolved base path (rather than recomputing) means a DB_PATH override for
@@ -399,7 +399,7 @@ function userTables() {
 function exportAll() {
   const tables = {};
   for (const t of userTables()) tables[t] = all(`SELECT * FROM "${t}"`);
-  return { app: 'scorespace', version: 1, exportedAt: new Date().toISOString(), tables };
+  return { app: 'meinkursheft', version: 1, exportedAt: new Date().toISOString(), tables };
 }
 
 // Replaces the entire database contents with a snapshot produced by

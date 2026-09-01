@@ -24,7 +24,7 @@ export default function Backup() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `scorespace-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `meinkursheft-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -57,8 +57,8 @@ export default function Backup() {
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (!data || data.app !== 'scorespace' || !data.tables) {
-        setError('Keine gültige ScoreSpace-Backupdatei.');
+      if (!data || (data.app !== 'meinkursheft' && data.app !== 'scorespace') || !data.tables) {
+        setError('Keine gültige meinKursHeft-Backupdatei.');
         return;
       }
       setPending({ data, name: file.name });

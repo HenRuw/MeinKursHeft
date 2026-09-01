@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 8081, host: true, allowedHosts: ['scorespace.duckdns.org'] },
-  preview: { port: 8081, host: true, allowedHosts: ['scorespace.duckdns.org'] },
+  server: { port: 8081, host: true, allowedHosts: ['meinkursheft.duckdns.org'] },
+  preview: { port: 8081, host: true, allowedHosts: ['meinkursheft.duckdns.org'] },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',

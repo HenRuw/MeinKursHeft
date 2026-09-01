@@ -21,7 +21,7 @@ const backupRouter = require('./routes/backup');
 // by port. Override with ALLOWED_ORIGINS (comma-separated) if needed.
 const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS ||
-  'https://scorespace.duckdns.org,http://localhost:5173,http://localhost:4173,http://localhost:3000'
+  'https://meinkursheft.duckdns.org,http://localhost:5173,http://localhost:4173,http://localhost:3000'
 )
   .split(',')
   .map((s) => s.trim())

@@ -17,15 +17,15 @@ async function main() {
   // account 2 = its own independent file, created empty on first start).
   for (const id of app.locals.auth.accountIds) {
     await db.initAccount(id);
-    console.log(`ScoreSpace: database ready for account ${id}`);
+    console.log(`meinKursHeft: database ready for account ${id}`);
   }
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`ScoreSpace backend listening on port ${PORT}`);
+    console.log(`meinKursHeft backend listening on port ${PORT}`);
   });
 }
 
 main().catch((err) => {
-  console.error('Failed to start ScoreSpace backend:', err);
+  console.error('Failed to start meinKursHeft backend:', err);
   process.exit(1);
 });

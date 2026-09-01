@@ -65,7 +65,7 @@ export default function LoginScreen({ onLoggedIn }) {
         }}
       >
         <div>
-          <div style={{ font: `500 22px/1 ${fonts.serif}`, color: colors.ink }}>ScoreSpace</div>
+          <div style={{ font: `500 22px/1 ${fonts.serif}`, color: colors.ink }}>meinKursHeft</div>
           <div style={{ fontSize: 13, color: colors.mutedStrong, marginTop: 8 }}>
             Bitte Passwort eingeben, um fortzufahren.
           </div>

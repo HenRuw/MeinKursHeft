@@ -59,17 +59,17 @@ test('logout clears the cookie', async () => {
   const res = await request(app).post('/api/logout').set('Cookie', login.headers['set-cookie']);
   expect(res.status).toBe(200);
   // clearCookie sends a Set-Cookie that expires the value immediately.
-  expect(res.headers['set-cookie'][0]).toMatch(/scorespace_session=;/);
+  expect(res.headers['set-cookie'][0]).toMatch(/meinkursheft_session=;/);
 });
 
 test('a forged/expired token is not accepted', async () => {
   const wrongSig = await request(app)
     .get('/api/students')
-    .set('Cookie', ['scorespace_session=tampered.value']);
+    .set('Cookie', ['meinkursheft_session=tampered.value']);
   expect(wrongSig.status).toBe(401);
 
   const expired = signToken({ iat: Date.now() - 2000, exp: Date.now() - 1000 }, SECRET);
-  const res = await request(app).get('/api/students').set('Cookie', [`scorespace_session=${expired}`]);
+  const res = await request(app).get('/api/students').set('Cookie', [`meinkursheft_session=${expired}`]);
   expect(res.status).toBe(401);
 });
 

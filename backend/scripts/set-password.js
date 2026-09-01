@@ -13,7 +13,7 @@
 // - Each account must have a DIFFERENT password (a shared password would make
 //   the login ambiguous); this script refuses to set a duplicate.
 //
-// After running it, restart the backend:  pm2 restart scorespace-backend --update-env
+// After running it, restart the backend:  pm2 restart meinkursheft-backend --update-env
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -100,4 +100,4 @@ if (!verifyPassword(password, written)) {
 
 console.log(`✓ Passwort für Account ${accountId} gesetzt und verifiziert in ${envPath}`);
 if (secretIsNew) console.log('  (neues AUTH_SECRET erzeugt — es gab noch keins, bestehende Sitzungen sind nicht betroffen)');
-console.log('  Jetzt Backend neu starten:  pm2 restart scorespace-backend --update-env');
+console.log('  Jetzt Backend neu starten:  pm2 restart meinkursheft-backend --update-env');
