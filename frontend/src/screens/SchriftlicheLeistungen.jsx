@@ -429,7 +429,7 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                     data-arrow-row={s.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '20px 200px 356px 1fr',
+                      gridTemplateColumns: '20px 200px 380px 1fr',
                       alignItems: 'center',
                       gap: 14,
                       padding: '7px 24px 7px 12px',

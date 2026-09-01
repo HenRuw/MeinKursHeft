@@ -22,7 +22,7 @@ const ATTENDANCE_OPTIONS = [
 // Roster row geometry: the note keeps its original width, the A/V/F buttons
 // sit flush behind it, and Bemerkung follows — shared by the header and rows
 // so the labels line up with their columns.
-const NOTE_W = 356;
+const NOTE_W = 380;
 const ATT_W = 118;
 const ROW_GAP = 12;
 
@@ -706,7 +706,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       right of the buttons, pushing Bemerkung along; otherwise
                       Bemerkung is flush behind the buttons. */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: ROW_GAP, minWidth: 0 }}>
-                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ width: NOTE_W, flex: 'none', display: 'flex' }}>
+                    {/* display:block (not flex) so the block-level SplitKeys
+                        fills the full NOTE_W; as a flex child it would only take
+                        its content width and leave the grade boxes narrow. */}
+                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ width: NOTE_W, flex: 'none', display: 'block' }}>
                       <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} stackedNb />
                     </span>
                     <span style={{ display: 'flex', gap: 3, flex: 'none', width: ATT_W }}>
