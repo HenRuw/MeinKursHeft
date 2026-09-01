@@ -33,6 +33,12 @@ const TABS = [
 
 const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten', 'export', 'backup'];
 const NO_HEADER_SCREENS = [...VERWALTUNG_SCREENS, 'kurs-editor'];
+// The single-student Schüleransicht carries its own compact header (Zurück +
+// name + Klasse + Kennzahlen), so the course-level title/tab bar is redundant
+// there and just stacks a second header row of whitespace on top of it. It's
+// hidden from that bar but NOT from the bundle-loading guard below (a student
+// page always has a loaded bundle), so it stays out of NO_HEADER_SCREENS.
+const HEADERLESS_SCREENS = [...NO_HEADER_SCREENS, 'student'];
 
 export default function App({ onLogout }) {
   const { isDesktop } = useViewport();
@@ -514,7 +520,7 @@ export default function App({ onLogout }) {
             )}
           </div>
         )}
-        {!NO_HEADER_SCREENS.includes(screen) && (
+        {!HEADERLESS_SCREENS.includes(screen) && (
           <header style={{ padding: isDesktop ? '13px 24px 0' : '14px 16px 0', background: colors.panelBg, borderBottom: '1px solid ' + colors.border, flex: 'none' }}>
             {isDesktop && (
               <div style={{ font: `500 24px/1.1 ${fonts.serif}` }}>
