@@ -427,6 +427,61 @@ export default function App({ onLogout }) {
             gap: 2,
           }}
         >
+          {/* The menu expands upward, above the Verwaltung button which stays
+              pinned at the very bottom. Same dark nav style; a nested left rule
+              signals the hierarchy. Abmelden is the last item in the menu. */}
+          <div
+            style={{
+              overflow: 'hidden',
+              maxHeight: verwaltungMenuOpen ? 260 : 0,
+              opacity: verwaltungMenuOpen ? 1 : 0,
+              transition: 'max-height 220ms ease, opacity 160ms ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                margin: '2px 0 4px 10px',
+                paddingLeft: 8,
+                borderLeft: '1px solid rgba(255,255,255,.10)',
+              }}
+            >
+              {VERWALTUNG_OPTIONS.map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => openVerwaltungScreen(key)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '7px 10px',
+                    borderRadius: 7,
+                    fontSize: 12.5,
+                    color: screen === key ? '#fff' : '#9fb0ab',
+                    background: screen === key ? 'rgba(255,255,255,.10)' : 'transparent',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              {/* Logout as a point inside the menu, set off by a thin divider. */}
+              <button
+                onClick={onLogout}
+                style={{
+                  textAlign: 'left',
+                  padding: '9px 10px 7px',
+                  marginTop: 3,
+                  borderTop: '1px solid rgba(255,255,255,.08)',
+                  borderRadius: 7,
+                  fontSize: 12.5,
+                  color: '#9fb0ab',
+                }}
+              >
+                Abmelden
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={() => setVerwaltungMenuOpen((v) => !v)}
             aria-expanded={verwaltungMenuOpen}
@@ -449,64 +504,11 @@ export default function App({ onLogout }) {
                 fontSize: 9,
                 color: '#7f918c',
                 transition: 'transform 180ms ease',
-                transform: verwaltungMenuOpen ? 'rotate(-180deg)' : 'rotate(0deg)',
+                transform: verwaltungMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
               }}
             >
-              ▾
+              ▴
             </span>
-          </button>
-
-          {/* Opens inline within the sidebar (not a floating popup), in the same
-              dark nav style; a nested left rule signals the hierarchy. */}
-          <div
-            style={{
-              overflow: 'hidden',
-              maxHeight: verwaltungMenuOpen ? 200 : 0,
-              opacity: verwaltungMenuOpen ? 1 : 0,
-              transition: 'max-height 220ms ease, opacity 160ms ease',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                margin: '2px 0 2px 10px',
-                paddingLeft: 8,
-                borderLeft: '1px solid rgba(255,255,255,.10)',
-              }}
-            >
-              {VERWALTUNG_OPTIONS.map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => openVerwaltungScreen(key)}
-                  style={{
-                    textAlign: 'left',
-                    padding: '7px 10px',
-                    borderRadius: 7,
-                    fontSize: 12.5,
-                    color: screen === key ? '#fff' : '#9fb0ab',
-                    background: screen === key ? 'rgba(255,255,255,.10)' : 'transparent',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={onLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 9,
-              padding: '8px 10px',
-              borderRadius: 7,
-              color: '#9fb0ab',
-              fontSize: 12.5,
-            }}
-          >
-            Abmelden
           </button>
         </div>
       </aside>
