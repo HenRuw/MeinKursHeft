@@ -1,4 +1,7 @@
-require('dotenv').config();
+// override: true so backend/.env is always authoritative, even if a process
+// manager (pm2) injected its own cached copy of these vars at spawn time —
+// otherwise a changed password in .env could be silently ignored.
+require('dotenv').config({ override: true });
 const db = require('./db');
 const { createServer } = require('./server');
 

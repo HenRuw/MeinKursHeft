@@ -14,6 +14,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { verifyPassword } = require('../src/auth');
 
 const password = process.argv[2];
 if (!password) {
@@ -51,6 +52,18 @@ const body = [...existing.entries()].map(([k, v]) => `${k}=${v}`).join('\n') + '
 fs.writeFileSync(envPath, body, { mode: 0o600 });
 fs.chmodSync(envPath, 0o600); // owner-only, in case the file already existed
 
-console.log(`Passwort gesetzt und in ${envPath} geschrieben.`);
-if (secretIsNew) console.log('Neues AUTH_SECRET erzeugt (bestehende Sitzungen wären dadurch nicht betroffen — es gab noch keins).');
-console.log('Jetzt Backend neu starten:  pm2 restart scorespace-backend');
+// Read the file back and confirm the stored hash really matches the password
+// we were given, so a silent failure can't leave a stale/old password behind.
+const written = fs
+  .readFileSync(envPath, 'utf8')
+  .split('\n')
+  .find((l) => l.startsWith('AUTH_PASSWORD_HASH='))
+  .slice('AUTH_PASSWORD_HASH='.length);
+if (!verifyPassword(password, written)) {
+  console.error('FEHLER: .env geschrieben, aber die Verifikation schlug fehl. Bitte erneut versuchen.');
+  process.exit(1);
+}
+
+console.log(`✓ Passwort gesetzt und verifiziert in ${envPath}`);
+if (secretIsNew) console.log('  (neues AUTH_SECRET erzeugt — es gab noch keins, bestehende Sitzungen sind nicht betroffen)');
+console.log('  Jetzt Backend neu starten:  pm2 restart scorespace-backend --update-env');
