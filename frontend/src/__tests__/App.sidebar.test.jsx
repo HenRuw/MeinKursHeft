@@ -11,6 +11,7 @@ vi.mock('../api.js', () => ({
     listClasses: vi.fn(async () => []),
     listRemarkPresets: vi.fn(async () => []),
     getCourseBundle: vi.fn(async () => null),
+    getYearQuarters: vi.fn(async () => []),
   },
   subscribeSync: vi.fn(() => () => {}),
 }));

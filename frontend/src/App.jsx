@@ -8,6 +8,7 @@ import Notenuebersicht from './screens/Notenuebersicht.jsx';
 import Schueleransicht from './screens/Schueleransicht.jsx';
 import Schuelerverwaltung from './screens/Schuelerverwaltung.jsx';
 import Quartalsdaten from './screens/Quartalsdaten.jsx';
+import QuartalEditor from './components/QuartalEditor.jsx';
 import KursEditor from './screens/KursEditor.jsx';
 import Export from './screens/Export.jsx';
 import Backup from './screens/Backup.jsx';
@@ -55,6 +56,10 @@ export default function App({ onLogout }) {
   const [currentYearId, setCurrentYearId] = useState(null);
   const currentYear = years.find((y) => y.id === currentYearId) || null;
   const isArchived = !!(currentYear && currentYear.archived);
+  // The active year's quarter calendar. Empty until quarters are set up; the
+  // Notenübersicht guides the user to create them first when so.
+  const [yearQuarters, setYearQuarters] = useState([]);
+  const hasQuarters = yearQuarters.length > 0;
 
   // Clicking an individual grade — in the course-wide Notenübersicht, or in a
   // single student's own grade table on their Schueleransicht page — jumps
@@ -110,6 +115,14 @@ export default function App({ onLogout }) {
     return list;
   }, []);
 
+  const refreshYearQuarters = useCallback(async () => {
+    if (currentYearId == null) {
+      setYearQuarters([]);
+      return;
+    }
+    setYearQuarters(await api.getYearQuarters(currentYearId));
+  }, [currentYearId]);
+
   const refreshPresets = useCallback(async () => {
     setPresets(await api.listRemarkPresets());
   }, []);
@@ -141,7 +154,8 @@ export default function App({ onLogout }) {
     refreshCourses().then((list) => setCourseId(list.length ? list[0].id : null));
     refreshAllStudents();
     refreshKlassen();
-  }, [currentYearId, refreshCourses, refreshAllStudents, refreshKlassen]);
+    refreshYearQuarters();
+  }, [currentYearId, refreshCourses, refreshAllStudents, refreshKlassen, refreshYearQuarters]);
 
   // Switching the year persists the choice server-side and updates the context.
   const selectYear = async (yearId) => {
@@ -683,7 +697,23 @@ export default function App({ onLogout }) {
           </header>
         )}
 
-        {!bundle && !NO_HEADER_SCREENS.includes(screen) ? (
+        {screen === 'matrix' && !hasQuarters ? (
+          // The Notenübersicht needs a quarter calendar to make sense. Until the
+          // year has one, replace the matrix with a hint plus the same quarter
+          // editor as in der Verwaltung, so it can be set up right here — even
+          // before any course exists.
+          <div style={{ padding: 40, minWidth: 0, overflow: 'auto' }}>
+            <div style={{ fontSize: 14, color: colors.mutedStrong, marginBottom: 18, maxWidth: 560 }}>
+              Bitte zur korrekten Anzeige der Notenübersicht erst die Quartale anlegen.
+            </div>
+            <QuartalEditor
+              yearId={currentYearId}
+              yearLabel={currentYear?.label}
+              archived={isArchived}
+              onChanged={() => { refreshYearQuarters(); onRefreshBundle(); }}
+            />
+          </div>
+        ) : !bundle && !NO_HEADER_SCREENS.includes(screen) ? (
           <div style={{ padding: 40, color: colors.mutedStrong, fontSize: 13 }}>
             {courses.length ? 'Kurs wird geladen …' : 'Lege links einen Kurs an, um loszulegen.'}
           </div>
@@ -759,7 +789,7 @@ export default function App({ onLogout }) {
             onWizardConsumed={() => setYearWizardSignal(false)}
           />
         )}
-        {screen === 'quartalsdaten' && <Quartalsdaten yearId={currentYearId} archived={isArchived} />}
+        {screen === 'quartalsdaten' && <Quartalsdaten yearId={currentYearId} yearLabel={currentYear?.label} archived={isArchived} />}
         {screen === 'export' && <Export courses={courses} allStudents={allStudents} klassen={klassen} />}
         {screen === 'backup' && <Backup />}
         {screen === 'kurs-editor' && (

@@ -13,6 +13,7 @@ vi.mock('../api.js', () => ({
     // null keeps the course name out of the header/top bar, so "Mathe" only
     // appears in the sidebar.
     getCourseBundle: vi.fn(async () => null),
+    getYearQuarters: vi.fn(async () => []),
   },
   subscribeSync: vi.fn(() => () => {}),
 }));
