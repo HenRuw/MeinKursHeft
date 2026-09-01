@@ -1352,10 +1352,11 @@ function listCoursesForYear(yearId) {
 // (a snapshot -- no live coupling), weights left at their defaults. Any roster
 // student not yet in the target year is added there as Ohne Klasse, so a
 // carried course can never enroll someone who isn't a member of its year.
-function carryCourseToYear({ courseId, toYearId }) {
+function carryCourseToYear({ courseId, toYearId, newName }) {
   const src = getCourse(courseId);
   if (!src) return null;
-  const created = createCourse({ name: src.name, hoursPerWeek: src.hours_per_week, yearId: toYearId });
+  const name = newName && String(newName).trim() ? String(newName).trim() : src.name;
+  const created = createCourse({ name, hoursPerWeek: src.hours_per_week, yearId: toYearId });
   const roster = all('SELECT student_id FROM course_students WHERE course_id = ?', [courseId]);
   roster.forEach((r) => {
     run('INSERT OR IGNORE INTO student_year (student_id, year_id, class_id) VALUES (?, ?, NULL)', [r.student_id, toYearId]);

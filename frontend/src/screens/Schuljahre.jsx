@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
 
@@ -16,7 +16,7 @@ const advanceClassName = (name) => String(name).replace(/\d+/, (n) => String(Num
 const advanceYearLabel = (label) =>
   String(label).replace(/\d+/g, (n) => String(Number(n) + 1).padStart(n.length, '0'));
 
-export default function Schuljahre({ years, currentYearId, classes, onRefreshYears, onRefreshKlassen, onSelectYear }) {
+export default function Schuljahre({ years, currentYearId, classes, onRefreshYears, onRefreshKlassen, onSelectYear, openWizardSignal, onWizardConsumed }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
   const [deletingId, setDeletingId] = useState(null);
@@ -70,10 +70,22 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
       label: currentYear ? advanceYearLabel(currentYear.label) : '',
       copyQuarters: true,
       classRows: sortedClasses.map((c) => ({ fromClassId: c.id, from: c.name, name: advanceClassName(c.name), take: true })),
-      courseRows: courses.map((c) => ({ courseId: c.id, name: c.name, take: true })),
+      // Courses carry over under an editable name too; unlike classes there is
+      // no number to bump, so the new name simply defaults to the current one.
+      courseRows: courses.map((c) => ({ courseId: c.id, from: c.name, name: c.name, take: true })),
       busy: false,
     });
   };
+
+  // The year dropdown's "Neues Jahr anlegen" sets this; open the wizard once
+  // and tell the parent to clear it so a later remount won't reopen it.
+  useEffect(() => {
+    if (openWizardSignal) {
+      openWizard();
+      onWizardConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openWizardSignal]);
 
   const submitWizard = async () => {
     setWizard((w) => ({ ...w, busy: true }));
@@ -83,7 +95,7 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
         fromYearId: currentYearId,
         copyQuarters: wizard.copyQuarters,
         classes: wizard.classRows.filter((r) => r.take && r.name.trim()).map((r) => ({ fromClassId: r.fromClassId, newName: r.name.trim() })),
-        courseIds: wizard.courseRows.filter((r) => r.take).map((r) => r.courseId),
+        courses: wizard.courseRows.filter((r) => r.take && r.name.trim()).map((r) => ({ courseId: r.courseId, newName: r.name.trim() })),
       });
       setWizard(null);
       await onRefreshYears();
@@ -188,7 +200,7 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
 
             <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 260px', minWidth: 240 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Klassen aufsteigen</div>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Klassen versetzen</div>
                 {wizard.classRows.length ? wizard.classRows.map((r, i) => (
                   <div key={r.fromClassId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                     <input type="checkbox" checked={r.take} onChange={(e) => setWizardClass(i, { take: e.target.checked })} />
@@ -201,10 +213,12 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
               <div style={{ flex: '1 1 260px', minWidth: 240 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Kurse übernehmen</div>
                 {wizard.courseRows.length ? wizard.courseRows.map((r, i) => (
-                  <label key={r.courseId} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, fontSize: 12.5 }}>
+                  <div key={r.courseId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                     <input type="checkbox" checked={r.take} onChange={(e) => setWizardCourse(i, { take: e.target.checked })} />
-                    {r.name}
-                  </label>
+                    <span style={{ fontSize: 11.5, color: colors.muted, width: 42, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.from}</span>
+                    <span aria-hidden style={{ color: colors.faint }}>→</span>
+                    <input value={r.name} disabled={!r.take} onChange={(e) => setWizardCourse(i, { name: e.target.value })} style={{ ...input, width: 90, opacity: r.take ? 1 : 0.5 }} />
+                  </div>
                 )) : <div style={{ fontSize: 12, color: colors.mutedStrong }}>Keine Kurse.</div>}
               </div>
             </div>

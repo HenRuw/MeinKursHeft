@@ -123,7 +123,7 @@ function schoolYearsRouter(db, notify) {
   // Creates the target year, advances the listed classes (same identities under
   // new names) and copies the listed courses (name + roster snapshot).
   router.post('/years/advance', (req, res) => {
-    const { toLabel, fromYearId, classes = [], courseIds = [], copyQuarters = true } = req.body || {};
+    const { toLabel, fromYearId, classes = [], courses, courseIds = [], copyQuarters = true } = req.body || {};
     if (!toLabel || !toLabel.trim()) return res.status(400).json({ error: 'toLabel is required' });
     const toYear = db.createSchoolYear({
       label: toLabel.trim(),
@@ -134,8 +134,13 @@ function schoolYearsRouter(db, notify) {
         db.carryClassToYear({ fromClassId: Number(c.fromClassId), toYearId: toYear.id, newName: c.newName.trim() });
       }
     }
-    for (const courseId of courseIds) {
-      db.carryCourseToYear({ courseId: Number(courseId), toYearId: toYear.id });
+    // Courses can now carry a new name too (like classes). Fall back to the
+    // legacy courseIds shape (copy under the same name) when `courses` is absent.
+    const courseRows = Array.isArray(courses)
+      ? courses.filter((c) => c && c.courseId)
+      : courseIds.map((id) => ({ courseId: id }));
+    for (const c of courseRows) {
+      db.carryCourseToYear({ courseId: Number(c.courseId), toYearId: toYear.id, newName: c.newName });
     }
     db.setUiLastYearId(toYear.id);
     notify('years');

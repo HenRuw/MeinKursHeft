@@ -82,6 +82,10 @@ export default function App({ onLogout }) {
   const [courseEditorNonce, setCourseEditorNonce] = useState(0);
 
   const [verwaltungMenuOpen, setVerwaltungMenuOpen] = useState(false);
+  // Set to tell the Schuljahre screen to open its "Neues Schuljahr" wizard on
+  // arrival — used by the year dropdown's "Neues Jahr anlegen" entry. The
+  // screen flips it back off once it has opened, so remounting won't reopen it.
+  const [yearWizardSignal, setYearWizardSignal] = useState(false);
 
   const refreshCourses = useCallback(async () => {
     if (currentYearId == null) return [];
@@ -379,7 +383,17 @@ export default function App({ onLogout }) {
           <div style={{ display: 'flex', alignItems: 'center', marginTop: 10 }}>
             <select
               value={currentYearId ?? ''}
-              onChange={(e) => selectYear(Number(e.target.value))}
+              onChange={(e) => {
+                // Sentinel bottom entry: jump to Schuljahre and open the wizard
+                // instead of switching the active year.
+                if (e.target.value === '__new__') {
+                  setScreen('schuljahre');
+                  setYearWizardSignal(true);
+                  closeSidebarOnNavigate();
+                  return;
+                }
+                selectYear(Number(e.target.value));
+              }}
               aria-label="Schuljahr wählen"
               style={{
                 flex: 1,
@@ -398,6 +412,7 @@ export default function App({ onLogout }) {
                   {y.label}{y.archived ? ' · Archiv' : ''}
                 </option>
               ))}
+              <option value="__new__" style={{ color: '#000' }}>＋ Neues Jahr anlegen …</option>
             </select>
           </div>
         </div>
@@ -740,6 +755,8 @@ export default function App({ onLogout }) {
             onRefreshYears={refreshYears}
             onRefreshKlassen={refreshKlassen}
             onSelectYear={selectYear}
+            openWizardSignal={yearWizardSignal}
+            onWizardConsumed={() => setYearWizardSignal(false)}
           />
         )}
         {screen === 'quartalsdaten' && <Quartalsdaten yearId={currentYearId} archived={isArchived} />}
