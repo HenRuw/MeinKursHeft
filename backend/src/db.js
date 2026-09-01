@@ -1204,10 +1204,15 @@ function setYearQuarters(yearId, ranges) {
 
 // ---------- classes (year-scoped) ----------
 
+// A class exists in a year only as long as it has members: an empty class is
+// never listed and never offered as a filter. (The row may linger in the DB
+// until a student is re-assigned to that name; it just stays invisible.)
 function listClasses(yearId) {
   return all(
     `SELECT c.*, (SELECT COUNT(*) FROM student_year sy WHERE sy.class_id = c.id) AS member_count
-     FROM classes c WHERE c.year_id = ? ORDER BY c.name ASC`,
+     FROM classes c
+     WHERE c.year_id = ? AND (SELECT COUNT(*) FROM student_year sy WHERE sy.class_id = c.id) > 0
+     ORDER BY c.name ASC`,
     [yearId]
   );
 }
@@ -1359,7 +1364,13 @@ function carryCourseToYear({ courseId, toYearId, newName }) {
   const created = createCourse({ name, hoursPerWeek: src.hours_per_week, yearId: toYearId });
   const roster = all('SELECT student_id FROM course_students WHERE course_id = ?', [courseId]);
   roster.forEach((r) => {
-    run('INSERT OR IGNORE INTO student_year (student_id, year_id, class_id) VALUES (?, ?, NULL)', [r.student_id, toYearId]);
+    // Promoted classes are the only gateway into the new year: a course only
+    // re-links students already carried there via their class. A student whose
+    // class was not promoted (or who had none) is not tracked in the new year,
+    // so a carried course simply skips them rather than re-adding them as
+    // "Ohne Klasse". Classes are advanced before courses in the rollover route.
+    const inYear = get('SELECT 1 FROM student_year WHERE student_id = ? AND year_id = ?', [r.student_id, toYearId]);
+    if (!inYear) return;
     run('INSERT OR IGNORE INTO course_students (course_id, student_id) VALUES (?, ?)', [created.id, r.student_id]);
   });
   persist();
