@@ -361,7 +361,7 @@ export default function App({ onLogout }) {
               }),
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '13px 14px 16px 8px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
           <button
             onClick={() => setSidebarOpen(false)}
             aria-label="Menü einklappen"
@@ -373,8 +373,7 @@ export default function App({ onLogout }) {
             <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>MeinKursHeft</div>
             {/* School-year switcher: everything in the app is scoped to the
                 year picked here. An archived year is marked and shown in amber. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
-              <span aria-hidden style={{ font: `400 10px ${fonts.mono}`, color: '#6f817c', letterSpacing: '.08em' }}>SJ</span>
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: 7 }}>
               <select
                 value={currentYearId ?? ''}
                 onChange={(e) => selectYear(Number(e.target.value))}

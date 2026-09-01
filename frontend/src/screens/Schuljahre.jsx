@@ -22,7 +22,6 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
   const [deletingId, setDeletingId] = useState(null);
   const [deleteText, setDeleteText] = useState('');
   const [error, setError] = useState('');
-  const [newClass, setNewClass] = useState('');
 
   // rollover wizard
   const [wizard, setWizard] = useState(null); // { label, copyQuarters, classRows, courseRows, busy }
@@ -52,13 +51,6 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
     } catch (e) {
       setError(e.message || 'Löschen fehlgeschlagen.');
     }
-  };
-
-  const addClass = async () => {
-    if (!newClass.trim() || currentYearId == null) return;
-    await api.createClass(currentYearId, { name: newClass.trim() });
-    setNewClass('');
-    onRefreshKlassen();
   };
 
   const renameClass = async (id, name) => {
@@ -162,12 +154,6 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
         <div style={{ fontSize: 12, color: colors.mutedStrong, marginBottom: 12 }}>
           Klassen entstehen normalerweise automatisch beim Anlegen von Schüler:innen. Hier kannst du sie umbenennen oder löschen (Mitglieder bleiben als „Ohne Klasse" im Jahr).
         </div>
-        {!currentYear?.archived && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <input value={newClass} placeholder="Neue Klasse, z. B. 10c" onChange={(e) => setNewClass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addClass()} style={{ ...input, width: 180 }} />
-            <button onClick={addClass} style={btn}>Klasse anlegen</button>
-          </div>
-        )}
         <div style={card}>
           {sortedClasses.map((c, i) => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: i ? `1px solid ${colors.divider}` : undefined }}>
@@ -195,13 +181,9 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
               Aus {currentYear?.label}. Klassen steigen mit denselben Schüler:innen auf; Kurse werden mit Namen und Teilnehmerliste kopiert (Gewichtungen starten neu).
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
               <span style={{ fontSize: 12.5, width: 120, color: colors.mutedStrong }}>Bezeichnung</span>
               <input value={wizard.label} onChange={(e) => setWizard((w) => ({ ...w, label: e.target.value }))} placeholder="z. B. 2027/28" style={{ ...input, width: 160 }} />
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, fontSize: 12.5 }}>
-              <input type="checkbox" checked={wizard.copyQuarters} onChange={(e) => setWizard((w) => ({ ...w, copyQuarters: e.target.checked }))} />
-              Quartalsdaten aus {currentYear?.label} übernehmen
             </label>
 
             <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
