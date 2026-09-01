@@ -60,4 +60,19 @@ describe('Stundenerfassung scrolls a new unit into view', () => {
     // The row was scrolled to bring the freshly created tile into view.
     await waitFor(() => expect(window.HTMLElement.prototype.scrollTo).toHaveBeenCalled());
   });
+
+  // Regression: the pinned header cells need an opaque backing (gap shadow +
+  // full-height stretch), or the sideways-scrolling column labels show through
+  // behind "SCHÜLER:IN".
+  it('backs the pinned header cells so the scrolling labels do not show through', () => {
+    const { container } = render(
+      <Stundenerfassung bundle={makeBundle([CREATED])} onRefresh={async () => {}} onOpenStudent={() => {}} presets={[]} onRefreshPresets={() => {}} />
+    );
+    const head = [...container.querySelectorAll('*')].find(
+      (el) => el.style.position === 'sticky' && el.style.left === '46px' && el.textContent === 'SCHÜLER:IN'
+    );
+    expect(head).toBeTruthy();
+    expect(head.style.boxShadow).toContain('14px 0 0 0');
+    expect(head.style.alignSelf).toBe('stretch');
+  });
 });

@@ -644,8 +644,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               minWidth: 'max-content',
             }}
           >
-            <span style={{ position: 'sticky', left: 12, background: '#efece5' }}>#</span>
-            <span style={{ position: 'sticky', left: 46, background: '#efece5' }}>SCHÜLER:IN</span>
+            <span style={{ position: 'sticky', left: 12, zIndex: 2, alignSelf: 'stretch', display: 'flex', alignItems: 'center', background: '#efece5', boxShadow: '-12px 0 0 0 #efece5, 14px 0 0 0 #efece5' }}>#</span>
+            <span style={{ position: 'sticky', left: 46, zIndex: 2, alignSelf: 'stretch', display: 'flex', alignItems: 'center', background: '#efece5', boxShadow: '14px 0 0 0 #efece5' }}>SCHÜLER:IN</span>
             {/* Note, Anwesenheit and Bemerkung flow left-to-right in one cell:
                 note first at its fixed width (NOTE_W), the A/V/F buttons flush
                 behind it (ATT_W), then Bemerkung. The late/absent options open
