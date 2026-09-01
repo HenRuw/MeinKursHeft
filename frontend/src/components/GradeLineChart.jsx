@@ -14,7 +14,10 @@ function xFor(i, n) {
   return PAD_L + i * ((WIDTH - PAD_L) / (n - 1));
 }
 
-// points: [{ date, label, value }] — value is the numeric grade (1-6), already de-nulled.
+// points: [{ date, label, value, remarks? }] — value is the numeric grade
+// (1-6), already de-nulled. `remarks` (optional) is [{ emoji, text }] for that
+// lesson: points that carry any get a ring + a 💬 marker whose hover tooltip
+// lists them, so a grade and the comment behind it stay on the same spot.
 export default function GradeLineChart({ points, lineColor = '#0f5b52', emptyLabel }) {
   if (!points.length) {
     return (
@@ -36,10 +39,35 @@ export default function GradeLineChart({ points, lineColor = '#0f5b52', emptyLab
         <line x1={PAD_L} y1={14} x2={PAD_L} y2={222} stroke="#ddd7cb" strokeWidth="1" />
         <line x1={PAD_L} y1={222} x2={WIDTH - 20} y2={222} stroke="#ddd7cb" strokeWidth="1" />
         <polyline points={line} fill="none" stroke={lineColor} strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        {points.map((p, i) =>
+          p.remarks?.length ? (
+            <circle key={`r${i}`} cx={xFor(i, points.length)} cy={yFor(p.value)} r="7" fill="none" stroke={gradeColor(p.value)} strokeWidth="1.5" strokeOpacity="0.4" vectorEffect="non-scaling-stroke" />
+          ) : null
+        )}
         {points.map((p, i) => (
           <circle key={i} cx={xFor(i, points.length)} cy={yFor(p.value)} r="4" fill={gradeColor(p.value)} />
         ))}
       </svg>
+      {points.map((p, i) =>
+        p.remarks?.length ? (
+          <span
+            key={`m${i}`}
+            title={p.remarks.map((r) => `${r.emoji ? `${r.emoji} ` : ''}${r.text}`).join('\n')}
+            style={{
+              position: 'absolute',
+              left: `${(xFor(i, points.length) / WIDTH) * 100}%`,
+              top: yFor(p.value) - 16,
+              transform: 'translate(-50%, -100%)',
+              cursor: 'default',
+              fontSize: 12,
+              lineHeight: 1,
+              userSelect: 'none',
+            }}
+          >
+            💬
+          </span>
+        ) : null
+      )}
       {grid.map((g) => (
         <span key={g.v} style={{ position: 'absolute', left: 0, width: '3.6%', textAlign: 'right', top: g.y, transform: 'translateY(-50%)', font: "500 10px 'IBM Plex Mono',monospace", color: '#a6a096' }}>
           {g.v}
