@@ -19,6 +19,13 @@ const ATTENDANCE_OPTIONS = [
   ['fehlt', 'F', 'Fehlt', colors.red],
 ];
 
+// Roster row geometry: the note keeps its original width, the A/V/F buttons
+// sit flush behind it, and Bemerkung follows — shared by the header and rows
+// so the labels line up with their columns.
+const NOTE_W = 300;
+const ATT_W = 118;
+const ROW_GAP = 12;
+
 // Unit tile geometry — one source of truth for the tiles and for the
 // paging maths (how far a left/right-edge click scrolls the row).
 const TILE_W = 152;
@@ -617,7 +624,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '20px 168px 540px 1fr',
+              gridTemplateColumns: '20px 168px 1fr',
               alignItems: 'center',
               gap: 14,
               padding: '8px 24px 8px 12px',
@@ -634,23 +641,26 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           >
             <span style={{ position: 'sticky', left: 12, background: '#efece5' }}>#</span>
             <span style={{ position: 'sticky', left: 46, background: '#efece5' }}>SCHÜLER:IN</span>
-            {/* Note and Anwesenheit share one cell now (swapped so the note
-                sits left and the A/V/F buttons right). ANWESENHEIT is pushed
-                to the right edge to sit above its buttons. */}
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              MITARBEITSNOTE
-              <span ref={setLockRef} style={{ display: 'inline-flex' }}>
-                <LockButton
-                  locked={setLocked}
-                  onClick={toggleSetLock}
-                  size={20}
-                  title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'}
-                />
+            {/* Note, Anwesenheit and Bemerkung flow left-to-right in one cell:
+                note first at its fixed width (NOTE_W), the A/V/F buttons flush
+                behind it (ATT_W), then Bemerkung. The late/absent options open
+                between the buttons and Bemerkung on the rows they apply to. */}
+            <span style={{ display: 'flex', alignItems: 'center', gap: ROW_GAP }}>
+              <span style={{ width: NOTE_W, flex: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                MITARBEITSNOTE
+                <span ref={setLockRef} style={{ display: 'inline-flex' }}>
+                  <LockButton
+                    locked={setLocked}
+                    onClick={toggleSetLock}
+                    size={20}
+                    title={setLocked ? 'Notensatz entsperren' : 'Ganzen Notensatz sperren'}
+                  />
+                </span>
+                {setLocked && <span style={{ color: colors.gold, letterSpacing: 0 }}>GESPERRT</span>}
               </span>
-              {setLocked && <span style={{ color: colors.gold, letterSpacing: 0 }}>GESPERRT</span>}
-              <span style={{ marginLeft: 'auto' }}>ANWESENHEIT</span>
+              <span style={{ width: ATT_W, flex: 'none' }}>ANWESENHEIT</span>
+              <span>BEMERKUNG</span>
             </span>
-            <span>BEMERKUNG</span>
           </div>
           {students.map((s, i) => {
               const att = attendanceFor(s.id);
@@ -672,7 +682,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   data-arrow-row={s.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '20px 168px 540px 1fr',
+                    gridTemplateColumns: '20px 168px 1fr',
                     alignItems: 'center',
                     gap: 14,
                     padding: '7px 24px 7px 12px',
@@ -689,16 +699,31 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       {studentKlasseLabel(s) && <span style={{ fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </span>
                   </button>
-                  {/* Note, the late/absent icons and the A/V/F buttons share
-                      one flex cell. The note (with its stacked "nicht
-                      bewertbar") takes the slack via flex:1, so its right edge —
-                      the nb block — sits right next to the attendance buttons.
-                      The icon slot is only rendered for late/absent rows, so it
-                      pushes the nb block leftward (away from Anwesenheit) only
-                      there, making room for the wheel/checkbox. */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+                  {/* Note → Anwesenheit → (late/absent options) → Bemerkung all
+                      flow left-to-right in one cell. The note keeps its fixed
+                      width and the A/V/F buttons sit flush behind it. On
+                      late/absent rows the wheel/excused options open to the
+                      right of the buttons, pushing Bemerkung along; otherwise
+                      Bemerkung is flush behind the buttons. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: ROW_GAP, minWidth: 0 }}>
+                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ width: NOTE_W, flex: 'none', display: 'flex' }}>
                       <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} stackedNb />
+                    </span>
+                    <span style={{ display: 'flex', gap: 3, flex: 'none', width: ATT_W }}>
+                      {ATTENDANCE_OPTIONS.map(([key, letter, title, color]) => {
+                        // "Verspätet" is a sub-state of "Anwesend" (you were there,
+                        // just late), so Anwesend stays highlighted alongside it.
+                        const on = status === key || (key === 'anwesend' && status === 'verspaetet');
+                        const onClick = () => {
+                          if (key === 'verspaetet' && status === 'verspaetet') setStatus(s.id, 'anwesend');
+                          else setStatus(s.id, key);
+                        };
+                        return (
+                          <button key={key} title={title} onClick={onClick} style={{ flex: 1, padding: '5px 0', borderRadius: 6, font: `600 11px ${fonts.mono}`, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? color : '#fff', color: on ? '#fff' : '#9a958b' }}>
+                            {letter}
+                          </button>
+                        );
+                      })}
                     </span>
                     {status === 'verspaetet' && (
                       <span style={{ display: 'flex', alignItems: 'center', flex: 'none' }}>
@@ -716,32 +741,16 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                         </button>
                       </span>
                     )}
-                    <span style={{ display: 'flex', gap: 3, flex: 'none', width: 118 }}>
-                      {ATTENDANCE_OPTIONS.map(([key, letter, title, color]) => {
-                        // "Verspätet" is a sub-state of "Anwesend" (you were there,
-                        // just late), so Anwesend stays highlighted alongside it.
-                        const on = status === key || (key === 'anwesend' && status === 'verspaetet');
-                        const onClick = () => {
-                          if (key === 'verspaetet' && status === 'verspaetet') setStatus(s.id, 'anwesend');
-                          else setStatus(s.id, key);
-                        };
-                        return (
-                          <button key={key} title={title} onClick={onClick} style={{ flex: 1, padding: '5px 0', borderRadius: 6, font: `600 11px ${fonts.mono}`, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? color : '#fff', color: on ? '#fff' : '#9a958b' }}>
-                            {letter}
-                          </button>
-                        );
-                      })}
-                    </span>
+                    <RemarkPicker
+                      remarks={remarksFor(s.id)}
+                      presets={presets}
+                      onAddPreset={addPreset(s.id)}
+                      onAddCustom={addCustom(s.id)}
+                      onUpdateRemark={updateRemark}
+                      onDeleteRemark={deleteRemark}
+                      onDeletePreset={deletePreset}
+                    />
                   </div>
-                  <RemarkPicker
-                    remarks={remarksFor(s.id)}
-                    presets={presets}
-                    onAddPreset={addPreset(s.id)}
-                    onAddCustom={addCustom(s.id)}
-                    onUpdateRemark={updateRemark}
-                    onDeleteRemark={deleteRemark}
-                    onDeletePreset={deletePreset}
-                  />
                 </div>
               );
             })}
