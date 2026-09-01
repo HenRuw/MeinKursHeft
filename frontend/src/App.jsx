@@ -361,42 +361,44 @@ export default function App({ onLogout }) {
               }),
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '13px 14px 16px 8px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Menü einklappen"
-            style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,.22)', color: '#9fb0ab', fontSize: 18 }}
-          >
-            ☰
-          </button>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>MeinKursHeft</div>
-            {/* School-year switcher: everything in the app is scoped to the
-                year picked here. An archived year is marked and shown in amber. */}
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 7 }}>
-              <select
-                value={currentYearId ?? ''}
-                onChange={(e) => selectYear(Number(e.target.value))}
-                aria-label="Schuljahr wählen"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  background: 'rgba(255,255,255,.07)',
-                  color: isArchived ? '#e6b667' : '#cdd8d4',
-                  border: '1px solid rgba(255,255,255,.16)',
-                  borderRadius: 6,
-                  padding: '4px 6px',
-                  font: `500 12px ${fonts.mono}`,
-                  letterSpacing: '.04em',
-                }}
-              >
-                {years.map((y) => (
-                  <option key={y.id} value={y.id} style={{ color: '#000' }}>
-                    {y.label}{y.archived ? ' · Archiv' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div style={{ padding: '13px 14px 16px 8px', borderBottom: '1px solid rgba(255,255,255,.09)' }}>
+          {/* First line: hamburger toggle and the app title share one row. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Menü einklappen"
+              style={{ width: 36, height: 36, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,.22)', color: '#9fb0ab', fontSize: 18 }}
+            >
+              ☰
+            </button>
+            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em', minWidth: 0 }}>MeinKursHeft</div>
+          </div>
+          {/* Second line: the school-year switcher spans the full sidebar width.
+              Everything in the app is scoped to the year picked here. An
+              archived year is marked and shown in amber. */}
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 10 }}>
+            <select
+              value={currentYearId ?? ''}
+              onChange={(e) => selectYear(Number(e.target.value))}
+              aria-label="Schuljahr wählen"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'rgba(255,255,255,.07)',
+                color: isArchived ? '#e6b667' : '#cdd8d4',
+                border: '1px solid rgba(255,255,255,.16)',
+                borderRadius: 6,
+                padding: '5px 6px',
+                font: `500 12px ${fonts.mono}`,
+                letterSpacing: '.04em',
+              }}
+            >
+              {years.map((y) => (
+                <option key={y.id} value={y.id} style={{ color: '#000' }}>
+                  {y.label}{y.archived ? ' · Archiv' : ''}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div style={{ padding: '16px 12px 8px', flex: 1, overflow: 'auto' }}>
