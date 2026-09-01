@@ -22,7 +22,7 @@ const ATTENDANCE_OPTIONS = [
 // Unit tile geometry — one source of truth for the tiles and for the
 // paging maths (how far a left/right-edge click scrolls the row).
 const TILE_W = 152;
-const TILE_H = 62;
+const TILE_H = 76;
 const TILE_GAP = 9;
 
 // End of a unit's span: a single-hour unit leaves end_date equal to date (or
@@ -431,9 +431,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   scrollSnapAlign: 'start',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: 2,
-                  padding: '8px 12px',
+                  alignItems: 'stretch',
+                  justifyContent: 'space-between',
+                  padding: '11px 13px',
                   borderRadius: 10,
                   border: `1px solid ${on ? colors.teal : colors.borderCard}`,
                   background: on ? colors.teal : '#fff',
@@ -441,9 +441,11 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   textAlign: 'left',
                 }}
               >
-                <span style={{ font: `600 15px ${fonts.mono}` }}>{period}</span>
-                <span style={{ fontSize: 10.5, color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>{l.duration_hours} Schulstd.</span>
-                <span style={{ fontSize: 11, maxWidth: TILE_W - 26, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: on ? 'rgba(255,255,255,.85)' : '#6c7a76' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ font: `600 17px ${fonts.mono}` }}>{period}</span>
+                  <span style={{ fontSize: 11.5, color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>{l.duration_hours} Schulstd.</span>
+                </span>
+                <span style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: on ? 'rgba(255,255,255,.9)' : '#6c7a76' }}>
                   {l.topic || ' '}
                 </span>
               </button>
