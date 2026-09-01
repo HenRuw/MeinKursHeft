@@ -36,7 +36,7 @@ describe('KursEditor empty-system hint', () => {
     const onManageStudents = vi.fn();
     render(<KursEditor {...props({ onManageStudents })} />);
     openAddStep();
-    fireEvent.click(screen.getByText('In der Schülerverwaltung anlegen'));
+    fireEvent.click(screen.getByText('Schüler:innen anlegen'));
     expect(onManageStudents).toHaveBeenCalledTimes(1);
   });
 

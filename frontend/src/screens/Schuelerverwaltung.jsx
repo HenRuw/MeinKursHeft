@@ -319,7 +319,7 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
           <span style={{ fontSize: 12, color: colors.mutedStrong, marginLeft: 6 }}>Filtern nach:</span>
           <select value={filterKlasse} onChange={(e) => setFilterKlasse(e.target.value)} style={selectStyle}>
             <option value="">Alle Klassen</option>
-            {ohneKlasseCount > 0 && <option value="none">Ohne Klasse ({ohneKlasseCount})</option>}
+            <option value="none">Ohne Klasse ({ohneKlasseCount})</option>
             {sortedKlassen.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.name}

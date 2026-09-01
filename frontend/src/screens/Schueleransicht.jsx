@@ -150,16 +150,11 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
       </div>
 
       <CollapsibleSection title="NOTENÜBERSICHT" collapsed={collapsed.grades} onToggle={() => toggleSection('grades')}>
-        {/* Notenuebersicht's own root relies on flex:1/minHeight:0 to size
-            its scrollable table against a bounded flex ancestor — without
-            one, the surrounding overflow:hidden card clips it instead of
-            growing to fit. The header (year/half/quarter/mitarbeit-
-            schriftlich/kind/title) plus this one data row needs ~330px
-            regardless of the course's data, so a fixed height here with
-            room to spare is more reliable than trying to measure it. */}
-        <div style={{ height: 420, display: 'flex', flexDirection: 'column' }}>
-          <Notenuebersicht bundle={soloBundle} onRefresh={onRefresh} onOpenStudent={noop} onOpenLesson={onOpenLesson} onOpenWork={onOpenWork} allowGradeOverride arrowNav={false} />
-        </div>
+        {/* autoHeight lets the embedded Notenübersicht grow to exactly the
+            table's height (no leftover whitespace) and drop its vertical inner
+            scroll, so the mouse-wheel scrolls the whole student page. Wide
+            tables still scroll horizontally within the card. */}
+        <Notenuebersicht bundle={soloBundle} onRefresh={onRefresh} onOpenStudent={noop} onOpenLesson={onOpenLesson} onOpenWork={onOpenWork} allowGradeOverride arrowNav={false} autoHeight />
       </CollapsibleSection>
 
       <CollapsibleSection

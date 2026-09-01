@@ -250,7 +250,7 @@ function calcAverages(bundle, overrides, studentId, courseId) {
 
 const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;
 
-export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride, highlightStudentId, arrowNav = true }) {
+export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOpenLesson, onOpenWork, allowGradeOverride, highlightStudentId, arrowNav = true, autoHeight = false }) {
   // Schueleransicht embeds this component with a bundle.course.id swapped
   // for a synthetic one (so its collapse preferences below don't leak into
   // the real course-wide Notenübersicht) -- realCourseId is the actual id
@@ -988,7 +988,9 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
   };
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    // autoHeight: grow to the content's natural height (used when embedded in
+    // the single-student page) instead of filling a bounded flex parent.
+    <div style={autoHeight ? { display: 'flex', flexDirection: 'column' } : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {allowGradeOverride && (
         <Popover open={overrideEdit != null} anchorRef={overrideAnchorRef} onClose={() => setOverrideEdit(null)} width={220}>
           <div style={{ background: '#fff', border: `1px solid ${colors.borderStrong}`, borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,.18)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1015,7 +1017,11 @@ export default function Notenuebersicht({ bundle, onRefresh, onOpenStudent, onOp
         </Popover>
       )}
 
-      <div ref={scrollPanelRef} className="scroll-panel" style={{ flex: 1, overflow: 'auto' }}>
+      {/* autoHeight: only scroll horizontally; the panel grows to its content
+          vertically (overflow-y hidden clips nothing because the height fits),
+          so a mouse-wheel over it scrolls the whole page rather than a trapped
+          inner area. Otherwise: fill the bounded parent and scroll both ways. */}
+      <div ref={scrollPanelRef} className="scroll-panel" style={autoHeight ? { overflowX: 'auto', overflowY: 'hidden' } : { flex: 1, overflow: 'auto' }}>
         <div style={{ width: 'max-content' }}>
           {/* Header grid: the frame/label/Sperre/Gewichtung rows. Sticky at
               the top so they stay pinned while the student rows below scroll

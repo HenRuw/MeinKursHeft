@@ -302,16 +302,17 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
               <StudentRow key={s.id} student={s} checked={addChecked.has(s.id)} onToggle={() => toggleAddChecked(s.id)} />
             ))
           ) : allStudents.length === 0 ? (
-            // No students exist anywhere yet -- "alle bereits im Kurs" would be
-            // misleading; point the way to where students are actually created.
-            <div style={{ padding: '10px 14px', fontSize: 12.5, color: colors.mutedStrong }}>
-              Noch keine Schüler:innen im System.{' '}
-              {onManageStudents ? (
-                <button onClick={onManageStudents} style={{ color: colors.teal, fontWeight: 500, textDecoration: 'underline' }}>
-                  In der Schülerverwaltung anlegen
+            // No students exist anywhere yet -- a centered hint with a clear
+            // call to action, pointing to where students are actually created.
+            <div style={{ minHeight: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '40px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: 13.5, color: colors.mutedStrong }}>Noch keine Schüler:innen im System angelegt.</div>
+              {onManageStudents && (
+                <button
+                  onClick={onManageStudents}
+                  style={{ padding: '10px 20px', borderRadius: 8, background: colors.teal, color: '#fff', fontSize: 13, fontWeight: 500 }}
+                >
+                  Schüler:innen anlegen
                 </button>
-              ) : (
-                'Lege sie zuerst in der Schülerverwaltung an.'
               )}
             </div>
           ) : (
