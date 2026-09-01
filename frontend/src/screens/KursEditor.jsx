@@ -75,11 +75,15 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const [nameError, setNameError] = useState(false);
   const nameRef = useRef(null);
 
-  // Both modes start on the view step (name field + Anlegen/Speichern +
-  // Abbrechen). Adding students is one explicit click away ("+ Schüler
-  // hinzufügen"); starting here means the very first Abbrechen cleanly cancels
-  // the editor instead of just dropping into another sub-step.
-  const [rosterMode, setRosterMode] = useState('view'); // 'view' | 'remove' | 'add'
+  // Edit mode starts on the view step (name field + Speichern + Abbrechen).
+  // Create mode opens straight on the add-students step so a new course lands
+  // right where you pick who's in it — its "Weiter" button carries on to the
+  // view step (with an empty roster if you picked nobody), and its Abbrechen
+  // closes the whole editor. `addIsEntry` marks that first add step; it ends
+  // as soon as you leave it, so any add step re-opened later behaves normally
+  // (Abbrechen just steps back, no "Weiter").
+  const [rosterMode, setRosterMode] = useState(mode === 'create' ? 'add' : 'view'); // 'view' | 'remove' | 'add'
+  const [addIsEntry, setAddIsEntry] = useState(mode === 'create');
   const [removeChecked, setRemoveChecked] = useState(new Set());
   const [addChecked, setAddChecked] = useState(new Set());
   const [addSortBy, setAddSortBy] = useState('lastName');
@@ -128,6 +132,7 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
   const startAdding = () => {
     setAddChecked(new Set());
     setAddFilterKlasse('');
+    setAddIsEntry(false);
     setRosterMode('add');
   };
   const toggleAddChecked = (id) =>
@@ -137,8 +142,13 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
       else next.add(id);
       return next;
     });
+  // "Weiter"/"N hinzufügen": fold the checked students into the roster and
+  // move on to the view step. From the create-mode entry step this is how you
+  // reach "Anlegen" (with no one selected, it simply carries on to an empty
+  // roster).
   const confirmAdd = () => {
     setSelectedIds((prev) => new Set([...prev, ...addChecked]));
+    setAddIsEntry(false);
     setRosterMode('view');
   };
 
@@ -339,14 +349,19 @@ export default function KursEditor({ mode, course, allStudents, klassen, initial
       )}
       {rosterMode === 'add' && (
         <div style={{ display: 'flex', gap: 10 }}>
+          {/* On the create-mode entry step the confirm button stays active even
+              with nobody checked ("Weiter" → view step), so a course can be
+              created without students; a later add step disables it when empty.
+              Abbrechen closes the whole editor from the entry step, otherwise
+              it just steps back to the view. */}
           <button
             onClick={confirmAdd}
-            disabled={!addChecked.size}
-            style={{ padding: '9px 18px', borderRadius: 8, background: addChecked.size ? colors.teal : colors.divider, color: addChecked.size ? '#fff' : colors.faint, fontSize: 13, fontWeight: 500 }}
+            disabled={!addIsEntry && !addChecked.size}
+            style={{ padding: '9px 18px', borderRadius: 8, background: addChecked.size || addIsEntry ? colors.teal : colors.divider, color: addChecked.size || addIsEntry ? '#fff' : colors.faint, fontSize: 13, fontWeight: 500 }}
           >
-            {addChecked.size} hinzufügen
+            {addIsEntry && !addChecked.size ? 'Weiter' : `${addChecked.size} hinzufügen`}
           </button>
-          <button onClick={cancelRoster} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13 }}>
+          <button onClick={addIsEntry ? onCancel : cancelRoster} style={{ padding: '9px 18px', borderRadius: 8, border: `1px solid ${colors.borderStrong}`, fontSize: 13 }}>
             Abbrechen
           </button>
           {manageStudentsButton}

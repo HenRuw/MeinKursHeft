@@ -17,16 +17,12 @@ function props(overrides = {}) {
   };
 }
 
-// The empty-state hint lives in the add-students step, reached from the view
-// step via "+ Schüler hinzufügen".
-function openAddStep() {
-  fireEvent.click(screen.getByText('+ Schüler hinzufügen'));
-}
+// The empty-state hint lives in the add-students step, which is exactly where
+// create mode opens, so no navigation is needed to reach it.
 
 describe('KursEditor empty-system hint', () => {
   it('hints at the Schülerverwaltung when no students exist at all (create mode)', () => {
     render(<KursEditor {...props()} />);
-    openAddStep();
     expect(screen.getByText(/Noch keine Schüler:innen im System/)).toBeInTheDocument();
     // and it is not the misleading "already in the course" message
     expect(screen.queryByText(/bereits im Kurs/)).toBeNull();
@@ -35,7 +31,6 @@ describe('KursEditor empty-system hint', () => {
   it('the hint links to the Schülerverwaltung', () => {
     const onManageStudents = vi.fn();
     render(<KursEditor {...props({ onManageStudents })} />);
-    openAddStep();
     fireEvent.click(screen.getByText('Schüler:innen anlegen'));
     expect(onManageStudents).toHaveBeenCalledTimes(1);
   });
@@ -49,7 +44,6 @@ describe('KursEditor empty-system hint', () => {
         })}
       />
     );
-    openAddStep();
     expect(screen.getByText(/Alle Schüler:innen sind bereits im Kurs/)).toBeInTheDocument();
     expect(screen.queryByText(/Noch keine Schüler:innen im System/)).toBeNull();
   });

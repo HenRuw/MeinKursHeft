@@ -16,7 +16,9 @@ function renderCreate(onSubmit) {
       onManageStudents={null}
     />
   );
-  // A brand-new course opens on the view step, so "Anlegen" is already shown.
+  // A brand-new course opens on the add-students step; step forward (nobody
+  // selected -> "Weiter") to the view step, where "Anlegen" lives.
+  fireEvent.click(screen.getByText('Weiter'));
 }
 
 describe('KursEditor name validation on "Anlegen"', () => {

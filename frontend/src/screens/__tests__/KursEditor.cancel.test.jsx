@@ -21,17 +21,21 @@ describe('KursEditor Abbrechen', () => {
   it('cancels the whole editor from the initial create screen', () => {
     const onCancel = vi.fn();
     render(<KursEditor {...props({ onCancel })} />);
-    // A new course opens on the view step -> Anlegen is visible right away.
-    expect(screen.getByText('Anlegen')).toBeInTheDocument();
+    // A new course opens straight on the add-students step ("Weiter" carries on
+    // to the view step); its Abbrechen closes the whole editor.
+    expect(screen.getByText('Weiter')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Abbrechen'));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('returns to the view step (not cancel) when leaving the add-students step', () => {
+  it('returns to the view step (not cancel) when leaving a later add-students step', () => {
     const onCancel = vi.fn();
     render(<KursEditor {...props({ onCancel })} />);
+    // Step forward to the view step (nobody selected -> "Weiter"); "Anlegen" lives there.
+    fireEvent.click(screen.getByText('Weiter'));
+    expect(screen.getByText('Anlegen')).toBeInTheDocument();
+    // Re-open the add step from the view; now its Abbrechen only steps back.
     fireEvent.click(screen.getByText('+ Schüler hinzufügen'));
-    // Now in add mode; its Abbrechen goes back to view.
     fireEvent.click(screen.getByText('Abbrechen'));
     expect(onCancel).not.toHaveBeenCalled();
     expect(screen.getByText('Anlegen')).toBeInTheDocument();
