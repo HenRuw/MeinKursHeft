@@ -1128,12 +1128,18 @@ function createSchoolYear({ label, copyQuartersFromYearId } = {}) {
   const sortOrder = (max && max.m != null ? max.m : -1) + 1;
   run('INSERT INTO school_years (label, sort_order, archived) VALUES (?, ?, 0)', [label, sortOrder]);
   const id = lastId();
+  // A new year only inherits a quarter calendar when explicitly copying from
+  // another year (and that source has the full four). Otherwise it starts with
+  // no quarters — the Notenübersicht then guides the user to set them up. This
+  // keeps rollover years empty ("übernehme nie Quartalsdaten") without touching
+  // the migrated start year, which seeds its own calendar elsewhere.
   const src = copyQuartersFromYearId ? getYearQuarters(copyQuartersFromYearId) : [];
-  const ranges = src.length === 4 ? src.map((q) => [q.start_date, q.end_date]) : DEFAULT_QUARTER_RANGES;
-  ranges.forEach(([s, e], i) => run(
-    'INSERT OR IGNORE INTO year_quarters (year_id, idx, start_date, end_date) VALUES (?, ?, ?, ?)',
-    [id, i + 1, s, e]
-  ));
+  if (src.length === 4) {
+    src.forEach((q, i) => run(
+      'INSERT OR IGNORE INTO year_quarters (year_id, idx, start_date, end_date) VALUES (?, ?, ?, ?)',
+      [id, i + 1, q.start_date, q.end_date]
+    ));
+  }
   persist();
   return getSchoolYear(id);
 }

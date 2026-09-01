@@ -123,12 +123,12 @@ function schoolYearsRouter(db, notify) {
   // Creates the target year, advances the listed classes (same identities under
   // new names) and copies the listed courses (name + roster snapshot).
   router.post('/years/advance', (req, res) => {
-    const { toLabel, fromYearId, classes = [], courses, courseIds = [], copyQuarters = true } = req.body || {};
+    const { toLabel, fromYearId, classes = [], courses, courseIds = [] } = req.body || {};
     if (!toLabel || !toLabel.trim()) return res.status(400).json({ error: 'toLabel is required' });
-    const toYear = db.createSchoolYear({
-      label: toLabel.trim(),
-      copyQuartersFromYearId: copyQuarters ? fromYearId : undefined,
-    });
+    // A new year never inherits the old year's quarter calendar: it starts
+    // with no quarters, so the Notenübersicht guides the user to set them up
+    // first (see the QuartalEditor hint).
+    const toYear = db.createSchoolYear({ label: toLabel.trim() });
     for (const c of classes) {
       if (c && c.fromClassId && c.newName && c.newName.trim()) {
         db.carryClassToYear({ fromClassId: Number(c.fromClassId), toYearId: toYear.id, newName: c.newName.trim() });

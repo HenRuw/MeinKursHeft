@@ -24,7 +24,7 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
   const [error, setError] = useState('');
 
   // rollover wizard
-  const [wizard, setWizard] = useState(null); // { label, copyQuarters, classRows, courseRows, busy }
+  const [wizard, setWizard] = useState(null); // { label, classRows, courseRows, busy }
 
   const sortedYears = [...years].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
   const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name, 'de'));
@@ -68,7 +68,6 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
     const courses = await api.listCourses(currentYearId);
     setWizard({
       label: currentYear ? advanceYearLabel(currentYear.label) : '',
-      copyQuarters: true,
       classRows: sortedClasses.map((c) => ({ fromClassId: c.id, from: c.name, name: advanceClassName(c.name), take: true })),
       // Courses carry over under an editable name too; unlike classes there is
       // no number to bump, so the new name simply defaults to the current one.
@@ -93,7 +92,6 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
       const year = await api.advanceYear({
         toLabel: wizard.label.trim(),
         fromYearId: currentYearId,
-        copyQuarters: wizard.copyQuarters,
         classes: wizard.classRows.filter((r) => r.take && r.name.trim()).map((r) => ({ fromClassId: r.fromClassId, newName: r.name.trim() })),
         courses: wizard.courseRows.filter((r) => r.take && r.name.trim()).map((r) => ({ courseId: r.courseId, newName: r.name.trim() })),
       });
@@ -190,7 +188,7 @@ export default function Schuljahre({ years, currentYearId, classes, onRefreshYea
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, padding: 22, width: 'min(680px, 100%)', marginTop: 20 }}>
             <div style={{ font: `500 20px/1.1 ${fonts.serif}`, marginBottom: 4 }}>Neues Schuljahr anlegen</div>
             <div style={{ fontSize: 12.5, color: colors.mutedStrong, marginBottom: 16 }}>
-              Aus {currentYear?.label}. Klassen steigen mit denselben Schüler:innen auf; Kurse werden mit Namen und Teilnehmerliste kopiert (Gewichtungen starten neu).
+              Aus {currentYear?.label}. Klassen steigen mit denselben Schüler:innen auf; Kurse werden mit Namen und Teilnehmerliste kopiert (Gewichtungen starten neu). Die Quartale werden nicht übernommen und im neuen Jahr über die Notenübersicht neu angelegt.
             </div>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
