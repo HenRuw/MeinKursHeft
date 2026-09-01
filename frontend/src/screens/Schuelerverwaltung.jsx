@@ -48,6 +48,7 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [klasseName, setKlasseName] = useState('');
+  const [addError, setAddError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editFirst, setEditFirst] = useState('');
   const [editLast, setEditLast] = useState('');
@@ -102,10 +103,16 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
 
   const addStudent = async () => {
     if (!firstName.trim() || !lastName.trim()) return;
+    // Same rule as the import: a name already in this year is not added again.
+    if (existingNameKeys.has(nameKey(firstName, lastName))) {
+      setAddError('ist bereits eingefügt');
+      return;
+    }
     await api.createStudent({ firstName: firstName.trim(), lastName: lastName.trim(), yearId, className: klasseName });
     setFirstName('');
     setLastName('');
     setKlasseName('');
+    setAddError('');
     onRefreshAllStudents();
     onRefreshKlassen();
   };
@@ -203,14 +210,17 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
         </div>
 
         {!archived && (
-          <form onSubmit={(e) => { e.preventDefault(); addStudent(); }} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, marginBottom: 10 }}>
-            <input placeholder="Vorname" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={inputStyle} />
-            <input placeholder="Nachname" value={lastName} onChange={(e) => setLastName(e.target.value)} style={inputStyle} />
-            <input list="klassen-list" placeholder="Klasse (optional)" value={klasseName} onChange={(e) => setKlasseName(e.target.value)} style={inputStyle} />
-            <button type="submit" style={{ padding: '8px 15px', borderRadius: 7, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
-              Hinzufügen
-            </button>
-          </form>
+          <div style={{ marginBottom: 10 }}>
+            <form onSubmit={(e) => { e.preventDefault(); addStudent(); }} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
+              <input placeholder="Vorname" value={firstName} onChange={(e) => { setFirstName(e.target.value); setAddError(''); }} style={inputStyle} />
+              <input placeholder="Nachname" value={lastName} onChange={(e) => { setLastName(e.target.value); setAddError(''); }} style={inputStyle} />
+              <input list="klassen-list" placeholder="Klasse (optional)" value={klasseName} onChange={(e) => setKlasseName(e.target.value)} style={inputStyle} />
+              <button type="submit" style={{ padding: '8px 15px', borderRadius: 7, background: colors.teal, color: '#fff', fontSize: 12.5, fontWeight: 500 }}>
+                Hinzufügen
+              </button>
+            </form>
+            {addError && <div style={{ fontSize: 12, color: colors.red, marginTop: 6, fontStyle: 'italic' }}>{addError}</div>}
+          </div>
         )}
         <datalist id="klassen-list">
           {sortedKlassen.map((k) => (
