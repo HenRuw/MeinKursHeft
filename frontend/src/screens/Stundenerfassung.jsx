@@ -685,7 +685,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '20px 168px 1fr',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     gap: 14,
                     padding: '9px 24px 9px 12px',
                     borderBottom: `1px solid ${colors.divider}`,
@@ -707,16 +707,17 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       late/absent rows the wheel/excused options open to the
                       right of the buttons, pushing Bemerkung along; otherwise
                       Bemerkung is flush behind the buttons. */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: ROW_GAP, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: ROW_GAP, minWidth: 0 }}>
                     {/* display:block (not flex) so the block-level SplitKeys
                         fills the full NOTE_W; as a flex child it would only take
                         its content width and leave the grade boxes narrow. */}
                     <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ width: NOTE_W, flex: 'none', display: 'block' }}>
                       <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} stackedNb />
                     </span>
-                    {/* Attendance: the three options stacked vertically and
-                        left-aligned within their column. */}
-                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, flex: 'none', width: ATT_W }}>
+                    {/* Attendance: three bare emoji (no box) stacked over the
+                        full height of the note input (alignSelf:stretch +
+                        space-between), the unselected ones dimmed to grayscale. */}
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'space-between', alignSelf: 'stretch', flex: 'none', width: ATT_W }}>
                       {ATTENDANCE_OPTIONS.map(([key, icon, title, color]) => {
                         // "Verspätet" is a sub-state of "Anwesend" (you were there,
                         // just late), so Anwesend stays highlighted alongside it.
@@ -726,8 +727,8 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                           else setStatus(s.id, key);
                         };
                         return (
-                          <button key={key} title={title} onClick={onClick} style={{ width: 34, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontSize: 14, lineHeight: 1, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? `${color}1f` : '#fff' }}>
-                            <span style={{ filter: on ? 'none' : 'grayscale(1)', opacity: on ? 1 : 0.4 }}>{icon}</span>
+                          <button key={key} title={title} onClick={onClick} style={{ border: 'none', background: 'transparent', padding: '0 6px', fontSize: 19, lineHeight: 1, cursor: 'pointer', filter: on ? 'none' : 'grayscale(1)', opacity: on ? 1 : 0.35 }}>
+                            {icon}
                           </button>
                         );
                       })}
