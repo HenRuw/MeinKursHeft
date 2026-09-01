@@ -13,17 +13,20 @@ import ScrollWheel from '../components/ScrollWheel.jsx';
 import LockButton from '../components/LockButton.jsx';
 import { useConfirm } from '../components/useConfirm.jsx';
 
+// Icons instead of letters: green check (present), clock (late), red X (absent).
+// The emoji carry their own colour, so selection is shown by the tinted
+// background/border and un-selected ones are dimmed to grayscale.
 const ATTENDANCE_OPTIONS = [
-  ['anwesend', 'A', 'Anwesend', colors.green],
-  ['verspaetet', 'V', 'Verspätet', '#d8a02a'],
-  ['fehlt', 'F', 'Fehlt', colors.red],
+  ['anwesend', '✅', 'Anwesend', colors.green],
+  ['verspaetet', '🕐', 'Verspätet', '#d8a02a'],
+  ['fehlt', '❌', 'Fehlt', colors.red],
 ];
 
 // Roster row geometry: the note keeps its original width, the A/V/F buttons
 // sit flush behind it, and Bemerkung follows — shared by the header and rows
 // so the labels line up with their columns.
 const NOTE_W = 380;
-const ATT_W = 118;
+const ATT_W = 88;
 const ROW_GAP = 12;
 
 // Unit tile geometry — one source of truth for the tiles and for the
@@ -683,9 +686,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '20px 168px 1fr',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     gap: 14,
-                    padding: '7px 24px 7px 12px',
+                    padding: '9px 24px 9px 12px',
                     borderBottom: `1px solid ${colors.divider}`,
                     borderLeft: `4px solid ${highlighted ? colors.highlight : 'transparent'}`,
                     background: rowBg,
@@ -705,15 +708,17 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       late/absent rows the wheel/excused options open to the
                       right of the buttons, pushing Bemerkung along; otherwise
                       Bemerkung is flush behind the buttons. */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: ROW_GAP, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: ROW_GAP, minWidth: 0 }}>
                     {/* display:block (not flex) so the block-level SplitKeys
                         fills the full NOTE_W; as a flex child it would only take
                         its content width and leave the grade boxes narrow. */}
                     <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ width: NOTE_W, flex: 'none', display: 'block' }}>
                       <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} stackedNb />
                     </span>
-                    <span style={{ display: 'flex', gap: 3, flex: 'none', width: ATT_W }}>
-                      {ATTENDANCE_OPTIONS.map(([key, letter, title, color]) => {
+                    {/* Attendance: the three options stacked vertically and
+                        left-aligned within their column. */}
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, flex: 'none', width: ATT_W }}>
+                      {ATTENDANCE_OPTIONS.map(([key, icon, title, color]) => {
                         // "Verspätet" is a sub-state of "Anwesend" (you were there,
                         // just late), so Anwesend stays highlighted alongside it.
                         const on = status === key || (key === 'anwesend' && status === 'verspaetet');
@@ -722,19 +727,19 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                           else setStatus(s.id, key);
                         };
                         return (
-                          <button key={key} title={title} onClick={onClick} style={{ flex: 1, padding: '5px 0', borderRadius: 6, font: `600 11px ${fonts.mono}`, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? color : '#fff', color: on ? '#fff' : '#9a958b' }}>
-                            {letter}
+                          <button key={key} title={title} onClick={onClick} style={{ width: 34, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontSize: 14, lineHeight: 1, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? `${color}1f` : '#fff' }}>
+                            <span style={{ filter: on ? 'none' : 'grayscale(1)', opacity: on ? 1 : 0.4 }}>{icon}</span>
                           </button>
                         );
                       })}
                     </span>
                     {status === 'verspaetet' && (
-                      <span style={{ display: 'flex', alignItems: 'center', flex: 'none' }}>
+                      <span style={{ display: 'flex', alignItems: 'flex-start', flex: 'none' }}>
                         <ScrollWheel value={att?.late_minutes ?? 5} onChange={(v) => setLateMinutes(s.id, v)} />
                       </span>
                     )}
                     {status === 'fehlt' && (
-                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 'none' }}>
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, flex: 'none' }}>
                         <span style={{ font: `500 8.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.04em', textTransform: 'uppercase' }}>entschuldigt</span>
                         <button
                           onClick={() => setExcused(s.id, !att?.excused)}
