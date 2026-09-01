@@ -4,14 +4,14 @@ import userEvent from '@testing-library/user-event';
 import LockButton from '../LockButton.jsx';
 
 describe('LockButton', () => {
-  test('defaults to the open shackle when no locked prop is given', () => {
+  test('defaults to the open padlock when no locked prop is given', () => {
     const { container } = render(<LockButton onClick={() => {}} />);
-    expect(container.querySelector('svg')).toHaveAttribute('data-state', 'open');
+    expect(container.querySelector('[data-state]')).toHaveAttribute('data-state', 'open');
   });
 
-  test('shows the closed shackle when locked', () => {
+  test('shows the closed padlock when locked', () => {
     const { container } = render(<LockButton locked onClick={() => {}} />);
-    expect(container.querySelector('svg')).toHaveAttribute('data-state', 'closed');
+    expect(container.querySelector('[data-state]')).toHaveAttribute('data-state', 'closed');
   });
 
   test('is always clickable and fires onClick (open state)', async () => {
