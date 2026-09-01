@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Snapshot the live SQLite databases before any deploy / backend restart / migration.
-# A meinKursHeft DB is a single self-contained file, so a copy is a complete backup.
+# A MeinKursHeft DB is a single self-contained file, so a copy is a complete backup.
 # Each account has its own database (meinkursheft.sqlite = account 1, meinkursheft.user2.sqlite
 # = account 2); every one that exists is backed up. Keeps the most recent snapshots per
 # database and prunes older auto-backups so the dir stays small.

@@ -15,7 +15,7 @@ function backupRouter(db, notify) {
     // Accept the current name and the previous "scorespace" one, so backups
     // exported before the rename still restore.
     if (!payload || (payload.app !== 'meinkursheft' && payload.app !== 'scorespace') || !payload.tables) {
-      return res.status(400).json({ error: 'Keine gültige meinKursHeft-Backupdatei.' });
+      return res.status(400).json({ error: 'Keine gültige MeinKursHeft-Backupdatei.' });
     }
     try {
       db.importAll(payload);

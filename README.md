@@ -1,4 +1,4 @@
-# meinKursHeft - Technisches Geruest (Proof of Concept)
+# MeinKursHeft - Technisches Geruest (Proof of Concept)
 
 Notenplattform fuer Lehrer (muendliche und schriftliche Noten). Dieses Geruest
 zeigt nur das Zusammenspiel von Frontend, Backend und Datenbank inklusive

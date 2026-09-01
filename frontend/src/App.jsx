@@ -335,7 +335,7 @@ export default function App({ onLogout }) {
             ☰
           </button>
           <div>
-            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>meinKursHeft</div>
+            <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>MeinKursHeft</div>
             <div style={{ font: `400 11px ${fonts.mono}`, color: '#7f918c', marginTop: 6, letterSpacing: '.06em' }}>
               SCHULJAHR 2026/27
             </div>
@@ -503,13 +503,13 @@ export default function App({ onLogout }) {
                 ☰
               </button>
             )}
-            {/* On desktop the sidebar already shows the meinKursHeft title, so the
+            {/* On desktop the sidebar already shows the MeinKursHeft title, so the
                 top bar carries none (no duplicate on the white strip). On
                 mobile, where the sidebar is an off-canvas drawer, it shows the
                 current course name (or the app title before a course loads). */}
             {!isDesktop && (
               <span style={{ font: `500 15px/1.1 ${fonts.serif}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {bundle ? bundle.course.name : 'meinKursHeft'}
+                {bundle ? bundle.course.name : 'MeinKursHeft'}
               </span>
             )}
           </div>

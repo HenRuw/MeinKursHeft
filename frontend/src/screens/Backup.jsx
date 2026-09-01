@@ -58,7 +58,7 @@ export default function Backup() {
     try {
       const data = JSON.parse(await file.text());
       if (!data || (data.app !== 'meinkursheft' && data.app !== 'scorespace') || !data.tables) {
-        setError('Keine gültige meinKursHeft-Backupdatei.');
+        setError('Keine gültige MeinKursHeft-Backupdatei.');
         return;
       }
       setPending({ data, name: file.name });
