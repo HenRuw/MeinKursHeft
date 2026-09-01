@@ -26,7 +26,9 @@ const ATTENDANCE_OPTIONS = [
 // sit flush behind it, and Bemerkung follows — shared by the header and rows
 // so the labels line up with their columns.
 const NOTE_W = 380;
-const ATT_W = 88;
+// Just wide enough for one emoji, so Bemerkung sits right next to the
+// attendance column (and only moves away when the late/absent options open).
+const ATT_W = 34;
 const ROW_GAP = 12;
 
 // Unit tile geometry — one source of truth for the tiles and for the
@@ -661,7 +663,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                 </span>
                 {setLocked && <span style={{ color: colors.gold, letterSpacing: 0 }}>GESPERRT</span>}
               </span>
-              <span style={{ width: ATT_W, flex: 'none' }}>ANWESENHEIT</span>
+              <span style={{ flex: 'none', whiteSpace: 'nowrap' }}>ANWESENHEIT</span>
             </span>
           </div>
           {students.map((s, i) => {
@@ -727,7 +729,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                           else setStatus(s.id, key);
                         };
                         return (
-                          <button key={key} title={title} onClick={onClick} style={{ border: 'none', background: 'transparent', padding: '0 6px', fontSize: 19, lineHeight: 1, cursor: 'pointer', filter: on ? 'none' : 'grayscale(1)', opacity: on ? 1 : 0.35 }}>
+                          <button key={key} title={title} onClick={onClick} style={{ border: 'none', background: 'transparent', padding: '0 6px', fontSize: 19, lineHeight: 1, cursor: 'pointer', filter: on ? 'none' : 'grayscale(1)', opacity: on ? 1 : 0.7 }}>
                             {icon}
                           </button>
                         );
