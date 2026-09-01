@@ -1,9 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { AsyncLocalStorage } = require('async_hooks');
 const initSqlJs = require('sql.js');
 
 const DEFAULT_DB_PATH = path.join(__dirname, '..', 'data', 'scorespace.sqlite');
+
+// The primary account keeps the original, suffix-less database filename so
+// existing setups, scripts and backups are unaffected. Additional accounts get
+// their own on-disk database whose data is completely independent — see
+// deriveAccountPath below.
+const DEFAULT_ACCOUNT_ID = '1';
 
 // Feature branches get their own on-disk database, so schema experiments on
 // one branch (e.g. an ALTER TABLE that isn't a clean no-op on `main`) can
@@ -25,6 +32,26 @@ function defaultDbPathForBranch() {
   return path.join(__dirname, '..', 'data', `scorespace.${slug}.sqlite`);
 }
 
+// Turns the primary account's database path into a per-account one by inserting
+// a `.user<id>` marker right after the leading `scorespace` token, so account 2
+// lives in its own file next to account 1's:
+//   data/scorespace.sqlite        -> data/scorespace.user2.sqlite
+//   data/scorespace.<branch>.sqlite -> data/scorespace.user2.<branch>.sqlite
+// The primary account (id '1') is returned unchanged, so its file, all scripts
+// and every existing backup keep working exactly as before. Deriving from the
+// resolved base path (rather than recomputing) means a DB_PATH override for
+// testing keeps the second account's file right alongside the first.
+function deriveAccountPath(basePath, accountId) {
+  if (accountId === DEFAULT_ACCOUNT_ID) return basePath;
+  if (basePath === ':memory:') return ':memory:';
+  const dir = path.dirname(basePath);
+  const base = path.basename(basePath);
+  const dot = base.indexOf('.');
+  const head = dot < 0 ? base : base.slice(0, dot);
+  const tail = dot < 0 ? '' : base.slice(dot);
+  return path.join(dir, `${head}.user${accountId}${tail}`);
+}
+
 const DEFAULT_PRESETS = [
   { emoji: '🗣️', text: 'Stört den Unterricht' },
   { emoji: '📕', text: 'Material vergessen' },
@@ -39,8 +66,28 @@ const DEFAULT_QUARTER_RANGES = [
 ];
 
 let SQL = null;
-let db = null;
-let dbPath = null;
+
+// One open database per account, keyed by account id: { db, dbPath }. Every
+// data function below reaches its database through requireDb()/persist(), which
+// resolve the *current* account from the async-local context set per request
+// (see runWithAccount + the account middleware in server.js). Outside any
+// request — direct db.* calls in scripts and tests — the context is empty and
+// the primary account ('1') is used, so all existing call sites behave exactly
+// as before.
+const accounts = new Map();
+const accountContext = new AsyncLocalStorage();
+
+function currentAccountId() {
+  const store = accountContext.getStore();
+  return (store && store.accountId) || DEFAULT_ACCOUNT_ID;
+}
+
+// Runs fn with the given account as the active one. `next()` (and the whole
+// synchronous request handler chain, including notify) therefore sees the right
+// database. Falls back to the primary account for a missing/blank id.
+function runWithAccount(accountId, fn) {
+  return accountContext.run({ accountId: accountId || DEFAULT_ACCOUNT_ID }, fn);
+}
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS klassen (
@@ -189,22 +236,17 @@ CREATE TABLE IF NOT EXISTS app_meta (
 );
 `;
 
-async function init(customPath) {
-  if (!SQL) {
-    SQL = await initSqlJs();
-  }
-
-  dbPath = customPath || process.env.DB_PATH || defaultDbPathForBranch();
-
-  if (dbPath !== ':memory:' && fs.existsSync(dbPath)) {
-    const fileBuffer = fs.readFileSync(dbPath);
-    db = new SQL.Database(fileBuffer);
-  } else {
-    db = new SQL.Database();
-  }
-
-  db.run('PRAGMA foreign_keys = ON');
-  db.run(SCHEMA);
+// Creates the schema and runs the idempotent migrations/seed on the *current*
+// account's database. Every statement is guarded (CREATE TABLE IF NOT EXISTS,
+// column-existence checks, app_meta flags), so running this against an already
+// up-to-date database — e.g. the live account-1 file on every startup — is a
+// harmless no-op that never rewrites or drops existing data.
+function applySchema() {
+  // Pass no params here so sql.js takes the multi-statement exec path; calling
+  // run(sql, []) would use prepare(), which only executes the first statement.
+  const database = requireDb();
+  database.run('PRAGMA foreign_keys = ON');
+  database.run(SCHEMA);
 
   // `students` may already exist from before klasse_id was introduced —
   // CREATE TABLE IF NOT EXISTS above is a no-op for it, so add the column
@@ -252,22 +294,67 @@ async function init(customPath) {
   if (!all('SELECT id FROM remark_presets').length) {
     DEFAULT_PRESETS.forEach((p) => run('INSERT INTO remark_presets (emoji, text) VALUES (?, ?)', [p.emoji, p.text]));
   }
-
-  persist();
-  return db;
 }
 
+// Opens (or creates) the database for one account and runs the schema/migrations
+// within that account's context, so a brand-new account starts with a fully
+// migrated, seeded, but otherwise empty database. Re-initialising an account
+// closes its previous handle first, so repeated calls (e.g. per test) don't leak.
+async function initAccount(accountId, basePath) {
+  if (!SQL) {
+    SQL = await initSqlJs();
+  }
+  const id = accountId || DEFAULT_ACCOUNT_ID;
+  const base = basePath || process.env.DB_PATH || defaultDbPathForBranch();
+  const dbPath = deriveAccountPath(base, id);
+
+  const existing = accounts.get(id);
+  if (existing) {
+    try { existing.db.close(); } catch { /* ignore */ }
+  }
+
+  let database;
+  if (dbPath !== ':memory:' && fs.existsSync(dbPath)) {
+    database = new SQL.Database(fs.readFileSync(dbPath));
+  } else {
+    database = new SQL.Database();
+  }
+  accounts.set(id, { db: database, dbPath });
+
+  // Schema/migrations/persist must see this account as the active one.
+  runWithAccount(id, () => {
+    applySchema();
+    persist();
+  });
+  return database;
+}
+
+// Back-compat entry point: initialises the primary account. Existing callers
+// (scripts, tests) keep the exact same signature and behaviour.
+async function init(customPath) {
+  return initAccount(DEFAULT_ACCOUNT_ID, customPath);
+}
+
+// Atomic on-disk write: export to a temp file, then rename over the target.
+// rename(2) on the same filesystem is atomic, so a crash or power loss mid-write
+// can never leave a truncated/corrupt database — the old file survives intact
+// until the complete new one replaces it in a single step.
 function persist() {
-  if (!db || dbPath === ':memory:') return;
-  const dir = path.dirname(dbPath);
+  const entry = accounts.get(currentAccountId());
+  if (!entry || entry.dbPath === ':memory:') return;
+  const dir = path.dirname(entry.dbPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const data = db.export();
-  fs.writeFileSync(dbPath, Buffer.from(data));
+  const data = entry.db.export();
+  const tmp = `${entry.dbPath}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, Buffer.from(data));
+  fs.renameSync(tmp, entry.dbPath);
 }
 
 function requireDb() {
-  if (!db) throw new Error('Database not initialized. Call init() first.');
-  return db;
+  const id = currentAccountId();
+  const entry = accounts.get(id);
+  if (!entry) throw new Error(`Database not initialized for account "${id}". Call init()/initAccount() first.`);
+  return entry.db;
 }
 
 function run(sql, params = []) {
@@ -292,10 +379,10 @@ function lastId() {
 }
 
 function close() {
-  if (db) {
-    db.close();
-    db = null;
+  for (const entry of accounts.values()) {
+    try { entry.db.close(); } catch { /* ignore */ }
   }
+  accounts.clear();
 }
 
 // ---------- backup (full dump / restore) ----------
@@ -327,12 +414,12 @@ function importAll(payload) {
   const colsByTable = {};
   for (const t of tables) colsByTable[t] = all(`PRAGMA table_info("${t}")`).map((c) => c.name);
 
-  requireDb();
-  db.run('PRAGMA foreign_keys = OFF');
-  db.run('BEGIN');
+  const database = requireDb();
+  database.run('PRAGMA foreign_keys = OFF');
+  database.run('BEGIN');
   try {
     // Clear children before parents (reverse creation order).
-    for (const t of [...tables].reverse()) db.run(`DELETE FROM "${t}"`);
+    for (const t of [...tables].reverse()) database.run(`DELETE FROM "${t}"`);
     for (const t of tables) {
       const rows = snapshot[t];
       if (!Array.isArray(rows)) continue;
@@ -340,16 +427,16 @@ function importAll(payload) {
         const cols = Object.keys(row).filter((c) => colsByTable[t].includes(c));
         if (!cols.length) continue;
         const sql = `INSERT INTO "${t}" (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
-        db.run(sql, cols.map((c) => row[c]));
+        database.run(sql, cols.map((c) => row[c]));
       }
     }
-    db.run('COMMIT');
+    database.run('COMMIT');
   } catch (err) {
-    db.run('ROLLBACK');
-    db.run('PRAGMA foreign_keys = ON');
+    database.run('ROLLBACK');
+    database.run('PRAGMA foreign_keys = ON');
     throw err;
   }
-  db.run('PRAGMA foreign_keys = ON');
+  database.run('PRAGMA foreign_keys = ON');
   persist();
 }
 
@@ -896,6 +983,10 @@ function getCourseBundle(courseId) {
 
 module.exports = {
   init,
+  initAccount,
+  runWithAccount,
+  currentAccountId,
+  DEFAULT_ACCOUNT_ID,
   persist,
   close,
   // backup

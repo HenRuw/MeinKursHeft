@@ -56,6 +56,11 @@ function createApp(notify, authOptions) {
   // Everything below this line requires a valid session cookie.
   app.use('/api', auth.requireAuth);
 
+  // Bind the rest of the request to the authenticated account, so every db.*
+  // call in the handlers below — and the synchronous notify() they trigger —
+  // transparently hits that account's database. Handlers are untouched.
+  app.use('/api', (req, res, next) => db.runWithAccount(req.account, next));
+
   app.use('/api', studentsRouter(db, notify));
   app.use('/api', klassenRouter(db, notify));
   app.use('/api', coursesRouter(db, notify));
@@ -71,7 +76,12 @@ function createApp(notify, authOptions) {
 function createServer(authOptions) {
   let io;
   const notify = (resource, courseId) => {
-    if (io) io.emit('sync:changed', { resource, courseId: courseId ?? null });
+    if (!io) return;
+    // notify() is called synchronously inside a request handler, so it still
+    // sees that request's account context — scope the broadcast to that
+    // account's room so one user's change never reaches the other's screens.
+    const accountId = db.currentAccountId();
+    io.to(`acct:${accountId}`).emit('sync:changed', { resource, courseId: courseId ?? null });
   };
 
   const app = createApp(notify, authOptions);
@@ -83,6 +93,10 @@ function createServer(authOptions) {
   io.use(app.locals.auth.socketMiddleware);
 
   io.on('connection', (socket) => {
+    // socketMiddleware validated the cookie and stamped the account id; join
+    // that account's room so this client only receives its own sync events.
+    const accountId = socket.data.accountId || db.DEFAULT_ACCOUNT_ID;
+    socket.join(`acct:${accountId}`);
     socket.emit('sync:changed', { resource: 'init', courseId: null });
   });
 

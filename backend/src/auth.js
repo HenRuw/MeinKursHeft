@@ -13,6 +13,29 @@ const express = require('express');
 
 const COOKIE_NAME = 'scorespace_session';
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // ~1 year — "remember me"
+const DEFAULT_ACCOUNT_ID = '1';
+
+// The accounts recognised from the environment. Account 1 is the original
+// AUTH_PASSWORD_HASH; account 2 is the optional AUTH_PASSWORD_HASH_2. An account
+// only exists once its hash is present, so an install with just one password
+// keeps working unchanged, and adding the second password is exactly what turns
+// the second account on.
+function envAccounts() {
+  const list = [];
+  if (process.env.AUTH_PASSWORD_HASH) list.push({ id: '1', passwordHash: process.env.AUTH_PASSWORD_HASH });
+  if (process.env.AUTH_PASSWORD_HASH_2) list.push({ id: '2', passwordHash: process.env.AUTH_PASSWORD_HASH_2 });
+  return list;
+}
+
+// Back-compat: a single `passwordHash` option (used by the tests) maps to the
+// primary account; an explicit `accounts` array wins; otherwise read the env.
+function resolveAccounts(options) {
+  if (Array.isArray(options.accounts)) return options.accounts;
+  if (options.passwordHash !== undefined) {
+    return [{ id: DEFAULT_ACCOUNT_ID, passwordHash: options.passwordHash }];
+  }
+  return envAccounts();
+}
 
 // --- password hashing (scrypt) -------------------------------------------
 
@@ -121,14 +144,18 @@ function createLoginThrottle({ windowMs = 15 * 60 * 1000, max = 10 } = {}) {
 // accident — it fails closed.
 function createAuth(options = {}) {
   const enabled = options.enabled !== false;
-  const passwordHash = options.passwordHash ?? process.env.AUTH_PASSWORD_HASH ?? '';
+  const accounts = resolveAccounts(options);
+  const accountIds = accounts.map((a) => a.id);
   const secret = options.secret ?? process.env.AUTH_SECRET ?? '';
 
-  if (enabled && (!passwordHash || !secret)) {
+  // Fail closed: with auth on we need at least one account, every configured
+  // account must carry a hash, and the signing secret must be present — so the
+  // server can never come up half-configured or unprotected by accident.
+  if (enabled && (accounts.length === 0 || accounts.some((a) => !a.passwordHash) || !secret)) {
     throw new Error(
-      'Authentifizierung ist aktiv, aber AUTH_PASSWORD_HASH und/oder AUTH_SECRET fehlen. ' +
-        'Lege ein Passwort mit "node scripts/set-password.js <passwort>" an und trage die ' +
-        'Werte in backend/.env ein.'
+      'Authentifizierung ist aktiv, aber es fehlt mindestens ein Passwort-Hash ' +
+        '(AUTH_PASSWORD_HASH) oder AUTH_SECRET. Lege ein Passwort mit ' +
+        '"node scripts/set-password.js <passwort>" an und trage die Werte in backend/.env ein.'
     );
   }
 
@@ -144,14 +171,27 @@ function createAuth(options = {}) {
     };
   }
 
+  // Resolves the session to a valid account id, or null if there is none. A
+  // token whose account is unknown (e.g. a second account that was later
+  // removed) is treated as invalid, forcing a clean re-login. With auth
+  // disabled (tests) everything runs as the primary account.
+  function sessionAccount(req) {
+    if (!enabled) return DEFAULT_ACCOUNT_ID;
+    const payload = verifyToken(req.cookies?.[COOKIE_NAME], secret);
+    if (!payload) return null;
+    const id = payload.account || DEFAULT_ACCOUNT_ID; // legacy tokens predate the account field
+    return accountIds.includes(id) ? id : null;
+  }
+
   function isAuthenticated(req) {
-    if (!enabled) return true;
-    return !!verifyToken(req.cookies?.[COOKIE_NAME], secret);
+    return sessionAccount(req) !== null;
   }
 
   function requireAuth(req, res, next) {
-    if (isAuthenticated(req)) return next();
-    return res.status(401).json({ error: 'Nicht angemeldet.' });
+    const account = sessionAccount(req);
+    if (account === null) return res.status(401).json({ error: 'Nicht angemeldet.' });
+    req.account = account; // consumed by the account-context middleware in server.js
+    return next();
   }
 
   const router = express.Router();
@@ -169,13 +209,20 @@ function createAuth(options = {}) {
       return res.status(429).json({ error: 'Zu viele Fehlversuche. Bitte später erneut versuchen.' });
     }
     const password = req.body?.password;
-    if (!verifyPassword(password, passwordHash)) {
+    // Check every account and never short-circuit, so the response time doesn't
+    // reveal which (or whether any) password matched. The matching account's id
+    // is what determines which database this session will see.
+    let matched = null;
+    for (const acc of accounts) {
+      if (verifyPassword(password, acc.passwordHash)) matched = acc;
+    }
+    if (!matched) {
       throttle.fail(ip);
       return res.status(401).json({ error: 'Falsches Passwort.' });
     }
     throttle.reset(ip);
     const now = Date.now();
-    const token = signToken({ iat: now, exp: now + COOKIE_MAX_AGE }, secret);
+    const token = signToken({ account: matched.id, iat: now, exp: now + COOKIE_MAX_AGE }, secret);
     res.cookie(COOKIE_NAME, token, cookieOptions(req));
     res.json({ authenticated: true });
   });
@@ -193,13 +240,20 @@ function createAuth(options = {}) {
   // Socket.IO handshake guard. Reads the same cookie off the upgrade request;
   // without a valid token the connection is refused before any data flows.
   function socketMiddleware(socket, next) {
-    if (!enabled) return next();
+    if (!enabled) {
+      socket.data.accountId = DEFAULT_ACCOUNT_ID;
+      return next();
+    }
     const cookies = parseCookieHeader(socket.handshake.headers.cookie);
-    if (verifyToken(cookies[COOKIE_NAME], secret)) return next();
-    next(new Error('unauthorized'));
+    const payload = verifyToken(cookies[COOKIE_NAME], secret);
+    if (!payload) return next(new Error('unauthorized'));
+    const id = payload.account || DEFAULT_ACCOUNT_ID;
+    if (!accountIds.includes(id)) return next(new Error('unauthorized'));
+    socket.data.accountId = id; // used to join this connection to its account's sync room
+    return next();
   }
 
-  return { enabled, requireAuth, router, socketMiddleware };
+  return { enabled, requireAuth, router, socketMiddleware, accountIds };
 }
 
-module.exports = { createAuth, verifyPassword, signToken, verifyToken, COOKIE_NAME };
+module.exports = { createAuth, verifyPassword, signToken, verifyToken, envAccounts, COOKIE_NAME };
