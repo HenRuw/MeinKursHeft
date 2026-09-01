@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { colors, fonts } from '../theme.js';
 import { num, fmt, isNb, gradeColor, gradeLabel, studentDisplayName, studentKlasseLabel, calcAverages, WRITTEN_WORK_KINDS, writtenWorkKindLabel } from '../lib/gradeMath.js';
-import { formatShortDate, currentQuarter } from '../lib/dates.js';
+import { formatShortDate } from '../lib/dates.js';
 import { usePersisted } from '../lib/usePersisted.js';
 import { useViewport } from '../lib/useViewport.js';
 import GradeLineChart from '../components/GradeLineChart.jsx';
@@ -9,31 +9,33 @@ import CollapseArrow from '../components/CollapseArrow.jsx';
 import Notenuebersicht from './Notenuebersicht.jsx';
 
 // One place that turns a resolved average ({ value, overridden, grade }) into
-// the text + color both the Kennzahlen strip and the grade overview show, so
-// "–" for empty, "n.b." for a Nicht-bewertbar override and the gradeColor
-// gradient can never diverge between the two.
+// the text + color the stat band and the grade grid both show, so "–" for
+// empty, "n.b." for a Nicht-bewertbar override and the gradeColor gradient can
+// never diverge between the two.
 function avgDisplay(a) {
   if (!a || a.value == null) return { text: a && isNb(a.grade) ? 'n.b.' : '–', color: colors.faint, overridden: a?.overridden };
   return { text: fmt(a.value), color: gradeColor(a.value), overridden: a.overridden };
 }
 
-// A single headline number: label on top, big serif value (color-coded for
-// grades via valueColor), quiet note below. Reused for the whole Kennzahlen
-// strip — grade averages and attendance counts alike.
-function Kpi({ label, value, note, valueColor, strong }) {
+// One figure in the summary band under the name. The band is a single row of
+// these separated by hairline rules rather than a grid of free-floating tiles,
+// so the headline numbers read as one connected summary. `divider` draws the
+// rule on its left edge ('strong' marks the jump from grades to attendance).
+function Stat({ label, value, note, valueColor, divider }) {
+  const borderLeft = divider === 'strong' ? `1px solid ${colors.borderStrong}` : divider === 'light' ? `1px solid ${colors.divider}` : 'none';
   return (
-    <div style={{ background: strong ? colors.sidebarBg : '#fff', border: `1px solid ${strong ? colors.sidebarBg : colors.borderCard}`, borderRadius: 11, padding: '11px 14px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-      <span style={{ font: `500 9.5px ${fonts.mono}`, color: strong ? '#9fb0ab' : colors.muted, letterSpacing: '.09em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-      <span style={{ font: `500 25px/1 ${fonts.serif}`, color: valueColor || (strong ? '#fff' : colors.ink) }}>{value}</span>
-      <span style={{ fontSize: 11, color: strong ? '#9fb0ab' : colors.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>
+    <div style={{ flex: '1 1 0', minWidth: 108, padding: '13px 18px', borderLeft, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ font: `500 26px/1 ${fonts.serif}`, color: valueColor || colors.ink }}>{value}</span>
+      {note ? <span style={{ fontSize: 11, color: colors.faint, whiteSpace: 'nowrap' }}>{note}</span> : <span style={{ fontSize: 11, height: 11 }} />}
     </div>
   );
 }
 
-// Shared shell for every block below the header: a titled card whose whole
-// header row toggles between showing and hiding its body, so a long student
-// page can be collapsed down to just the headings that matter right now —
-// same idea as the frame-collapse arrows in the Notenübersicht.
+// Shared shell for every block below the band: a titled card whose whole header
+// row toggles between showing and hiding its body, so a long student page can
+// be collapsed down to just the headings that matter right now — same idea as
+// the frame-collapse arrows in the Notenübersicht.
 function CollapsibleSection({ title, collapsed, onToggle, headerExtra, children }) {
   return (
     // flexShrink: 0 matters here — this sits in Schueleransicht's flex-column
@@ -55,10 +57,21 @@ function CollapsibleSection({ title, collapsed, onToggle, headerExtra, children 
   );
 }
 
-// One cell of the compact per-student grade overview: a tinted box with the
-// grade value centered, colored by gradeColor and marked with ✎ when the
-// value is a manual override — the same visual vocabulary as the matrix's
-// average cells, just laid out for a single student instead of a whole class.
+// A quiet in-card sub-heading with a divider above it, used to stack two
+// related blocks inside one card (chart + list) without splitting them into
+// two separate floating cards.
+function SubHeader({ children }) {
+  return (
+    <div style={{ borderTop: `1px solid ${colors.divider}`, padding: '13px 18px 2px', font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
+      {children}
+    </div>
+  );
+}
+
+// One cell of the per-quarter grade grid: a tinted box with the grade value
+// centered, colored by gradeColor and marked with ✎ when the value is a manual
+// override — the same visual vocabulary as the matrix's average cells, just
+// laid out for a single student instead of a whole class.
 function GradeCell({ a, bg, strong }) {
   const { text, color, overridden } = avgDisplay(a);
   return (
@@ -68,6 +81,19 @@ function GradeCell({ a, bg, strong }) {
         {overridden && <span title="Manuell eingetragen – nicht berechnet" style={{ marginLeft: 3, fontSize: 8, verticalAlign: 'super' }}>✎</span>}
       </span>
     </div>
+  );
+}
+
+// Pill toggle used by both the Mitarbeit (quarters) and Schriftlich (kind)
+// chart filters, so the two rows of controls look and behave identically.
+function FilterPill({ on, onClick, accent, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ padding: '5px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, border: `1px solid ${on ? accent : colors.borderStrong}`, background: on ? accent : '#fff', color: on ? '#fff' : colors.mutedStrong }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -81,10 +107,11 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
 
   const [selectedQuarterIds, setSelectedQuarterIds] = useState(() => quarters.map((q) => q.id));
   const [examKind, setExamKind] = useState('klassenarbeit');
-  const [collapsed, setCollapsed] = usePersisted(`schueleransicht:${studentId}:collapsed`, {
+  const [collapsed, setCollapsed] = usePersisted(`schueleransicht:${studentId}:collapsed:v2`, {
     grades: false,
-    lessonsChart: false,
-    examsChart: false,
+    mitarbeit: false,
+    schriftlich: false,
+    attendance: false,
     detail: true, // the full class-style matrix stays folded away by default
   });
 
@@ -98,12 +125,12 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
 
   // Every roll-up (Ø Mit / Ø Schr / Q-Note per quarter, HJ-Note per half,
   // Zeugnis) comes from the ONE shared calculator the course-wide
-  // Notenübersicht uses too, so the compact overview and the detailed matrix
-  // below can never show different numbers.
+  // Notenübersicht uses too, so the summary band, the grid and the detailed
+  // matrix below can never show different numbers.
   const courseId = bundle.realCourseId ?? bundle.course.id;
   const overrides = bundle.gradeOverrides || [];
   const avgs = calcAverages(bundle, overrides, studentId, courseId);
-  const curQuarter = currentQuarter(quarters);
+  const zeugnis = avgDisplay(avgs.zeugnis);
 
   // The detailed grade breakdown (the collapsible "Ausführliche
   // Notenübersicht" at the bottom) is the exact same nested Mitarbeit/
@@ -163,22 +190,12 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
 
   const allWorks = [...bundle.writtenWorks].sort((a, b) => a.date.localeCompare(b.date));
 
-  // The Kennzahlen strip: the current quarter's three averages, the overall
-  // Zeugnis, plus attendance — everything you want to read the moment the page
-  // opens, without scrolling into any section.
-  const curMit = curQuarter && avgDisplay(avgs.mitByQuarter.get(curQuarter.id));
-  const curSchr = curQuarter && avgDisplay(avgs.schrByQuarter.get(curQuarter.id));
-  const curQ = curQuarter && avgDisplay(avgs.qNoteByQuarter.get(curQuarter.id));
-  const zeugnis = avgDisplay(avgs.zeugnis);
-  const quarterNote = curQuarter ? `${curQuarter.idx}. Quartal` : '—';
-
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: isMobile ? '0 14px 28px' : '0 24px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: isMobile ? '0 14px 28px' : '0 24px 32px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* The name + Zurück-Pfeil bar stays pinned to the top while the long
-          student page scrolls underneath. Its background matches the page so
-          scrolled content can't show through. The course-level tab header is
-          hidden on this screen (App.HEADERLESS_SCREENS), so this compact bar is
-          the only header — its top padding is kept small to avoid the stacked
+          student page scrolls underneath. The course-level tab header is hidden
+          on this screen (App.HEADERLESS_SCREENS), so this compact bar is the
+          only header — its top padding is kept small to avoid the stacked
           whitespace the two headers used to produce together. */}
       <div
         style={{
@@ -203,22 +220,23 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
         )}
       </div>
 
-      {/* Kennzahlen — the at-a-glance strip right under the name. */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(6, 1fr)', gap: 10, flexShrink: 0 }}>
-        <Kpi label="Ø MITARBEIT" value={curMit ? curMit.text : '–'} valueColor={curMit?.color} note={quarterNote} />
-        <Kpi label="Ø SCHRIFTLICH" value={curSchr ? curSchr.text : '–'} valueColor={curSchr?.color} note={quarterNote} />
-        <Kpi label="Q-NOTE" value={curQ ? curQ.text : '–'} valueColor={curQ?.color} note={quarterNote} />
-        <Kpi label="ZEUGNIS" value={zeugnis.text} note="Gesamtjahr" strong />
-        <Kpi label="VERSPÄTUNGEN" value={lateEntries.length} note="Einzelstunden" valueColor={lateEntries.length ? '#d8a02a' : undefined} />
-        <Kpi label="FEHLSTUNDEN" value={absentEntries.length} note={`${unexcusedEntries.length} unentschuldigt`} valueColor={unexcusedEntries.length ? colors.red : undefined} />
+      {/* Summary band — the headline results (Zeugnis + Halbjahre) and the
+          attendance totals, as one connected row rather than a grid of tiles.
+          The per-quarter build-up lives just below in the Noten grid. */}
+      <div style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', background: '#fff', border: `1px solid ${colors.borderCard}`, borderRadius: 11, flexShrink: 0 }}>
+        <Stat label="ZEUGNIS" value={zeugnis.text} valueColor={zeugnis.color} note="Gesamtjahr" />
+        {halves.map((h) => {
+          const d = avgDisplay(avgs.hjByHalf.get(h.id));
+          return <Stat key={h.id} divider="light" label={`${h.idx}. HALBJAHR`} value={d.text} valueColor={d.color} />;
+        })}
+        <Stat divider="strong" label="FEHLSTUNDEN" value={absentEntries.length} valueColor={unexcusedEntries.length ? colors.red : undefined} note={`${unexcusedEntries.length} unentschuldigt`} />
+        <Stat divider="light" label="VERSPÄTUNGEN" value={lateEntries.length} valueColor={lateEntries.length ? '#d8a02a' : undefined} note="Einzelstunden" />
       </div>
 
-      {/* Compact per-student grade overview: the same Mitarbeit/Schriftlich/
-          Quartal/Halbjahr/Zeugnis colour semantics as the matrix, transposed so
-          quarters are columns and the three averages are rows — legible at a
-          glance instead of a one-row slice of the full class grid. */}
-      <CollapsibleSection title="NOTENÜBERSICHT" collapsed={collapsed.grades} onToggle={() => toggleSection('grades')}>
-        <div style={{ padding: '14px 18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Noten nach Quartal: the per-quarter build-up (Ø Mit / Ø Schr / Q-Note)
+          in the matrix's colour language, quarters as columns. */}
+      <CollapsibleSection title="NOTEN NACH QUARTAL" collapsed={collapsed.grades} onToggle={() => toggleSection('grades')}>
+        <div style={{ padding: '14px 18px 16px' }}>
           {quarters.length ? (
             <div style={{ overflowX: 'auto' }}>
               <div
@@ -256,90 +274,34 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
           ) : (
             <div style={{ fontSize: 12.5, color: colors.mutedStrong }}>Noch keine Quartale angelegt.</div>
           )}
-
-          {/* Halbjahres- und Zeugnisnote als Zusammenfassung. */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {halves.map((h) => {
-              const { text, color, overridden } = avgDisplay(avgs.hjByHalf.get(h.id));
-              return (
-                <div key={h.id} style={{ flex: '1 1 130px', background: colors.hBg, border: `1px solid ${colors.borderCard}`, borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ font: `500 9.5px ${fonts.mono}`, color: colors.tealDark, letterSpacing: '.06em' }}>{h.idx}. HALBJAHR</span>
-                  <span style={{ font: `500 22px/1 ${fonts.serif}`, color }}>
-                    {text}
-                    {overridden && <span title="Manuell eingetragen – nicht berechnet" style={{ marginLeft: 3, fontSize: 9, verticalAlign: 'super', color: colors.tealDark }}>✎</span>}
-                  </span>
-                </div>
-              );
-            })}
-            <div style={{ flex: '1 1 130px', background: colors.sidebarBg, borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ font: `500 9.5px ${fonts.mono}`, color: '#9fb0ab', letterSpacing: '.06em' }}>ZEUGNIS</span>
-              <span style={{ font: `500 22px/1 ${fonts.serif}`, color: '#fff' }}>
-                {zeugnis.text}
-                {zeugnis.overridden && <span title="Manuell eingetragen – nicht berechnet" style={{ marginLeft: 3, fontSize: 9, verticalAlign: 'super', color: '#9fb0ab' }}>✎</span>}
-              </span>
-            </div>
-          </div>
         </div>
       </CollapsibleSection>
 
+      {/* MITARBEIT: the lesson-grade trend (with its comments marked on the
+          points) and the full chronological comment list, kept together in one
+          card because both come from the single lessons. */}
       <CollapsibleSection
-        title="VERLAUF EINZELSTUNDEN"
-        collapsed={collapsed.lessonsChart}
-        onToggle={() => toggleSection('lessonsChart')}
+        title="MITARBEIT"
+        collapsed={collapsed.mitarbeit}
+        onToggle={() => toggleSection('mitarbeit')}
         headerExtra={
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {quarters.map((q) => {
-              const on = selectedQuarterIds.includes(q.id);
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => toggleQuarter(q.id)}
-                  style={{ padding: '5px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, border: `1px solid ${on ? colors.teal : colors.borderStrong}`, background: on ? colors.teal : '#fff', color: on ? '#fff' : colors.mutedStrong }}
-                >
-                  {q.idx}. Quartal
-                </button>
-              );
-            })}
+            {quarters.map((q) => (
+              <FilterPill key={q.id} on={selectedQuarterIds.includes(q.id)} onClick={() => toggleQuarter(q.id)} accent={colors.teal}>
+                {q.idx}. Quartal
+              </FilterPill>
+            ))}
           </span>
         }
       >
         <div style={{ padding: '10px 18px 16px' }}>
           <GradeLineChart points={lessonPoints} lineColor={colors.teal} emptyLabel="Keine bewerteten Stunden in den gewählten Quartalen." />
         </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        title="VERLAUF SCHRIFTLICHE LEISTUNGEN"
-        collapsed={collapsed.examsChart}
-        onToggle={() => toggleSection('examsChart')}
-        headerExtra={
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {WRITTEN_WORK_KINDS.map((k) => {
-              const on = examKind === k.value;
-              return (
-                <button
-                  key={k.value}
-                  onClick={() => setExamKind(k.value)}
-                  style={{ padding: '5px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, border: `1px solid ${on ? '#c9852a' : colors.borderStrong}`, background: on ? '#c9852a' : '#fff', color: on ? '#fff' : colors.mutedStrong }}
-                >
-                  {k.label}
-                </button>
-              );
-            })}
-          </span>
-        }
-      >
-        <div style={{ padding: '10px 18px 16px' }}>
-          <GradeLineChart points={examPoints} lineColor="#c9852a" emptyLabel="Keine bewerteten Arbeiten dieser Kategorie." />
-        </div>
-      </CollapsibleSection>
-
-      <div style={{ background: '#fff', border: `1px solid ${colors.borderCard}`, borderRadius: 11, overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px 10px', font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>KOMMENTARE AUS DEN EINZELSTUNDEN</div>
+        <SubHeader>BEMERKUNGEN</SubHeader>
         {lessonComments.length ? (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {lessonComments.map((r) => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'baseline', gap: 12, padding: '10px 18px', borderTop: `1px solid ${colors.divider}` }}>
+              <div key={r.id} style={{ display: 'flex', alignItems: 'baseline', gap: 12, padding: '9px 18px', borderTop: `1px solid ${colors.divider}` }}>
                 <span style={{ font: `500 11.5px ${fonts.mono}`, color: colors.mutedStrong, flex: 'none' }}>{formatShortDate(r.lessonDate).label}</span>
                 <span style={{ fontSize: 13 }}>
                   {r.emoji} {r.text}
@@ -349,19 +311,79 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
             ))}
           </div>
         ) : (
-          <div style={{ padding: '0 18px 16px', fontSize: 12.5, color: colors.mutedStrong }}>Noch keine Kommentare aus Einzelstunden.</div>
+          <div style={{ padding: '4px 18px 16px', fontSize: 12.5, color: colors.mutedStrong }}>Noch keine Bemerkungen aus Einzelstunden.</div>
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div style={{ background: '#fff', border: `1px solid ${colors.borderCard}`, borderRadius: 11, overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px 10px', font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>ANWESENHEIT</div>
+      {/* SCHRIFTLICHE LEISTUNGEN: the written-grade trend and the list of works
+          behind it, kept together in one card. */}
+      <CollapsibleSection
+        title="SCHRIFTLICHE LEISTUNGEN"
+        collapsed={collapsed.schriftlich}
+        onToggle={() => toggleSection('schriftlich')}
+        headerExtra={
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {WRITTEN_WORK_KINDS.map((k) => (
+              <FilterPill key={k.value} on={examKind === k.value} onClick={() => setExamKind(k.value)} accent="#c9852a">
+                {k.label}
+              </FilterPill>
+            ))}
+          </span>
+        }
+      >
+        <div style={{ padding: '10px 18px 16px' }}>
+          <GradeLineChart points={examPoints} lineColor="#c9852a" emptyLabel="Keine bewerteten Arbeiten dieser Kategorie." />
+        </div>
+        <SubHeader>ALLE ARBEITEN</SubHeader>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['ARBEIT', 'ART', 'DATUM', 'INHALT', 'NOTE'].map((h, i) => (
+                  <th key={h} style={{ textAlign: i === 4 ? 'center' : 'left', padding: i === 0 || i === 4 ? '8px 18px' : '8px 12px', borderTop: `1px solid ${colors.divider}`, borderBottom: `1px solid ${colors.divider}`, font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allWorks.map((w) => {
+                const grade = w.grades.find((g) => g.student_id === studentId)?.grade;
+                const v = num(grade);
+                return (
+                  <tr key={w.id}>
+                    <td style={{ padding: '11px 18px', borderBottom: `1px solid ${colors.divider}`, fontSize: 13, fontWeight: 500 }}>{w.title}</td>
+                    <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, fontSize: 12, color: colors.mutedStrong }}>{writtenWorkKindLabel(w.kind)}</td>
+                    <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, font: `500 11.5px ${fonts.mono}`, color: colors.mutedStrong }}>{formatShortDate(w.date).label}</td>
+                    <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, fontSize: 12, color: colors.mutedStrong }}>{w.content}</td>
+                    <td style={{ padding: '11px 18px', borderBottom: `1px solid ${colors.divider}`, textAlign: 'center' }}>
+                      <span style={{ font: `600 12.5px ${fonts.mono}`, padding: '4px 9px', borderRadius: 99, background: '#f2efe9', color: grade ? gradeColor(v) : colors.faint }}>{grade ? gradeLabel(grade) : '–'}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!allWorks.length && (
+                <tr>
+                  <td colSpan={5} style={{ padding: '14px 18px', fontSize: 12.5, color: colors.mutedStrong }}>
+                    Noch keine schriftlichen Leistungen erfasst.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CollapsibleSection>
+
+      {/* ANWESENHEIT: the individual late/absent entries. The totals are already
+          in the summary band, so this is just the itemised list. */}
+      <CollapsibleSection title="ANWESENHEIT" collapsed={collapsed.attendance} onToggle={() => toggleSection('attendance')}>
         {attendanceEntries.length > 0 ? (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {ATTENDANCE_TABLE_HEADERS.map((h) => (
-                    <th key={h} style={{ textAlign: 'left', padding: '8px 18px', background: '#faf8f4', borderTop: `1px solid ${colors.divider}`, borderBottom: `1px solid ${colors.divider}`, font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
+                    <th key={h} style={{ textAlign: 'left', padding: '8px 18px', borderBottom: `1px solid ${colors.divider}`, font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
                       {h}
                     </th>
                   ))}
@@ -384,55 +406,14 @@ export default function Schueleransicht({ bundle, studentId, onRefresh, onBack, 
             </table>
           </div>
         ) : (
-          <div style={{ padding: '0 18px 16px', fontSize: 12.5, color: colors.mutedStrong }}>Keine Verspätungen oder Fehlstunden.</div>
+          <div style={{ padding: '14px 18px 16px', fontSize: 12.5, color: colors.mutedStrong }}>Keine Verspätungen oder Fehlstunden.</div>
         )}
-      </div>
-
-      <div style={{ background: '#fff', border: `1px solid ${colors.borderCard}`, borderRadius: 11, overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px 10px', font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>SCHRIFTLICHE LEISTUNGEN</div>
-        <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {['ARBEIT', 'ART', 'DATUM', 'INHALT', 'NOTE'].map((h, i) => (
-                <th key={h} style={{ textAlign: i === 4 ? 'center' : 'left', padding: i === 0 || i === 4 ? '8px 18px' : '8px 12px', background: '#faf8f4', borderTop: `1px solid ${colors.divider}`, borderBottom: `1px solid ${colors.divider}`, font: `500 9.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.09em' }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {allWorks.map((w) => {
-              const grade = w.grades.find((g) => g.student_id === studentId)?.grade;
-              const v = num(grade);
-              return (
-                <tr key={w.id}>
-                  <td style={{ padding: '11px 18px', borderBottom: `1px solid ${colors.divider}`, fontSize: 13, fontWeight: 500 }}>{w.title}</td>
-                  <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, fontSize: 12, color: colors.mutedStrong }}>{writtenWorkKindLabel(w.kind)}</td>
-                  <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, font: `500 11.5px ${fonts.mono}`, color: colors.mutedStrong }}>{formatShortDate(w.date).label}</td>
-                  <td style={{ padding: '11px 12px', borderBottom: `1px solid ${colors.divider}`, fontSize: 12, color: colors.mutedStrong }}>{w.content}</td>
-                  <td style={{ padding: '11px 18px', borderBottom: `1px solid ${colors.divider}`, textAlign: 'center' }}>
-                    <span style={{ font: `600 12.5px ${fonts.mono}`, padding: '4px 9px', borderRadius: 99, background: '#f2efe9', color: grade ? gradeColor(v) : colors.faint }}>{grade ? gradeLabel(grade) : '–'}</span>
-                  </td>
-                </tr>
-              );
-            })}
-            {!allWorks.length && (
-              <tr>
-                <td colSpan={5} style={{ padding: '14px 18px', fontSize: 12.5, color: colors.mutedStrong }}>
-                  Noch keine schriftlichen Leistungen erfasst.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
+      </CollapsibleSection>
 
       {/* The full class-style matrix, scoped to this one student — kept for the
-          per-lesson grades and manual-override editing the compact overview
-          above deliberately leaves out. Folded away by default so it doesn't
-          reintroduce the "klobig" wall of columns as the first thing you see. */}
+          per-lesson grades and manual-override editing the summary grid above
+          deliberately leaves out. Folded away by default so it doesn't
+          reintroduce the wall of columns as the first thing you see. */}
       <CollapsibleSection title="AUSFÜHRLICHE NOTENÜBERSICHT" collapsed={collapsed.detail} onToggle={() => toggleSection('detail')}>
         {/* Notenuebersicht's own root relies on flex:1/minHeight:0 to size
             its scrollable table against a bounded flex ancestor — without

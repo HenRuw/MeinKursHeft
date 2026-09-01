@@ -43,23 +43,22 @@ function renderView() {
 }
 
 describe('Schüleransicht overview', () => {
-  it('shows the Kennzahlen strip with the grade and attendance headlines', () => {
+  it('shows the summary band with the result and attendance headlines', () => {
     renderView();
-    // The grade labels appear both in the KPI strip and the overview rows.
-    expect(screen.getAllByText('Ø MITARBEIT').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Ø SCHRIFTLICH').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('ZEUGNIS').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('ZEUGNIS')).toBeTruthy();
+    expect(screen.getByText('1. HALBJAHR')).toBeTruthy();
     expect(screen.getByText('VERSPÄTUNGEN')).toBeTruthy();
     expect(screen.getByText('FEHLSTUNDEN')).toBeTruthy();
     // One unexcused absence is called out in the Fehlstunden note.
     expect(screen.getByText('1 unentschuldigt')).toBeTruthy();
   });
 
-  it('renders the compact per-student grade overview with rolled-up values', () => {
+  it('renders the per-quarter grade grid with rolled-up values', () => {
     renderView();
-    expect(screen.getByText('NOTENÜBERSICHT')).toBeTruthy();
-    // Ø Mitarbeit 3,0 · Ø Schriftlich 2,0 · Q-Note 2,5 for the 1st quarter —
-    // shown in both the overview grid and (as the current quarter) the KPIs.
+    expect(screen.getByText('NOTEN NACH QUARTAL')).toBeTruthy();
+    expect(screen.getByText('Ø MITARBEIT')).toBeTruthy();
+    expect(screen.getByText('Ø SCHRIFTLICH')).toBeTruthy();
+    // Ø Mitarbeit 3,0 (grid), Q-Note/HJ/Zeugnis 2,5 all show up.
     expect(screen.getAllByText('3,0').length).toBeGreaterThan(0);
     expect(screen.getAllByText('2,5').length).toBeGreaterThan(0);
     // Empty quarters render an en dash rather than a value.
