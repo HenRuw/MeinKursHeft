@@ -44,18 +44,39 @@ const put = (path, body) => request('PUT', path, body ?? {});
 const del = (path) => request('DELETE', path);
 
 export const api = {
-  // students
-  listStudents: () => get('/api/students'),
+  // school years + the year the UI opens on
+  getYearContext: () => get('/api/year-context'),
+  setCurrentYear: (yearId) => put('/api/year-context', { yearId }),
+  listYears: () => get('/api/years'),
+  createYear: (data) => post('/api/years', data),
+  updateYear: (id, data) => patch(`/api/years/${id}`, data),
+  // hard delete, gated on retyping the exact label
+  deleteYear: (id, confirmLabel) => del(`/api/years/${id}?confirmLabel=${encodeURIComponent(confirmLabel)}`),
+  advanceYear: (data) => post('/api/years/advance', data),
+
+  // per-year quarter calendar (single source of truth for quarter dates)
+  getYearQuarters: (yearId) => get(`/api/years/${yearId}/quarters`),
+  setYearQuarters: (yearId, ranges) => put(`/api/years/${yearId}/quarters`, { ranges }),
+
+  // classes (year-scoped)
+  listClasses: (yearId) => get(`/api/years/${yearId}/classes`),
+  createClass: (yearId, data) => post(`/api/years/${yearId}/classes`, data),
+  renameClass: (id, data) => patch(`/api/classes/${id}`, data),
+  deleteClass: (id) => del(`/api/classes/${id}`),
+
+  // students — year-scoped over the shared person pool
+  listStudents: (yearId) => get(yearId ? `/api/students?yearId=${yearId}` : '/api/students'),
   createStudent: (data) => post('/api/students', data),
   updateStudent: (id, data) => patch(`/api/students/${id}`, data),
-  deleteStudent: (id) => del(`/api/students/${id}`),
+  // remove from one year only, or (global=1) delete the person everywhere
+  removeStudentFromYear: (id, yearId) => del(`/api/students/${id}?yearId=${yearId}`),
+  deleteStudentGlobally: (id) => del(`/api/students/${id}?global=1`),
+  linkStudentToYear: (id, data) => post(`/api/students/${id}/link`, data),
+  matchStudents: (names) => post('/api/students/match', { names }),
+  listUnassignedStudents: () => get('/api/students/unassigned'),
 
-  // klassen
-  listKlassen: () => get('/api/klassen'),
-  createKlasse: (data) => post('/api/klassen', data),
-
-  // courses
-  listCourses: () => get('/api/courses'),
+  // courses (year-scoped)
+  listCourses: (yearId) => get(yearId ? `/api/courses?yearId=${yearId}` : '/api/courses'),
   createCourse: (data) => post('/api/courses', data),
   updateCourse: (id, data) => patch(`/api/courses/${id}`, data),
   deleteCourse: (id) => del(`/api/courses/${id}`),

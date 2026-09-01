@@ -11,10 +11,12 @@ import Quartalsdaten from './screens/Quartalsdaten.jsx';
 import KursEditor from './screens/KursEditor.jsx';
 import Export from './screens/Export.jsx';
 import Backup from './screens/Backup.jsx';
+import Schuljahre from './screens/Schuljahre.jsx';
 
 // The Verwaltung submenu options, expanded inline inside the sidebar.
 const VERWALTUNG_OPTIONS = [
   ['schuelerverwaltung', 'Schülerdaten'],
+  ['schuljahre', 'Schuljahre'],
   ['quartalsdaten', 'Quartalsdaten'],
   ['export', 'Export'],
   ['backup', 'Backup'],
@@ -47,6 +49,12 @@ export default function App({ onLogout }) {
   const [allStudents, setAllStudents] = useState([]);
   const [klassen, setKlassen] = useState([]);
   const [presets, setPresets] = useState([]);
+  // Global school-year context: the list of years and the one currently in
+  // view. Everything below (courses, students, classes) is scoped to it.
+  const [years, setYears] = useState([]);
+  const [currentYearId, setCurrentYearId] = useState(null);
+  const currentYear = years.find((y) => y.id === currentYearId) || null;
+  const isArchived = !!(currentYear && currentYear.archived);
 
   // Clicking an individual grade — in the course-wide Notenübersicht, or in a
   // single student's own grade table on their Schueleransicht page — jumps
@@ -76,17 +84,26 @@ export default function App({ onLogout }) {
   const [verwaltungMenuOpen, setVerwaltungMenuOpen] = useState(false);
 
   const refreshCourses = useCallback(async () => {
-    const list = await api.listCourses();
+    if (currentYearId == null) return [];
+    const list = await api.listCourses(currentYearId);
     setCourses(list);
     return list;
-  }, []);
+  }, [currentYearId]);
 
   const refreshAllStudents = useCallback(async () => {
-    setAllStudents(await api.listStudents());
-  }, []);
+    if (currentYearId == null) return;
+    setAllStudents(await api.listStudents(currentYearId));
+  }, [currentYearId]);
 
   const refreshKlassen = useCallback(async () => {
-    setKlassen(await api.listKlassen());
+    if (currentYearId == null) return;
+    setKlassen(await api.listClasses(currentYearId));
+  }, [currentYearId]);
+
+  const refreshYears = useCallback(async () => {
+    const list = await api.listYears();
+    setYears(list);
+    return list;
   }, []);
 
   const refreshPresets = useCallback(async () => {
@@ -101,14 +118,34 @@ export default function App({ onLogout }) {
     setBundle(await api.getCourseBundle(id));
   }, []);
 
+  // Bootstrap: figure out which school year to open on, then year-independent
+  // data (remark presets).
   useEffect(() => {
-    refreshCourses().then((list) => {
-      if (list.length && courseId == null) setCourseId(list[0].id);
-    });
-    refreshAllStudents();
-    refreshKlassen();
+    (async () => {
+      const ctx = await api.getYearContext();
+      setYears(ctx.years);
+      setCurrentYearId(ctx.currentYearId);
+    })();
     refreshPresets();
   }, []);
+
+  // Whenever the active year changes, reload everything scoped to it and jump
+  // to that year's first course.
+  useEffect(() => {
+    if (currentYearId == null) return;
+    setBundle(null);
+    refreshCourses().then((list) => setCourseId(list.length ? list[0].id : null));
+    refreshAllStudents();
+    refreshKlassen();
+  }, [currentYearId, refreshCourses, refreshAllStudents, refreshKlassen]);
+
+  // Switching the year persists the choice server-side and updates the context.
+  const selectYear = async (yearId) => {
+    if (yearId === currentYearId) return;
+    setCurrentYearId(yearId);
+    api.setCurrentYear(yearId).catch(() => {});
+    closeSidebarOnNavigate();
+  };
 
   useEffect(() => {
     refreshBundle(courseId);
@@ -142,12 +179,16 @@ export default function App({ onLogout }) {
         } else if (resource === 'students') {
           refreshAllStudents();
           if (courseId) refreshBundle(courseId);
-        } else if (resource === 'klassen') {
+        } else if (resource === 'klassen' || resource === 'classes') {
           refreshKlassen();
+          refreshAllStudents();
+        } else if (resource === 'years') {
+          refreshYears();
         } else if (resource === 'remark-presets') {
           refreshPresets();
         } else if (resource === 'backup') {
           // A restore replaced the whole database -- refetch everything.
+          refreshYears();
           refreshCourses();
           refreshAllStudents();
           refreshKlassen();
@@ -155,7 +196,7 @@ export default function App({ onLogout }) {
           if (courseId) refreshBundle(courseId);
         }
       }),
-    [courseId, refreshCourses, refreshAllStudents, refreshKlassen, refreshBundle, refreshPresets]
+    [courseId, refreshCourses, refreshAllStudents, refreshKlassen, refreshBundle, refreshPresets, refreshYears]
   );
 
   // On mobile/tablet the sidebar is an off-canvas drawer (see the aside's
@@ -247,7 +288,7 @@ export default function App({ onLogout }) {
 
   const submitCourseEditor = async ({ name, studentIds }) => {
     if (courseEditorMode === 'create') {
-      const course = await api.createCourse({ name });
+      const course = await api.createCourse({ name, yearId: currentYearId });
       for (const id of studentIds) await api.enrollStudent(course.id, id);
       await refreshCourses();
       setCourseId(course.id);
@@ -328,10 +369,34 @@ export default function App({ onLogout }) {
           >
             ☰
           </button>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ font: `500 19px/1 ${fonts.serif}`, color: '#fff', letterSpacing: '.01em' }}>MeinKursHeft</div>
-            <div style={{ font: `400 11px ${fonts.mono}`, color: '#7f918c', marginTop: 6, letterSpacing: '.06em' }}>
-              SCHULJAHR 2026/27
+            {/* School-year switcher: everything in the app is scoped to the
+                year picked here. An archived year is marked and shown in amber. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
+              <span aria-hidden style={{ font: `400 10px ${fonts.mono}`, color: '#6f817c', letterSpacing: '.08em' }}>SJ</span>
+              <select
+                value={currentYearId ?? ''}
+                onChange={(e) => selectYear(Number(e.target.value))}
+                aria-label="Schuljahr wählen"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  background: 'rgba(255,255,255,.07)',
+                  color: isArchived ? '#e6b667' : '#cdd8d4',
+                  border: '1px solid rgba(255,255,255,.16)',
+                  borderRadius: 6,
+                  padding: '4px 6px',
+                  font: `500 12px ${fonts.mono}`,
+                  letterSpacing: '.04em',
+                }}
+              >
+                {years.map((y) => (
+                  <option key={y.id} value={y.id} style={{ color: '#000' }}>
+                    {y.label}{y.archived ? ' · Archiv' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -379,6 +444,7 @@ export default function App({ onLogout }) {
                   }}
                 />
               </button>
+              {!isArchived && (
               <button
                 onClick={() => openCourseEditor(c)}
                 title="Kurs bearbeiten"
@@ -397,9 +463,11 @@ export default function App({ onLogout }) {
               >
                 ✎
               </button>
+              )}
             </div>
           ))}
 
+          {!isArchived && (
           <button
             onClick={openCourseCreator}
             style={{
@@ -417,6 +485,7 @@ export default function App({ onLogout }) {
           >
             <span style={{ fontSize: 15, lineHeight: 1 }}>+</span>Kurs anlegen
           </button>
+          )}
         </div>
         <div
           style={{
@@ -514,6 +583,12 @@ export default function App({ onLogout }) {
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {isArchived && (
+          <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#fbf1dc', borderBottom: '1px solid #ecd9ad', color: '#8a6417', fontSize: 12.5 }}>
+            <span aria-hidden>🔒</span>
+            <span><b>{currentYear.label}</b> ist archiviert — schreibgeschützt. Export bleibt möglich; zum Ändern das Schuljahr unter „Verwaltung › Schuljahre" reaktivieren.</span>
+          </div>
+        )}
         {/* The top strip only exists when it actually carries something: the
             hamburger opener (shown while the sidebar is collapsed) and/or the
             mobile course-name title. On desktop with the sidebar open it would
@@ -647,9 +722,26 @@ export default function App({ onLogout }) {
           </>
         )}
         {screen === 'schuelerverwaltung' && (
-          <Schuelerverwaltung allStudents={allStudents} onRefreshAllStudents={refreshAllStudents} klassen={klassen} onRefreshKlassen={refreshKlassen} />
+          <Schuelerverwaltung
+            yearId={currentYearId}
+            archived={isArchived}
+            allStudents={allStudents}
+            onRefreshAllStudents={refreshAllStudents}
+            klassen={klassen}
+            onRefreshKlassen={refreshKlassen}
+          />
         )}
-        {screen === 'quartalsdaten' && <Quartalsdaten courses={courses} />}
+        {screen === 'schuljahre' && (
+          <Schuljahre
+            years={years}
+            currentYearId={currentYearId}
+            classes={klassen}
+            onRefreshYears={refreshYears}
+            onRefreshKlassen={refreshKlassen}
+            onSelectYear={selectYear}
+          />
+        )}
+        {screen === 'quartalsdaten' && <Quartalsdaten yearId={currentYearId} archived={isArchived} />}
         {screen === 'export' && <Export courses={courses} allStudents={allStudents} klassen={klassen} />}
         {screen === 'backup' && <Backup />}
         {screen === 'kurs-editor' && (

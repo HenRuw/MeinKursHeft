@@ -4,9 +4,11 @@ import App from '../App.jsx';
 
 vi.mock('../api.js', () => ({
   api: {
+    getYearContext: vi.fn(async () => ({ years: [{ id: 1, label: '2026/27', sort_order: 0, archived: 0 }], currentYearId: 1 })),
+    setCurrentYear: vi.fn(async () => ({})),
     listCourses: vi.fn(async () => []),
     listStudents: vi.fn(async () => []),
-    listKlassen: vi.fn(async () => []),
+    listClasses: vi.fn(async () => []),
     listRemarkPresets: vi.fn(async () => []),
     getCourseBundle: vi.fn(async () => null),
   },

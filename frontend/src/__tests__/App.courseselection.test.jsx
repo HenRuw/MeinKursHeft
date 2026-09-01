@@ -4,9 +4,11 @@ import App from '../App.jsx';
 
 vi.mock('../api.js', () => ({
   api: {
-    listCourses: vi.fn(async () => [{ id: 1, name: 'Mathe' }]),
+    getYearContext: vi.fn(async () => ({ years: [{ id: 1, label: '2026/27', sort_order: 0, archived: 0 }], currentYearId: 1 })),
+    setCurrentYear: vi.fn(async () => ({})),
+    listCourses: vi.fn(async () => [{ id: 1, name: 'Mathe', year_id: 1 }]),
     listStudents: vi.fn(async () => []),
-    listKlassen: vi.fn(async () => []),
+    listClasses: vi.fn(async () => []),
     listRemarkPresets: vi.fn(async () => []),
     // null keeps the course name out of the header/top bar, so "Mathe" only
     // appears in the sidebar.
