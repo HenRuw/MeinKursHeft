@@ -35,7 +35,8 @@ afterEach(async () => {
 });
 
 test('creating a course over REST is visible directly in the database', async () => {
-  const res = await request(app).post('/api/courses').send({ name: 'Mathematik 9b', hoursPerWeek: 4 });
+  const yearId = db.listSchoolYears()[0].id;
+  const res = await request(app).post('/api/courses').send({ name: 'Mathematik 9b', hoursPerWeek: 4, yearId });
   expect(res.status).toBe(201);
   expect(res.body).toMatchObject({ name: 'Mathematik 9b', hours_per_week: 4 });
   expect(db.listCourses()).toHaveLength(1);
@@ -57,13 +58,15 @@ test('a REST mutation broadcasts sync:changed to connected clients', (done) => {
   });
 
   client.on('connect', () => {
-    request(app).post('/api/courses').send({ name: 'Deutsch 7a' }).end(() => {});
+    const yearId = db.listSchoolYears()[0].id;
+    request(app).post('/api/courses').send({ name: 'Deutsch 7a', yearId }).end(() => {});
   });
 });
 
 test('the full course bundle reflects lessons, attendance, grades and remarks created via REST', async () => {
-  const course = (await request(app).post('/api/courses').send({ name: 'Informatik 10' })).body;
-  const student = (await request(app).post('/api/students').send({ firstName: 'Ben', lastName: 'Lorenz' })).body;
+  const yearId = db.listSchoolYears()[0].id;
+  const course = (await request(app).post('/api/courses').send({ name: 'Informatik 10', yearId })).body;
+  const student = (await request(app).post('/api/students').send({ firstName: 'Ben', lastName: 'Lorenz', yearId })).body;
   await request(app).post(`/api/courses/${course.id}/students`).send({ studentId: student.id });
 
   const quarters = await request(app).get(`/api/courses/${course.id}/bundle`);
@@ -95,7 +98,8 @@ test('the full course bundle reflects lessons, attendance, grades and remarks cr
 });
 
 test('rejects a written work with an invalid kind', async () => {
-  const course = (await request(app).post('/api/courses').send({ name: 'Deutsch 7a' })).body;
+  const yearId = db.listSchoolYears()[0].id;
+  const course = (await request(app).post('/api/courses').send({ name: 'Deutsch 7a', yearId })).body;
   const bundle = (await request(app).get(`/api/courses/${course.id}/bundle`)).body;
   const quarterId = bundle.quarters[0].id;
 

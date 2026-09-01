@@ -80,15 +80,19 @@ test("student data created by account A is invisible to account B and vice versa
   const cookieA = (await login(PW_A)).headers['set-cookie'];
   const cookieB = (await login(PW_B)).headers['set-cookie'];
 
+  // Each account has its own DB with its own default school year to scope to.
+  const yearA = db.runWithAccount('1', () => db.listSchoolYears()[0].id);
+  const yearB = db.runWithAccount('2', () => db.listSchoolYears()[0].id);
+
   // A creates a student.
-  const created = await request(app).post('/api/students').set('Cookie', cookieA).send({ firstName: 'Anna', lastName: 'Alpha' });
+  const created = await request(app).post('/api/students').set('Cookie', cookieA).send({ firstName: 'Anna', lastName: 'Alpha', yearId: yearA });
   expect(created.status).toBe(201);
 
   // B sees an empty roster and creates a different student.
   const bList = await request(app).get('/api/students').set('Cookie', cookieB);
   expect(bList.status).toBe(200);
   expect(bList.body).toHaveLength(0);
-  await request(app).post('/api/students').set('Cookie', cookieB).send({ firstName: 'Bruno', lastName: 'Beta' });
+  await request(app).post('/api/students').set('Cookie', cookieB).send({ firstName: 'Bruno', lastName: 'Beta', yearId: yearB });
 
   // A still sees only its own student; B only its own.
   const aList = await request(app).get('/api/students').set('Cookie', cookieA);
@@ -141,7 +145,8 @@ test('a live-sync event for one account never reaches the other account', (done)
           }, 150);
         }
       });
-      request(app).post('/api/students').set('Cookie', a.headers['set-cookie']).send({ firstName: 'Cara', lastName: 'Gamma' }).end(() => {});
+      const yearA = db.runWithAccount('1', () => db.listSchoolYears()[0].id);
+      request(app).post('/api/students').set('Cookie', a.headers['set-cookie']).send({ firstName: 'Cara', lastName: 'Gamma', yearId: yearA }).end(() => {});
     };
     clientA.on('connect', () => { aReady = true; maybeMutate(); });
     clientB.on('connect', () => { bReady = true; maybeMutate(); });

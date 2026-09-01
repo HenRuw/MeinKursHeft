@@ -118,7 +118,8 @@ describe('404s for unknown ids', () => {
 
 describe('bundle shape for a freshly created, empty course', () => {
   test('returns empty arrays, not undefined/null, for students/lessons/writtenWorks', async () => {
-    const course = (await request(app).post('/api/courses').send({ name: 'Neuer Kurs' })).body;
+    const yearId = db.listSchoolYears()[0].id;
+    const course = (await request(app).post('/api/courses').send({ name: 'Neuer Kurs', yearId })).body;
     const bundle = (await request(app).get(`/api/courses/${course.id}/bundle`)).body;
 
     expect(bundle.students).toEqual([]);
@@ -131,7 +132,8 @@ describe('bundle shape for a freshly created, empty course', () => {
 
 describe('quarter/half update partial patches', () => {
   test('updating only one weight field on a quarter leaves the others untouched', async () => {
-    const course = (await request(app).post('/api/courses').send({ name: 'Mathematik LK 12' })).body;
+    const yearId = db.listSchoolYears()[0].id;
+    const course = (await request(app).post('/api/courses').send({ name: 'Mathematik LK 12', yearId })).body;
     const bundle = (await request(app).get(`/api/courses/${course.id}/bundle`)).body;
     const quarter = bundle.quarters[0];
 
