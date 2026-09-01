@@ -234,6 +234,50 @@ CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY,
   value TEXT
 );
+
+-- ---- Schuljahre (school years) ----
+-- Everything a teacher works with lives inside one school year. Courses,
+-- classes, per-year student memberships and the quarter calendar all hang off
+-- a school_years row. Archiving a year makes it read-only (export only);
+-- hard-deleting one cascades to its courses (and, through those, lessons and
+-- grades) plus its classes/memberships/quarter calendar.
+CREATE TABLE IF NOT EXISTS school_years (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  archived INTEGER NOT NULL DEFAULT 0
+);
+
+-- The single source of truth for quarter DATE ranges, one row per (year, idx).
+-- Per-course quarters keep only their weights; their own start/end columns are
+-- vestigial and always overlaid with these dates on read (see getCourseBundle).
+CREATE TABLE IF NOT EXISTS year_quarters (
+  year_id INTEGER NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
+  idx INTEGER NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  PRIMARY KEY (year_id, idx)
+);
+
+-- A named class within a year (e.g. "10b" in 2026/27). A year-scoped entity so
+-- it can be renamed for everyone at once and advanced at the year rollover.
+CREATE TABLE IF NOT EXISTS classes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  year_id INTEGER NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  UNIQUE(year_id, name)
+);
+
+-- A student's membership in one year, with an optional class. class_id NULL
+-- means "in the year, but Ohne Klasse". One row per (student, year): a student
+-- is in at most one class per year. Removing a student "from this year" just
+-- deletes this row -- the person survives in the pool and in other years.
+CREATE TABLE IF NOT EXISTS student_year (
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  year_id INTEGER NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
+  class_id INTEGER REFERENCES classes(id) ON DELETE SET NULL,
+  PRIMARY KEY (student_id, year_id)
+);
 `;
 
 // Creates the schema and runs the idempotent migrations/seed on the *current*
@@ -282,6 +326,14 @@ function applySchema() {
     run('ALTER TABLE written_works ADD COLUMN grades_locked INTEGER NOT NULL DEFAULT 0');
   }
 
+  // Courses gained a school year. Added by hand (nullable -- SQLite can't add a
+  // NOT NULL column without a constant default) for databases that predate the
+  // Schuljahre feature; the years_v1 migration below backfills it.
+  const courseColumns = all('PRAGMA table_info(courses)').map((c) => c.name);
+  if (!courseColumns.includes('year_id')) {
+    run('ALTER TABLE courses ADD COLUMN year_id INTEGER REFERENCES school_years(id) ON DELETE CASCADE');
+  }
+
   // A lesson's Gewichtung defaults to its Schulstunden count. Older lessons
   // created while the weight was hardcoded to 1 can still be off, so bring
   // every existing lesson's weight up to its duration once. Guarded by
@@ -294,6 +346,61 @@ function applySchema() {
   if (!all('SELECT id FROM remark_presets').length) {
     DEFAULT_PRESETS.forEach((p) => run('INSERT INTO remark_presets (emoji, text) VALUES (?, ?)', [p.emoji, p.text]));
   }
+
+  migrateToYearsV1();
+}
+
+// One-time, idempotent migration to the Schuljahre model (guarded by an
+// app_meta flag so it never re-runs). Loss-free: it introduces a single start
+// year "2026/27" and re-homes everything that exists today under it --
+//   * every existing course           -> year_id = start year
+//   * every klassen row                -> a classes row in the start year
+//   * every student's klasse_id        -> a student_year row (class or Ohne Klasse)
+//   * today's shared quarter date ranges -> the start year's quarter calendar
+// Nothing is deleted or rewritten; students.klasse_id and the per-course
+// quarter date columns are simply no longer the source of truth afterwards.
+const YEARS_V1_LABEL = '2026/27';
+
+function migrateToYearsV1() {
+  if (get('SELECT value FROM app_meta WHERE key = ?', ['years_v1'])) return;
+  // A DB that somehow already has a year (e.g. created fresh on this schema)
+  // still gets flagged, so we never clobber an existing setup.
+  let yearId = get('SELECT id FROM school_years ORDER BY sort_order ASC, id ASC LIMIT 1');
+  if (!yearId) {
+    run('INSERT INTO school_years (label, sort_order, archived) VALUES (?, 0, 0)', [YEARS_V1_LABEL]);
+    yearId = lastId();
+  } else {
+    yearId = yearId.id;
+  }
+
+  // Every existing course joins the start year.
+  run('UPDATE courses SET year_id = ? WHERE year_id IS NULL', [yearId]);
+
+  // klassen -> classes (in the start year), keeping an old->new id map so
+  // student memberships can point at the right class.
+  const classIdByKlasse = new Map();
+  for (const k of all('SELECT id, name FROM klassen ORDER BY id ASC')) {
+    run('INSERT OR IGNORE INTO classes (year_id, name) VALUES (?, ?)', [yearId, k.name]);
+    const row = get('SELECT id FROM classes WHERE year_id = ? AND name = ?', [yearId, k.name]);
+    if (row) classIdByKlasse.set(k.id, row.id);
+  }
+
+  // Every student becomes a member of the start year; a valid klasse_id maps to
+  // its class, anything else (null or a dangling id) lands as Ohne Klasse.
+  for (const s of all('SELECT id, klasse_id FROM students ORDER BY id ASC')) {
+    const classId = classIdByKlasse.has(s.klasse_id) ? classIdByKlasse.get(s.klasse_id) : null;
+    run('INSERT OR IGNORE INTO student_year (student_id, year_id, class_id) VALUES (?, ?, ?)', [s.id, yearId, classId]);
+  }
+
+  // Seed the year's quarter calendar from today's shared ranges (the dates any
+  // real course already uses), falling back to the hardcoded defaults.
+  const ranges = referenceQuarterRanges(-1);
+  ranges.forEach(([start, end], i) => {
+    run('INSERT OR IGNORE INTO year_quarters (year_id, idx, start_date, end_date) VALUES (?, ?, ?, ?)', [yearId, i + 1, start, end]);
+  });
+
+  run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', ['ui_last_year_id', String(yearId)]);
+  run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', ['years_v1', '1']);
 }
 
 // Opens (or creates) the database for one account and runs the schema/migrations
