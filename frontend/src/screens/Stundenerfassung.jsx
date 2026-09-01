@@ -22,7 +22,7 @@ const ATTENDANCE_OPTIONS = [
 // Roster row geometry: the note keeps its original width, the A/V/F buttons
 // sit flush behind it, and Bemerkung follows — shared by the header and rows
 // so the labels line up with their columns.
-const NOTE_W = 300;
+const NOTE_W = 356;
 const ATT_W = 118;
 const ROW_GAP = 12;
 
