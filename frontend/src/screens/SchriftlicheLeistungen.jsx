@@ -381,7 +381,12 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
         </div>
       </Popover>
 
-      <section style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      {/* minHeight:0 is what lets the roster scroll: when the screen is narrow
+          the outer flex turns to a column (list on top, roster below), and
+          without this the section keeps its default min-height:auto and grows
+          to fit every student instead of constraining the inner overflow:auto
+          scroller — so paging through the roster would break. */}
+      <section style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!work ? (
           <div style={{ padding: 40, color: colors.mutedStrong, fontSize: 13 }}>
             Noch keine schriftliche Leistung — links über „+“ anlegen.

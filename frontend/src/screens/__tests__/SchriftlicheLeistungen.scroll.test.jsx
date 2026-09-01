@@ -1,0 +1,40 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render } from '@testing-library/react';
+import SchriftlicheLeistungen from '../SchriftlicheLeistungen.jsx';
+
+vi.mock('../../api.js', () => ({ api: {} }));
+
+// One written work so the roster (right-hand) pane renders; without a work the
+// pane only shows the "noch keine …" placeholder and no scroller.
+function makeBundle() {
+  return {
+    course: { id: 1, name: 'Mathe' },
+    quarters: [{ id: 101, idx: 1, start_date: '2026-08-01', end_date: '2026-10-31' }],
+    writtenWorks: [
+      { id: 5, kind: 'klassenarbeit', title: '1. KA', content: '', date: '2026-09-01', weight: 1, grades: [], remarks: [], grades_locked: 0 },
+    ],
+    students: [{ id: 1, first_name: 'A', last_name: 'B' }],
+  };
+}
+
+describe('SchriftlicheLeistungen roster stays scrollable when stacked', () => {
+  // On a narrow screen the outer flex switches to a column (list on top,
+  // roster below). The roster scroller only constrains its height — and so
+  // only scrolls — if its containing <section> carries minHeight:0; otherwise
+  // the default min-height:auto lets it grow to fit every student instead.
+  it('gives the roster section minHeight:0 so overflow:auto can take effect', () => {
+    const { container } = render(
+      <SchriftlicheLeistungen bundle={makeBundle()} onRefresh={async () => {}} onOpenStudent={() => {}} presets={[]} onRefreshPresets={() => {}} />
+    );
+
+    // The sidebar list is also a .scroll-panel but is a <section>; the roster
+    // scroller is a <div>, so this selects it unambiguously.
+    const scroller = container.querySelector('div.scroll-panel');
+    // Walk up to the flex section that must be height-constrained.
+    let section = scroller.parentElement;
+    while (section && section.tagName !== 'SECTION') section = section.parentElement;
+
+    expect(section).not.toBeNull();
+    expect(section.style.minHeight).toBe('0');
+  });
+});
