@@ -439,8 +439,8 @@ export default function SchriftlicheLeistungen({ bundle, onRefresh, onOpenStuden
                       minWidth: 'max-content',
                     }}
                   >
-                    <span style={{ position: 'sticky', left: 12, zIndex: 2, background: pinnedBg, boxShadow: `-12px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
-                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 46, zIndex: 2, background: pinnedBg, boxShadow: `14px 0 0 0 ${pinnedBg}`, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
+                    <span style={{ position: 'sticky', left: 12, zIndex: 2, alignSelf: 'stretch', display: 'flex', alignItems: 'center', background: pinnedBg, boxShadow: `-12px 0 0 0 ${pinnedBg}, 14px 0 0 0 ${pinnedBg}`, font: `500 11px ${fonts.mono}`, color: colors.faint }}>{String(i + 1).padStart(2, '0')}</span>
+                    <button onClick={() => onOpenStudent(s.id, 'ka')} style={{ position: 'sticky', left: 46, zIndex: 2, alignSelf: 'stretch', background: pinnedBg, boxShadow: `14px 0 0 0 ${pinnedBg}`, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 13.5, fontWeight: 500, textAlign: 'left' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studentDisplayName(s)}</span>
                       {studentKlasseLabel(s) && <span style={{ flex: 'none', fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </button>

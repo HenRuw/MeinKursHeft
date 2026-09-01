@@ -54,4 +54,19 @@ describe('SchriftlicheLeistungen roster stays scrollable when stacked', () => {
     // A rightward box-shadow (14px …) fills the gap up to the first grade column.
     expect(name.style.boxShadow).toContain('14px 0 0 0');
   });
+
+  // Regression: the row is taller than the name (the note carries the stacked
+  // "nicht bewertbar"), so the pinned name must stretch to the full row height —
+  // otherwise a centered name leaves top/bottom strips through which the
+  // sideways-scrolling grade cells show.
+  it('stretches the pinned name to the full row height', () => {
+    const { container } = render(
+      <SchriftlicheLeistungen bundle={makeBundle()} onRefresh={async () => {}} onOpenStudent={() => {}} presets={[]} onRefreshPresets={() => {}} />
+    );
+    const name = [...container.querySelectorAll('*')].find(
+      (el) => el.style.position === 'sticky' && el.style.left === '46px'
+    );
+    expect(name).toBeTruthy();
+    expect(name.style.alignSelf).toBe('stretch');
+  });
 });
