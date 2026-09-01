@@ -74,6 +74,9 @@ export default function App({ onLogout }) {
   const [focusWork, setFocusWork] = useState(null);
   const [returnScreen, setReturnScreen] = useState(null); // 'matrix' | 'student' | null
   const focusTokenRef = useRef(0);
+  // Ensures the "no courses yet → jump into course creation" routing only fires
+  // once, on the initial load, not every time you switch to an empty year.
+  const initialRouteDoneRef = useRef(false);
 
   const [courseEditorMode, setCourseEditorMode] = useState('create'); // 'create' | 'edit'
   const [courseEditorCourse, setCourseEditorCourse] = useState(null); // the course being edited, or null when creating
@@ -87,6 +90,7 @@ export default function App({ onLogout }) {
   const [courseEditorNonce, setCourseEditorNonce] = useState(0);
 
   const [verwaltungMenuOpen, setVerwaltungMenuOpen] = useState(false);
+  const [yearMenuOpen, setYearMenuOpen] = useState(false);
   // Set to tell the Schuljahre screen to open its "Neues Schuljahr" wizard on
   // arrival — used by the year dropdown's "Neues Jahr anlegen" entry. The
   // screen flips it back off once it has opened, so remounting won't reopen it.
@@ -151,7 +155,15 @@ export default function App({ onLogout }) {
   useEffect(() => {
     if (currentYearId == null) return;
     setBundle(null);
-    refreshCourses().then((list) => setCourseId(list.length ? list[0].id : null));
+    refreshCourses().then((list) => {
+      setCourseId(list.length ? list[0].id : null);
+      // First launch with an empty (non-archived) year: land straight in the
+      // course creator, which itself opens on the "Schüler hinzufügen" step.
+      if (!initialRouteDoneRef.current) {
+        initialRouteDoneRef.current = true;
+        if (!list.length && !isArchived) openCourseCreator();
+      }
+    });
     refreshAllStudents();
     refreshKlassen();
     refreshYearQuarters();
@@ -394,40 +406,62 @@ export default function App({ onLogout }) {
           {/* Second line: the school-year switcher spans the full sidebar width.
               Everything in the app is scoped to the year picked here. An
               archived year is marked and shown in amber. */}
-          <div style={{ display: 'flex', alignItems: 'center', marginTop: 10 }}>
-            <select
-              value={currentYearId ?? ''}
-              onChange={(e) => {
-                // Sentinel bottom entry: jump to Schuljahre and open the wizard
-                // instead of switching the active year.
-                if (e.target.value === '__new__') {
-                  setScreen('schuljahre');
-                  setYearWizardSignal(true);
-                  closeSidebarOnNavigate();
-                  return;
-                }
-                selectYear(Number(e.target.value));
-              }}
+          {/* Custom dropdown in the sidebar's own dark style (rather than a
+              native <select>): a toggle showing the active year and, expanded,
+              the years plus a "Neues Jahr anlegen" entry — mirroring the
+              Verwaltung menu below. */}
+          <div style={{ marginTop: 10 }}>
+            <button
+              onClick={() => setYearMenuOpen((v) => !v)}
+              aria-expanded={yearMenuOpen}
               aria-label="Schuljahr wählen"
               style={{
-                flex: 1,
-                minWidth: 0,
-                background: 'rgba(255,255,255,.07)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 9,
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: 7,
                 color: isArchived ? '#e6b667' : '#cdd8d4',
-                border: '1px solid rgba(255,255,255,.16)',
-                borderRadius: 6,
-                padding: '5px 6px',
+                background: 'rgba(255,255,255,.06)',
+                border: '1px solid rgba(255,255,255,.12)',
                 font: `500 12px ${fonts.mono}`,
                 letterSpacing: '.04em',
               }}
             >
-              {years.map((y) => (
-                <option key={y.id} value={y.id} style={{ color: '#000' }}>
-                  {y.label}{y.archived ? ' · Archiv' : ''}
-                </option>
-              ))}
-              <option value="__new__" style={{ color: '#000' }}>＋ Neues Jahr anlegen …</option>
-            </select>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentYear ? `${currentYear.label}${currentYear.archived ? ' · Archiv' : ''}` : '—'}
+              </span>
+              <span aria-hidden style={{ fontSize: 9, color: '#7f918c', transition: 'transform 180ms ease', transform: yearMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+            </button>
+            <div style={{ overflow: 'hidden', maxHeight: yearMenuOpen ? 320 : 0, opacity: yearMenuOpen ? 1 : 0, transition: 'max-height 220ms ease, opacity 160ms ease' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, margin: '4px 0 0 2px', paddingLeft: 8, borderLeft: '1px solid rgba(255,255,255,.10)' }}>
+                {years.map((y) => (
+                  <button
+                    key={y.id}
+                    onClick={() => { setYearMenuOpen(false); selectYear(y.id); }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '7px 10px',
+                      borderRadius: 7,
+                      font: `500 12px ${fonts.mono}`,
+                      letterSpacing: '.04em',
+                      color: y.id === currentYearId ? '#fff' : (y.archived ? '#e6b667' : '#9fb0ab'),
+                      background: y.id === currentYearId ? 'rgba(255,255,255,.10)' : 'transparent',
+                    }}
+                  >
+                    {y.label}{y.archived ? ' · Archiv' : ''}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setYearMenuOpen(false); setScreen('schuljahre'); setYearWizardSignal(true); closeSidebarOnNavigate(); }}
+                  style={{ textAlign: 'left', padding: '8px 10px 7px', marginTop: 3, borderTop: '1px solid rgba(255,255,255,.08)', borderRadius: 7, fontSize: 12, color: '#9fb0ab' }}
+                >
+                  ＋ Neues Jahr anlegen …
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div style={{ padding: '16px 12px 8px', flex: 1, overflow: 'auto' }}>
