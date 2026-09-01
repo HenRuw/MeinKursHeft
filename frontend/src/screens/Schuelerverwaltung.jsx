@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { colors, fonts } from '../theme.js';
 import { studentDisplayName } from '../lib/gradeMath.js';
-import { parseStudentsFile } from '../lib/studentImport.js';
+import { parseStudentsFile, SUPPORTED_IMPORT_FORMATS } from '../lib/studentImport.js';
 import { useViewport } from '../lib/useViewport.js';
 
 const selectStyle = { padding: '8px 10px', border: `1px solid ${colors.borderStrong}`, borderRadius: 7, fontSize: 12.5, background: '#fff' };
@@ -55,6 +55,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
   const [importPreview, setImportPreview] = useState(null); // [{ firstName, lastName, skip }]
   const [importError, setImportError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showFormats, setShowFormats] = useState(false);
   const fileInputRef = useRef(null);
 
   const sorted = sortStudentsBy(allStudents, sortBy);
@@ -223,13 +224,48 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
 
         {klasseError && <div style={{ fontSize: 12, color: colors.red, marginBottom: 14 }}>{klasseError}</div>}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={onImportFileChosen} style={{ display: 'none' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: showFormats ? 8 : 14, flexWrap: 'wrap' }}>
+          <input ref={fileInputRef} type="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.ods" onChange={onImportFileChosen} style={{ display: 'none' }} />
           <button onClick={pickImportFile} style={{ padding: '7px 13px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', fontSize: 12, fontWeight: 500, color: colors.mutedStrong }}>
             CSV/Excel importieren
           </button>
+          <button
+            type="button"
+            onClick={() => setShowFormats((v) => !v)}
+            aria-expanded={showFormats}
+            style={{ padding: '7px 11px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', fontSize: 12, color: colors.mutedStrong }}
+          >
+            {showFormats ? 'Formate ausblenden' : 'Welche Dateien werden erkannt?'}
+          </button>
           {importError && <span style={{ fontSize: 12, color: colors.red }}>{importError}</span>}
         </div>
+
+        {showFormats && (
+          <div style={{ background: colors.cardBg, border: `1px solid ${colors.borderCard}`, borderRadius: 11, padding: 14, marginBottom: 16, fontSize: 12.5, lineHeight: 1.5, color: colors.ink }}>
+            <div style={{ marginBottom: 8 }}>
+              <b>Dateitypen:</b> {SUPPORTED_IMPORT_FORMATS.fileTypes}
+              <br />
+              <b>Trennzeichen:</b> {SUPPORTED_IMPORT_FORMATS.separators}
+            </div>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>Mit Überschriftzeile</div>
+            <ul style={{ margin: '0 0 8px 18px', padding: 0 }}>
+              {SUPPORTED_IMPORT_FORMATS.withHeader.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>Ohne Überschriftzeile (nach Spaltenanzahl)</div>
+            <ul style={{ margin: '0 0 8px 18px', padding: 0 }}>
+              {SUPPORTED_IMPORT_FORMATS.withoutHeader.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+            <div style={{ color: colors.mutedStrong }}>
+              {SUPPORTED_IMPORT_FORMATS.notes.map((t) => (
+                <div key={t}>• {t}</div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {importPreview && (
           <div style={{ background: colors.cardBg, border: `1px solid ${colors.borderCard}`, borderRadius: 11, padding: 14, marginBottom: 16 }}>
