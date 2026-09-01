@@ -617,7 +617,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '20px 168px 118px 108px 356px 1fr',
+              gridTemplateColumns: '20px 168px 540px 1fr',
               alignItems: 'center',
               gap: 14,
               padding: '8px 24px 8px 12px',
@@ -634,9 +634,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           >
             <span style={{ position: 'sticky', left: 12, background: '#efece5' }}>#</span>
             <span style={{ position: 'sticky', left: 46, background: '#efece5' }}>SCHÜLER:IN</span>
-            <span>ANWESENHEIT</span>
-            <span />
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: -14 }}>
+            {/* Note and Anwesenheit share one cell now (swapped so the note
+                sits left and the A/V/F buttons right). ANWESENHEIT is pushed
+                to the right edge to sit above its buttons. */}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               MITARBEITSNOTE
               <span ref={setLockRef} style={{ display: 'inline-flex' }}>
                 <LockButton
@@ -647,6 +648,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                 />
               </span>
               {setLocked && <span style={{ color: colors.gold, letterSpacing: 0 }}>GESPERRT</span>}
+              <span style={{ marginLeft: 'auto' }}>ANWESENHEIT</span>
             </span>
             <span>BEMERKUNG</span>
           </div>
@@ -670,7 +672,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   data-arrow-row={s.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '20px 168px 118px 108px 356px 1fr',
+                    gridTemplateColumns: '20px 168px 540px 1fr',
                     alignItems: 'center',
                     gap: 14,
                     padding: '7px 24px 7px 12px',
@@ -687,28 +689,24 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                       {studentKlasseLabel(s) && <span style={{ fontSize: 10, fontWeight: 500, color: colors.muted }}>{studentKlasseLabel(s)}</span>}
                     </span>
                   </button>
-                  <span style={{ display: 'flex', gap: 3 }}>
-                    {ATTENDANCE_OPTIONS.map(([key, letter, title, color]) => {
-                      // "Verspätet" is a sub-state of "Anwesend" (you were there,
-                      // just late), so Anwesend stays highlighted alongside it.
-                      const on = status === key || (key === 'anwesend' && status === 'verspaetet');
-                      const onClick = () => {
-                        if (key === 'verspaetet' && status === 'verspaetet') setStatus(s.id, 'anwesend');
-                        else setStatus(s.id, key);
-                      };
-                      return (
-                        <button key={key} title={title} onClick={onClick} style={{ flex: 1, padding: '5px 0', borderRadius: 6, font: `600 11px ${fonts.mono}`, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? color : '#fff', color: on ? '#fff' : '#9a958b' }}>
-                          {letter}
-                        </button>
-                      );
-                    })}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  {/* Note, the late/absent icons and the A/V/F buttons share
+                      one flex cell. The note (with its stacked "nicht
+                      bewertbar") takes the slack via flex:1, so its right edge —
+                      the nb block — sits right next to the attendance buttons.
+                      The icon slot is only rendered for late/absent rows, so it
+                      pushes the nb block leftward (away from Anwesenheit) only
+                      there, making room for the wheel/checkbox. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+                      <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} stackedNb />
+                    </span>
                     {status === 'verspaetet' && (
-                      <ScrollWheel value={att?.late_minutes ?? 5} onChange={(v) => setLateMinutes(s.id, v)} />
+                      <span style={{ display: 'flex', alignItems: 'center', flex: 'none' }}>
+                        <ScrollWheel value={att?.late_minutes ?? 5} onChange={(v) => setLateMinutes(s.id, v)} />
+                      </span>
                     )}
                     {status === 'fehlt' && (
-                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 'none' }}>
                         <span style={{ font: `500 8.5px ${fonts.mono}`, color: colors.muted, letterSpacing: '.04em', textTransform: 'uppercase' }}>entschuldigt</span>
                         <button
                           onClick={() => setExcused(s.id, !att?.excused)}
@@ -718,10 +716,23 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                         </button>
                       </span>
                     )}
-                  </span>
-                  <span onClick={setLocked ? () => triggerShake(setLockRef.current) : undefined} style={{ marginLeft: -14 }}>
-                    <SplitKeys value={gradeFor(s.id)} onChange={(v) => setGrade(s.id, v)} disabled={setLocked} />
-                  </span>
+                    <span style={{ display: 'flex', gap: 3, flex: 'none', width: 118 }}>
+                      {ATTENDANCE_OPTIONS.map(([key, letter, title, color]) => {
+                        // "Verspätet" is a sub-state of "Anwesend" (you were there,
+                        // just late), so Anwesend stays highlighted alongside it.
+                        const on = status === key || (key === 'anwesend' && status === 'verspaetet');
+                        const onClick = () => {
+                          if (key === 'verspaetet' && status === 'verspaetet') setStatus(s.id, 'anwesend');
+                          else setStatus(s.id, key);
+                        };
+                        return (
+                          <button key={key} title={title} onClick={onClick} style={{ flex: 1, padding: '5px 0', borderRadius: 6, font: `600 11px ${fonts.mono}`, border: `1px solid ${on ? color : colors.borderCard}`, background: on ? color : '#fff', color: on ? '#fff' : '#9a958b' }}>
+                            {letter}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </div>
                   <RemarkPicker
                     remarks={remarksFor(s.id)}
                     presets={presets}
