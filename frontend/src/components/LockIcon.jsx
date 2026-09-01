@@ -1,7 +1,7 @@
-// An inline SVG padlock, drawn open or closed, so the two states are always
-// visually distinct on every OS/browser -- unlike the 🔒/🔓 emojis, whose
-// open variant renders identically to the closed one under some emoji fonts.
-// Uses currentColor, so the surrounding button's `color` tints it.
+// The lock toggle's glyph: a pencil when editing is allowed (open === true)
+// and a struck-through pencil when locked. Drawn as inline SVG with
+// currentColor so the surrounding button's `color` tints it, and so the two
+// states stay clearly distinct on every OS/browser (unlike emoji).
 export default function LockIcon({ open = false, size = 14 }) {
   return (
     <svg
@@ -17,8 +17,8 @@ export default function LockIcon({ open = false, size = 14 }) {
       aria-hidden="true"
       style={{ display: 'block' }}
     >
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      {open ? <path d="M7 11V7a5 5 0 0 1 9.9-1" /> : <path d="M7 11V7a5 5 0 0 1 10 0v4" />}
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+      {!open && <line x1="3" y1="3" x2="21" y2="21" />}
     </svg>
   );
 }
