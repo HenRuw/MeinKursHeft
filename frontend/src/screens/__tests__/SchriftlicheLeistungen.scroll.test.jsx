@@ -37,4 +37,21 @@ describe('SchriftlicheLeistungen roster stays scrollable when stacked', () => {
     expect(section).not.toBeNull();
     expect(section.style.minHeight).toBe('0');
   });
+
+  // Regression: the sticky name column must paint an opaque backing across the
+  // 14px grid gap on its right, otherwise the grade cells scrolling sideways
+  // show through the gap next to the pinned name.
+  it('backs the 14px gap right of the sticky name so grades cannot show through', () => {
+    const { container } = render(
+      <SchriftlicheLeistungen bundle={makeBundle()} onRefresh={async () => {}} onOpenStudent={() => {}} presets={[]} onRefreshPresets={() => {}} />
+    );
+
+    // The pinned name cell is the sticky element offset to clear the "#" column.
+    const name = [...container.querySelectorAll('*')].find(
+      (el) => el.style.position === 'sticky' && el.style.left === '46px'
+    );
+    expect(name).toBeTruthy();
+    // A rightward box-shadow (14px …) fills the gap up to the first grade column.
+    expect(name.style.boxShadow).toContain('14px 0 0 0');
+  });
 });
