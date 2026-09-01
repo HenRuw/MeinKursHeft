@@ -616,8 +616,14 @@ function referenceQuarterRanges(excludeCourseId) {
   return DEFAULT_QUARTER_RANGES;
 }
 
-function seedQuartersAndHalves(courseId) {
-  const ranges = referenceQuarterRanges(courseId);
+function seedQuartersAndHalves(courseId, yearId) {
+  // A course inherits its year's quarter calendar (the single source of truth
+  // for dates). These per-course date columns are vestigial -- always overlaid
+  // with the year's dates on read -- but seeding them sensibly keeps old
+  // reads/backups coherent. Fall back to any existing course's ranges, then the
+  // hardcoded defaults, for a course without a year.
+  const yq = yearId ? getYearQuarters(yearId) : [];
+  const ranges = yq.length === 4 ? yq.map((q) => [q.start_date, q.end_date]) : referenceQuarterRanges(courseId);
   for (let hi = 1; hi <= 2; hi++) {
     run('INSERT INTO halves (course_id, idx, weight) VALUES (?, ?, 1)', [courseId, hi]);
     const halfId = lastId();
@@ -641,10 +647,10 @@ function getCourse(id) {
   return get('SELECT * FROM courses WHERE id = ?', [id]);
 }
 
-function createCourse({ name, hoursPerWeek }) {
-  run('INSERT INTO courses (name, hours_per_week) VALUES (?, ?)', [name, hoursPerWeek || 1]);
+function createCourse({ name, hoursPerWeek, yearId }) {
+  run('INSERT INTO courses (name, hours_per_week, year_id) VALUES (?, ?, ?)', [name, hoursPerWeek || 1, yearId ?? null]);
   const id = lastId();
-  seedQuartersAndHalves(id);
+  seedQuartersAndHalves(id, yearId ?? null);
   persist();
   return getCourse(id);
 }
@@ -1060,7 +1066,14 @@ function getCourseBundle(courseId) {
   if (!course) return null;
 
   const students = listEnrolledStudents(courseId);
-  const quarters = listQuarters(courseId);
+  // Overlay the year's quarter dates (single source of truth) onto the course's
+  // quarter rows, so every course in a year always shows the same calendar
+  // regardless of what its own vestigial date columns hold.
+  const yqByIdx = new Map(getYearQuarters(course.year_id).map((q) => [q.idx, q]));
+  const quarters = listQuarters(courseId).map((q) => {
+    const yr = yqByIdx.get(q.idx);
+    return yr ? { ...q, start_date: yr.start_date, end_date: yr.end_date } : q;
+  });
   const halves = listHalves(courseId);
 
   const lessonRows = listLessons(courseId);
@@ -1086,6 +1099,284 @@ function getCourseBundle(courseId) {
   const averageLocks = listAverageLocks(courseId);
 
   return { course, students, quarters, halves, lessons, writtenWorks, gradeOverrides, averageLocks };
+}
+
+// ---------- school years ----------
+
+function listSchoolYears() {
+  return all('SELECT * FROM school_years ORDER BY sort_order ASC, id ASC');
+}
+
+function getSchoolYear(id) {
+  return get('SELECT * FROM school_years WHERE id = ?', [id]);
+}
+
+function isYearArchived(id) {
+  const y = getSchoolYear(id);
+  return !!(y && y.archived);
+}
+
+function isCourseInArchivedYear(courseId) {
+  const c = getCourse(courseId);
+  return !!(c && c.year_id && isYearArchived(c.year_id));
+}
+
+// A new year always gets a quarter calendar: copied from a source year if one
+// is given (year rollover), otherwise the hardcoded defaults.
+function createSchoolYear({ label, copyQuartersFromYearId } = {}) {
+  const max = get('SELECT MAX(sort_order) AS m FROM school_years');
+  const sortOrder = (max && max.m != null ? max.m : -1) + 1;
+  run('INSERT INTO school_years (label, sort_order, archived) VALUES (?, ?, 0)', [label, sortOrder]);
+  const id = lastId();
+  const src = copyQuartersFromYearId ? getYearQuarters(copyQuartersFromYearId) : [];
+  const ranges = src.length === 4 ? src.map((q) => [q.start_date, q.end_date]) : DEFAULT_QUARTER_RANGES;
+  ranges.forEach(([s, e], i) => run(
+    'INSERT OR IGNORE INTO year_quarters (year_id, idx, start_date, end_date) VALUES (?, ?, ?, ?)',
+    [id, i + 1, s, e]
+  ));
+  persist();
+  return getSchoolYear(id);
+}
+
+function renameSchoolYear(id, label) {
+  run('UPDATE school_years SET label = ? WHERE id = ?', [label, id]);
+  persist();
+  return getSchoolYear(id);
+}
+
+function setSchoolYearArchived(id, archived) {
+  run('UPDATE school_years SET archived = ? WHERE id = ?', [archived ? 1 : 0, id]);
+  persist();
+  return getSchoolYear(id);
+}
+
+// Hard delete: cascades to the year's courses (and through them lessons/grades),
+// classes, memberships and quarter calendar. Callers gate this behind an
+// explicit label-confirmation. Keeps ui_last_year_id pointing somewhere valid.
+function deleteSchoolYear(id) {
+  run('DELETE FROM school_years WHERE id = ?', [id]);
+  const last = get('SELECT value FROM app_meta WHERE key = ?', ['ui_last_year_id']);
+  if (last && String(last.value) === String(id)) {
+    const fallback = get('SELECT id FROM school_years ORDER BY sort_order DESC, id DESC LIMIT 1');
+    if (fallback) run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', ['ui_last_year_id', String(fallback.id)]);
+    else run('DELETE FROM app_meta WHERE key = ?', ['ui_last_year_id']);
+  }
+  persist();
+}
+
+// The year the UI should open on: the last one viewed, falling back to the
+// newest year if that's gone/never set.
+function getUiLastYearId() {
+  const row = get('SELECT value FROM app_meta WHERE key = ?', ['ui_last_year_id']);
+  const id = row ? Number(row.value) : null;
+  if (id && getSchoolYear(id)) return id;
+  const first = get('SELECT id FROM school_years ORDER BY sort_order DESC, id DESC LIMIT 1');
+  return first ? first.id : null;
+}
+
+function setUiLastYearId(id) {
+  run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', ['ui_last_year_id', String(id)]);
+  persist();
+}
+
+// ---------- year quarters (single source of truth for quarter dates) ----------
+
+function getYearQuarters(yearId) {
+  return all('SELECT * FROM year_quarters WHERE year_id = ? ORDER BY idx ASC', [yearId]);
+}
+
+// Upserts one or more quarter date ranges for a year. Accepts either
+// { idx, startDate, endDate } objects or [start, end] pairs (index-based).
+function setYearQuarters(yearId, ranges) {
+  ranges.forEach((r, i) => {
+    const idx = r.idx != null ? r.idx : i + 1;
+    const start = r.startDate != null ? r.startDate : r[0];
+    const end = r.endDate != null ? r.endDate : r[1];
+    run(
+      `INSERT INTO year_quarters (year_id, idx, start_date, end_date) VALUES (?, ?, ?, ?)
+       ON CONFLICT(year_id, idx) DO UPDATE SET start_date = excluded.start_date, end_date = excluded.end_date`,
+      [yearId, idx, start, end]
+    );
+  });
+  persist();
+  return getYearQuarters(yearId);
+}
+
+// ---------- classes (year-scoped) ----------
+
+function listClasses(yearId) {
+  return all(
+    `SELECT c.*, (SELECT COUNT(*) FROM student_year sy WHERE sy.class_id = c.id) AS member_count
+     FROM classes c WHERE c.year_id = ? ORDER BY c.name ASC`,
+    [yearId]
+  );
+}
+
+function getClass(id) {
+  return get('SELECT * FROM classes WHERE id = ?', [id]);
+}
+
+function createClass({ yearId, name }) {
+  run('INSERT OR IGNORE INTO classes (year_id, name) VALUES (?, ?)', [yearId, name]);
+  persist();
+  return get('SELECT * FROM classes WHERE year_id = ? AND name = ?', [yearId, name]);
+}
+
+// Resolves a typed class name to an id within a year, creating it on the fly
+// (mirrors the old resolveKlasseId UX, now year-scoped). '' -> null = Ohne Klasse.
+// Matches case-insensitively so "10B" reuses an existing "10b".
+function resolveClassId(yearId, name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return null;
+  const existing = get('SELECT id FROM classes WHERE year_id = ? AND LOWER(name) = LOWER(?)', [yearId, trimmed]);
+  if (existing) return existing.id;
+  return createClass({ yearId, name: trimmed }).id;
+}
+
+function renameClass(id, name) {
+  run('UPDATE classes SET name = ? WHERE id = ?', [name, id]);
+  persist();
+  return getClass(id);
+}
+
+// Deleting a class drops the grouping only: its members' student_year.class_id
+// is SET NULL, so they stay in the year as "Ohne Klasse".
+function deleteClass(id) {
+  run('DELETE FROM classes WHERE id = ?', [id]);
+  persist();
+}
+
+// ---------- students, year-scoped over the shared person pool ----------
+
+// Every person, regardless of year membership -- the pool the import matches
+// against and the "nirgends zugeordnet" cleanup draws from.
+function listAllStudents() {
+  return all('SELECT * FROM students ORDER BY last_name ASC, first_name ASC');
+}
+
+// Students in one year, with their class (klasse_name kept as the field name so
+// the existing frontend keeps working). class_id NULL rows are "Ohne Klasse".
+function listStudentsForYear(yearId) {
+  return all(
+    `SELECT s.*, sy.class_id, c.name AS klasse_name
+     FROM student_year sy
+     JOIN students s ON s.id = sy.student_id
+     LEFT JOIN classes c ON c.id = sy.class_id
+     WHERE sy.year_id = ?
+     ORDER BY s.last_name ASC, s.first_name ASC`,
+    [yearId]
+  );
+}
+
+// Creates a NEW person in the pool and places them in the year (optionally in a
+// class, created on the fly). This is the single-add form's path.
+function createStudentInYear({ firstName, lastName, yearId, className }) {
+  run('INSERT INTO students (first_name, last_name, klasse_id) VALUES (?, ?, NULL)', [firstName, lastName]);
+  const id = lastId();
+  const classId = resolveClassId(yearId, className);
+  run('INSERT OR IGNORE INTO student_year (student_id, year_id, class_id) VALUES (?, ?, ?)', [id, yearId, classId]);
+  persist();
+  return get('SELECT * FROM students WHERE id = ?', [id]);
+}
+
+// Places an existing pool person into a year (import "link to existing", year
+// rollover). Idempotent; updates the class if the membership already exists.
+function addStudentToYear({ studentId, yearId, classId = null, className }) {
+  const cid = className !== undefined ? resolveClassId(yearId, className) : classId;
+  run(
+    `INSERT INTO student_year (student_id, year_id, class_id) VALUES (?, ?, ?)
+     ON CONFLICT(student_id, year_id) DO UPDATE SET class_id = excluded.class_id`,
+    [studentId, yearId, cid]
+  );
+  persist();
+}
+
+// Renames the person (global) and/or moves them within the given year.
+function updateStudentInYear(studentId, yearId, { firstName, lastName, className }) {
+  const cur = get('SELECT * FROM students WHERE id = ?', [studentId]);
+  if (!cur) return null;
+  if (firstName !== undefined || lastName !== undefined) {
+    run('UPDATE students SET first_name = ?, last_name = ? WHERE id = ?', [
+      firstName !== undefined ? firstName : cur.first_name,
+      lastName !== undefined ? lastName : cur.last_name,
+      studentId,
+    ]);
+  }
+  if (className !== undefined) {
+    const classId = resolveClassId(yearId, className);
+    run('UPDATE student_year SET class_id = ? WHERE student_id = ? AND year_id = ?', [classId, studentId, yearId]);
+  }
+  persist();
+  return get('SELECT * FROM students WHERE id = ?', [studentId]);
+}
+
+// Removes a student from THIS year only -- the person survives in the pool and
+// in every other year. (Course enrollments in this year's courses go with the
+// course, which is year-scoped, so they're untouched here by design.)
+function removeStudentFromYear(studentId, yearId) {
+  run('DELETE FROM student_year WHERE student_id = ? AND year_id = ?', [studentId, yearId]);
+  persist();
+}
+
+// Pool matches for the import's "same person?" prompt: exact first+last
+// (case-insensitive), annotated with which years the match already appears in.
+function findStudentsByName(firstName, lastName) {
+  return all(
+    `SELECT s.*,
+            (SELECT GROUP_CONCAT(y.label, ', ')
+             FROM student_year sy JOIN school_years y ON y.id = sy.year_id
+             WHERE sy.student_id = s.id) AS years
+     FROM students s
+     WHERE LOWER(s.first_name) = LOWER(?) AND LOWER(s.last_name) = LOWER(?)`,
+    [firstName, lastName]
+  );
+}
+
+// People in no year at all -- the "nirgends zugeordnet" cleanup area, the only
+// place a global (all-years) delete is offered.
+function listUnassignedStudents() {
+  return all(
+    `SELECT s.* FROM students s
+     WHERE NOT EXISTS (SELECT 1 FROM student_year sy WHERE sy.student_id = s.id)
+     ORDER BY s.last_name ASC, s.first_name ASC`
+  );
+}
+
+// ---------- courses, year-scoped ----------
+
+function listCoursesForYear(yearId) {
+  return all('SELECT * FROM courses WHERE year_id = ? ORDER BY id ASC', [yearId]);
+}
+
+// Copies a course into another year: same name + hours + enrolled roster
+// (a snapshot -- no live coupling), weights left at their defaults. Any roster
+// student not yet in the target year is added there as Ohne Klasse, so a
+// carried course can never enroll someone who isn't a member of its year.
+function carryCourseToYear({ courseId, toYearId }) {
+  const src = getCourse(courseId);
+  if (!src) return null;
+  const created = createCourse({ name: src.name, hoursPerWeek: src.hours_per_week, yearId: toYearId });
+  const roster = all('SELECT student_id FROM course_students WHERE course_id = ?', [courseId]);
+  roster.forEach((r) => {
+    run('INSERT OR IGNORE INTO student_year (student_id, year_id, class_id) VALUES (?, ?, NULL)', [r.student_id, toYearId]);
+    run('INSERT OR IGNORE INTO course_students (course_id, student_id) VALUES (?, ?)', [created.id, r.student_id]);
+  });
+  persist();
+  return created;
+}
+
+// Advances a class into a new year under a new name, carrying all its members
+// (same person identity). Used by the "Neues Schuljahr" rollover.
+function carryClassToYear({ fromClassId, toYearId, newName }) {
+  const cls = createClass({ yearId: toYearId, name: newName });
+  const members = all('SELECT student_id FROM student_year WHERE class_id = ?', [fromClassId]);
+  members.forEach((m) => run(
+    `INSERT INTO student_year (student_id, year_id, class_id) VALUES (?, ?, ?)
+     ON CONFLICT(student_id, year_id) DO UPDATE SET class_id = excluded.class_id`,
+    [m.student_id, toYearId, cls.id]
+  ));
+  persist();
+  return cls;
 }
 
 module.exports = {
@@ -1160,4 +1451,38 @@ module.exports = {
   setAverageLockColumn,
   // bundle
   getCourseBundle,
+  // school years
+  listSchoolYears,
+  getSchoolYear,
+  createSchoolYear,
+  renameSchoolYear,
+  setSchoolYearArchived,
+  deleteSchoolYear,
+  isYearArchived,
+  isCourseInArchivedYear,
+  getUiLastYearId,
+  setUiLastYearId,
+  // year quarters (source of truth for dates)
+  getYearQuarters,
+  setYearQuarters,
+  // classes (year-scoped)
+  listClasses,
+  getClass,
+  createClass,
+  resolveClassId,
+  renameClass,
+  deleteClass,
+  // students, year-scoped
+  listAllStudents,
+  listStudentsForYear,
+  createStudentInYear,
+  addStudentToYear,
+  updateStudentInYear,
+  removeStudentFromYear,
+  findStudentsByName,
+  listUnassignedStudents,
+  // courses, year-scoped + rollover
+  listCoursesForYear,
+  carryCourseToYear,
+  carryClassToYear,
 };
