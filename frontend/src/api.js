@@ -5,12 +5,30 @@ import { io } from 'socket.io-client';
 // back to the local backend port when no env var is set at all.
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
+// The app is guarded by a single session cookie (see backend/src/auth.js).
+// A 401 from any *non-auth* endpoint means the session is gone/expired; we
+// notify the AuthGate so it can drop back to the login mask. Login/logout/
+// session probes handle their own 401s and must not trigger this.
+const AUTH_PATHS = new Set(['/api/login', '/api/logout', '/api/session']);
+let unauthorizedHandler = null;
+export function onUnauthorized(handler) {
+  unauthorizedHandler = handler;
+  return () => {
+    if (unauthorizedHandler === handler) unauthorizedHandler = null;
+  };
+}
+
 async function request(method, path, body) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
+    // Send/receive the session cookie, including cross-origin in dev.
+    credentials: 'include',
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401 && !AUTH_PATHS.has(path)) {
+    if (unauthorizedHandler) unauthorizedHandler();
+  }
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
     throw new Error(payload.error || `${method} ${path} failed (${res.status})`);
@@ -80,6 +98,11 @@ export const api = {
   // backup — download a full JSON snapshot, or restore one (replaces everything)
   getBackup: () => get('/api/backup'),
   restoreBackup: (data) => post('/api/backup/restore', data),
+
+  // auth — single-password session (see backend/src/auth.js)
+  getSession: () => get('/api/session'),
+  login: (password) => post('/api/login', { password }),
+  logout: () => post('/api/logout'),
 };
 
 let socket = null;
@@ -88,9 +111,29 @@ export function getSocket() {
   if (!socket) {
     // socket.io-client treats an empty/undefined URL as "connect to the
     // current page's origin", which is what we want for the same-origin case.
-    socket = io(API_URL || undefined, { transports: ['websocket'], autoConnect: true });
+    // withCredentials sends the session cookie on the handshake so the server
+    // can authenticate the WebSocket the same way it does REST calls.
+    socket = io(API_URL || undefined, {
+      transports: ['websocket'],
+      autoConnect: true,
+      withCredentials: true,
+    });
+    // The server rejects an unauthenticated handshake with "unauthorized";
+    // treat that like a REST 401 so the app returns to the login mask.
+    socket.on('connect_error', (err) => {
+      if (err && /unauthorized/i.test(err.message) && unauthorizedHandler) unauthorizedHandler();
+    });
   }
   return socket;
+}
+
+// Drop the live-sync socket — used on logout and when the session ends, so a
+// stale connection doesn't keep retrying with a dead cookie.
+export function resetSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 }
 
 // Live-sync: other tabs/windows notify this one that something changed so it

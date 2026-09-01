@@ -19,7 +19,7 @@ function connectClient() {
 
 beforeEach(async () => {
   await db.init(':memory:');
-  ({ httpServer, app } = createServer());
+  ({ httpServer, app } = createServer({ enabled: false }));
   await new Promise((resolve) => {
     httpServer.listen(0, () => {
       port = httpServer.address().port;

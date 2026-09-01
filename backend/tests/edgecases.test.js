@@ -6,7 +6,7 @@ let app;
 
 beforeEach(async () => {
   await db.init(':memory:');
-  ({ app } = createServer());
+  ({ app } = createServer({ enabled: false }));
 });
 
 afterEach(() => {

@@ -34,7 +34,7 @@ const TABS = [
 const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten', 'export', 'backup'];
 const NO_HEADER_SCREENS = [...VERWALTUNG_SCREENS, 'kurs-editor'];
 
-export default function App() {
+export default function App({ onLogout }) {
   const { isDesktop } = useViewport();
   // The sidebar collapses/expands on every viewport via the hamburger. It
   // starts open on a desktop (in-flow) and closed on phones/tablets (drawer).
@@ -448,6 +448,20 @@ export default function App() {
             }}
           >
             Verwaltung
+          </button>
+          <button
+            onClick={onLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              padding: '8px 10px',
+              borderRadius: 7,
+              color: '#9fb0ab',
+              fontSize: 12.5,
+            }}
+          >
+            Abmelden
           </button>
         </div>
       </aside>
