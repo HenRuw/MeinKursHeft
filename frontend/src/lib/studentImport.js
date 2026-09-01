@@ -6,6 +6,7 @@
 const FIRST_NAME_HEADERS = ['vorname', 'first name', 'firstname', 'first_name'];
 const LAST_NAME_HEADERS = ['nachname', 'last name', 'lastname', 'last_name'];
 const FULL_NAME_HEADERS = ['name', 'schüler', 'schueler', 'schüler:in'];
+const KLASSE_HEADERS = ['klasse', 'klasse:in', 'class'];
 
 function normalizeHeader(cell) {
   return String(cell ?? '').trim().toLowerCase();
@@ -56,12 +57,13 @@ async function sheetToRows(buffer) {
 }
 
 function detectColumns(headerRow) {
-  const idx = { first: -1, last: -1, full: -1 };
+  const idx = { first: -1, last: -1, full: -1, klasse: -1 };
   headerRow.forEach((cell, i) => {
     const h = normalizeHeader(cell);
     if (idx.first === -1 && FIRST_NAME_HEADERS.includes(h)) idx.first = i;
     if (idx.last === -1 && LAST_NAME_HEADERS.includes(h)) idx.last = i;
     if (idx.full === -1 && FULL_NAME_HEADERS.includes(h)) idx.full = i;
+    if (idx.klasse === -1 && KLASSE_HEADERS.includes(h)) idx.klasse = i;
   });
   return idx;
 }
@@ -81,7 +83,11 @@ function rowToStudent(row, cols) {
     ({ firstName, lastName } = splitFullName(row[0]));
   }
   if (!firstName || !lastName) return null;
-  return { firstName, lastName };
+  const student = { firstName, lastName };
+  // Only carry a class when the file actually has a Klasse column, so files
+  // without one keep the plain { firstName, lastName } shape.
+  if (cols.klasse !== -1) student.klasse = String(row[cols.klasse] ?? '').trim();
+  return student;
 }
 
 // Returns [{ firstName, lastName }, ...], skipping blank/unparseable rows.

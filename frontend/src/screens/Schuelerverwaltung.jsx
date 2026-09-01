@@ -151,10 +151,29 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
     if (!toCreate.length) return;
     setImporting(true);
     try {
+      // Resolve class names to ids as we go, seeded from the known classes.
+      // React state won't update mid-loop, so a locally-tracked map ensures a
+      // class shared by several imported rows is created only once.
+      const klasseIdByName = new Map(klassen.map((k) => [k.name.trim().toLowerCase(), k.id]));
+      let createdKlasse = false;
       for (const r of toCreate) {
-        await api.createStudent({ firstName: r.firstName, lastName: r.lastName });
+        let klasseId = null;
+        const name = (r.klasse || '').trim();
+        if (name) {
+          const key = name.toLowerCase();
+          if (klasseIdByName.has(key)) {
+            klasseId = klasseIdByName.get(key);
+          } else {
+            const created = await api.createKlasse({ name });
+            klasseIdByName.set(key, created.id);
+            klasseId = created.id;
+            createdKlasse = true;
+          }
+        }
+        await api.createStudent({ firstName: r.firstName, lastName: r.lastName, klasseId });
       }
       setImportPreview(null);
+      if (createdKlasse) await onRefreshKlassen();
       onRefreshAllStudents();
     } finally {
       setImporting(false);
@@ -222,6 +241,7 @@ export default function Schuelerverwaltung({ allStudents, onRefreshAllStudents, 
                 <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', fontSize: 12.5, color: r.skip ? colors.muted : colors.ink }}>
                   <input type="checkbox" checked={!r.skip} onChange={() => toggleImportRow(i)} />
                   <span>{r.lastName}, {r.firstName}</span>
+                  {r.klasse && <span style={{ fontSize: 11, color: colors.muted }}>· {r.klasse}</span>}
                   {r.skip && <span style={{ fontSize: 11, color: colors.muted }}>(existiert bereits)</span>}
                 </label>
               ))}

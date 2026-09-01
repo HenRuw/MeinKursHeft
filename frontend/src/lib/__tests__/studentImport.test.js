@@ -61,6 +61,22 @@ describe('parseStudentsFile (CSV)', () => {
   test('returns an empty array for an empty file', async () => {
     expect(await parseStudentsFile(csvFile(''))).toEqual([]);
   });
+
+  test('carries a Klasse column through', async () => {
+    const rows = await parseStudentsFile(csvFile('Vorname;Nachname;Klasse\nMax;Mustermann;9a\nAnna;Beispiel;10b'));
+    expect(rows).toEqual([
+      { firstName: 'Max', lastName: 'Mustermann', klasse: '9a' },
+      { firstName: 'Anna', lastName: 'Beispiel', klasse: '10b' },
+    ]);
+  });
+
+  test('carries the class from a full-name + Klasse layout, blank class stays empty', async () => {
+    const rows = await parseStudentsFile(csvFile('Name,Klasse\nMax Mustermann,9a\nAnna Beispiel,'));
+    expect(rows).toEqual([
+      { firstName: 'Max', lastName: 'Mustermann', klasse: '9a' },
+      { firstName: 'Anna', lastName: 'Beispiel', klasse: '' },
+    ]);
+  });
 });
 
 describe('parseStudentsFile (XLSX)', () => {
