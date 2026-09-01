@@ -662,7 +662,6 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                 {setLocked && <span style={{ color: colors.gold, letterSpacing: 0 }}>GESPERRT</span>}
               </span>
               <span style={{ width: ATT_W, flex: 'none' }}>ANWESENHEIT</span>
-              <span>BEMERKUNG</span>
             </span>
           </div>
           {students.map((s, i) => {
