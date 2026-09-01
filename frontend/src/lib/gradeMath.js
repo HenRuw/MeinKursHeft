@@ -125,6 +125,41 @@ export function schriftlichAverage(studentId, works) {
   );
 }
 
+// Calculates every average for one student across the *entire* bundle,
+// independent of any collapse/display state -- returns the resolved (override
+// aware) Ø Mitarbeit / Ø Schriftlich / Q-Note per quarter, HJ-Note per half,
+// and the single Zeugnis. This is the ONE place these roll-ups are computed,
+// shared by the course-wide Notenübersicht and the per-student Schüleransicht
+// so their numbers can never drift apart.
+export function calcAverages(bundle, overrides, studentId, courseId) {
+  const mitByQuarter = new Map();
+  const schrByQuarter = new Map();
+  bundle.quarters.forEach((quarter) => {
+    const lessons = bundle.lessons.filter((l) => l.quarter_id === quarter.id);
+    const works = bundle.writtenWorks.filter((w) => w.quarter_id === quarter.id);
+    mitByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'mitAvg', quarter.id, mitarbeitAverage(studentId, lessons, works)));
+    schrByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'schrAvg', quarter.id, schriftlichAverage(studentId, works)));
+  });
+  const qNoteByQuarter = new Map();
+  bundle.quarters.forEach((quarter) => {
+    const mit = mitByQuarter.get(quarter.id);
+    const schr = schrByQuarter.get(quarter.id);
+    const calc = wavg([
+      [mit.value, quarter.weight_mitarbeit],
+      [schr.value, quarter.weight_schriftlich],
+    ]);
+    qNoteByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'qNote', quarter.id, calc));
+  });
+  const hjByHalf = new Map();
+  bundle.halves.forEach((half) => {
+    const qVals = bundle.quarters.filter((q) => q.half_id === half.id).map((q) => [qNoteByQuarter.get(q.id).value, q.weight_quarter]);
+    hjByHalf.set(half.id, resolveAverage(overrides, studentId, 'hjNote', half.id, wavg(qVals)));
+  });
+  const zeugnisCalc = wavg(bundle.halves.map((h) => [hjByHalf.get(h.id).value, h.weight]));
+  const zeugnis = resolveAverage(overrides, studentId, 'zeugnis', courseId, zeugnisCalc);
+  return { mitByQuarter, schrByQuarter, qNoteByQuarter, hjByHalf, zeugnis };
+}
+
 // A manually-entered average stands in for its calculated counterpart
 // everywhere that average is shown — this is the single lookup both the
 // course-wide Notenübersicht and the embedded per-student one (Schueler-

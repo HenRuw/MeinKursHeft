@@ -7,16 +7,13 @@ import {
   studentKlasseLabel,
   num,
   fmt,
-  wavg,
   gradeColor,
   gradeLabel,
   isNb,
   GRADE_TYPE_SCALE,
   WRITTEN_WORK_KINDS,
   WRITTEN_WORK_GROUP,
-  mitarbeitAverage,
-  schriftlichAverage,
-  resolveAverage,
+  calcAverages,
   averageLockedFor,
   averageColumnLocked,
 } from '../lib/gradeMath.js';
@@ -213,39 +210,6 @@ function buildColumns(bundle, collapsed, toggles) {
   groups.push({ key: 'year', level: 'year', label: 'GANZES SCHULJAHR', start: 0, end: leaves.length, collapsed: collapsed.year, onToggle: toggles.year });
 
   return { leaves, groups };
-}
-
-// Calculates every average for one student across the *entire* bundle,
-// independent of collapse state -- collapsing a frame only hides its detail
-// columns from the grid buildColumns produces above, it must never change a
-// roll-up value derived from those columns.
-function calcAverages(bundle, overrides, studentId, courseId) {
-  const mitByQuarter = new Map();
-  const schrByQuarter = new Map();
-  bundle.quarters.forEach((quarter) => {
-    const lessons = bundle.lessons.filter((l) => l.quarter_id === quarter.id);
-    const works = bundle.writtenWorks.filter((w) => w.quarter_id === quarter.id);
-    mitByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'mitAvg', quarter.id, mitarbeitAverage(studentId, lessons, works)));
-    schrByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'schrAvg', quarter.id, schriftlichAverage(studentId, works)));
-  });
-  const qNoteByQuarter = new Map();
-  bundle.quarters.forEach((quarter) => {
-    const mit = mitByQuarter.get(quarter.id);
-    const schr = schrByQuarter.get(quarter.id);
-    const calc = wavg([
-      [mit.value, quarter.weight_mitarbeit],
-      [schr.value, quarter.weight_schriftlich],
-    ]);
-    qNoteByQuarter.set(quarter.id, resolveAverage(overrides, studentId, 'qNote', quarter.id, calc));
-  });
-  const hjByHalf = new Map();
-  bundle.halves.forEach((half) => {
-    const qVals = bundle.quarters.filter((q) => q.half_id === half.id).map((q) => [qNoteByQuarter.get(q.id).value, q.weight_quarter]);
-    hjByHalf.set(half.id, resolveAverage(overrides, studentId, 'hjNote', half.id, wavg(qVals)));
-  });
-  const zeugnisCalc = wavg(bundle.halves.map((h) => [hjByHalf.get(h.id).value, h.weight]));
-  const zeugnis = resolveAverage(overrides, studentId, 'zeugnis', courseId, zeugnisCalc);
-  return { mitByQuarter, schrByQuarter, qNoteByQuarter, hjByHalf, zeugnis };
 }
 
 const gradeOf = (list, studentId) => list.find((x) => x.student_id === studentId)?.grade || null;

@@ -7,6 +7,7 @@ import {
   isNb,
   NB,
   wavg,
+  calcAverages,
   averageLockedFor,
   averageColumnLocked,
   parseWeight,
@@ -112,6 +113,42 @@ describe('wavg', () => {
     expect(wavg([])).toBeNull();
     expect(wavg([[null, 1]])).toBeNull();
     expect(wavg([[2, 0]])).toBeNull();
+  });
+});
+
+describe('calcAverages (the shared roll-up chain)', () => {
+  // One half, one quarter, one student. Lessons 2 & 4 (weight 1 each) →
+  // Ø Mitarbeit 3; one Klassenarbeit 2 → Ø Schriftlich 2; Q-Note = mean(3,2)
+  // = 2.5; with a single quarter/half both HJ-Note and Zeugnis are also 2.5.
+  const bundle = {
+    course: { id: 1 },
+    halves: [{ id: 10, idx: 1, weight: 1 }],
+    quarters: [{ id: 101, idx: 1, half_id: 10, weight_mitarbeit: 1, weight_schriftlich: 1, weight_quarter: 1 }],
+    lessons: [
+      { id: 1, quarter_id: 101, weight: 1, grades: [{ student_id: 1, grade: '2' }] },
+      { id: 2, quarter_id: 101, weight: 1, grades: [{ student_id: 1, grade: '4' }] },
+    ],
+    writtenWorks: [{ id: 5, quarter_id: 101, kind: 'klassenarbeit', weight: 1, grades: [{ student_id: 1, grade: '2' }] }],
+  };
+
+  test('rolls Ø Mit / Ø Schr up into Q-Note, HJ-Note and Zeugnis', () => {
+    const a = calcAverages(bundle, [], 1, 1);
+    expect(a.mitByQuarter.get(101).value).toBeCloseTo(3);
+    expect(a.schrByQuarter.get(101).value).toBeCloseTo(2);
+    expect(a.qNoteByQuarter.get(101).value).toBeCloseTo(2.5);
+    expect(a.hjByHalf.get(10).value).toBeCloseTo(2.5);
+    expect(a.zeugnis.value).toBeCloseTo(2.5);
+    expect(a.zeugnis.overridden).toBe(false);
+  });
+
+  test('a manual Q-Note override replaces the value and cascades upward', () => {
+    const overrides = [{ student_id: 1, kind: 'qNote', ref_id: 101, grade: '1' }];
+    const a = calcAverages(bundle, overrides, 1, 1);
+    expect(a.qNoteByQuarter.get(101).value).toBe(1);
+    expect(a.qNoteByQuarter.get(101).overridden).toBe(true);
+    // HJ-Note and Zeugnis are derived from the (now overridden) Q-Note.
+    expect(a.hjByHalf.get(10).value).toBe(1);
+    expect(a.zeugnis.value).toBe(1);
   });
 });
 
