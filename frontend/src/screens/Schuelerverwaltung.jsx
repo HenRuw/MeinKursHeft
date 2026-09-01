@@ -149,7 +149,8 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
           const alreadyInYear = existingNameKeys.has(nameKey(r.firstName, r.lastName));
           return {
             ...r,
-            skip: alreadyInYear, // members of this year are pre-unchecked
+            alreadyInYear, // already a member of this year: not importable at all
+            skip: alreadyInYear,
             matches,
             action: matches.length ? 'link' : 'create', // default to linking a known person
             linkId: matches[0]?.id ?? null,
@@ -162,7 +163,9 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
   };
 
   const patchImportRow = (i, patch) => setImportPreview((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const toggleImportRow = (i) => setImportPreview((rows) => rows.map((r, idx) => (idx === i ? { ...r, skip: !r.skip } : r)));
+  // Rows whose name already exists in the year can't be imported again, so
+  // their checkbox is locked off — toggling is a no-op for them.
+  const toggleImportRow = (i) => setImportPreview((rows) => rows.map((r, idx) => (idx === i && !r.alreadyInYear ? { ...r, skip: !r.skip } : r)));
 
   const cancelImport = () => {
     setImportPreview(null);
@@ -263,7 +266,7 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
         {importPreview && (
           <div style={{ background: colors.cardBg, border: `1px solid ${colors.borderCard}`, borderRadius: 11, padding: 14, marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-              {importPreview.length} Zeile{importPreview.length === 1 ? '' : 'n'} gefunden — bereits im Jahr vorhandene sind abgewählt.
+              {importPreview.length} Zeile{importPreview.length === 1 ? '' : 'n'} gefunden — bereits im Jahr vorhandene werden übersprungen.
             </div>
             <div style={{ fontSize: 11.5, color: colors.mutedStrong, marginBottom: 10 }}>
               Namen kannst du vor dem Import noch korrigieren. Ist eine Person schon aus einem anderen Jahr bekannt, wähle „gleiche Person" (verknüpft die Historie) oder „neu anlegen".
@@ -271,13 +274,13 @@ export default function Schuelerverwaltung({ yearId, archived, allStudents, onRe
             <div style={{ maxHeight: 300, overflow: 'auto', marginBottom: 10 }}>
               {importPreview.map((r, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 2px', borderTop: i ? `1px solid ${colors.divider}` : undefined }}>
-                  <input type="checkbox" checked={!r.skip} onChange={() => toggleImportRow(i)} />
-                  <input value={r.lastName} onChange={(e) => patchImportRow(i, { lastName: e.target.value })} style={{ width: 130, padding: '4px 6px', border: `1px solid ${colors.borderStrong}`, borderRadius: 5, fontSize: 12, opacity: r.skip ? 0.5 : 1 }} />
-                  <input value={r.firstName} onChange={(e) => patchImportRow(i, { firstName: e.target.value })} style={{ width: 120, padding: '4px 6px', border: `1px solid ${colors.borderStrong}`, borderRadius: 5, fontSize: 12, opacity: r.skip ? 0.5 : 1 }} />
+                  <input type="checkbox" checked={!r.skip} disabled={r.alreadyInYear} onChange={() => toggleImportRow(i)} />
+                  <input value={r.lastName} disabled={r.alreadyInYear} onChange={(e) => patchImportRow(i, { lastName: e.target.value })} style={{ width: 130, padding: '4px 6px', border: `1px solid ${colors.borderStrong}`, borderRadius: 5, fontSize: 12, opacity: r.skip ? 0.5 : 1 }} />
+                  <input value={r.firstName} disabled={r.alreadyInYear} onChange={(e) => patchImportRow(i, { firstName: e.target.value })} style={{ width: 120, padding: '4px 6px', border: `1px solid ${colors.borderStrong}`, borderRadius: 5, fontSize: 12, opacity: r.skip ? 0.5 : 1 }} />
                   {r.klasse ? <span style={{ fontSize: 11, color: colors.muted }}>· {r.klasse}</span> : null}
                   <span style={{ flex: 1 }} />
-                  {r.skip ? (
-                    <span style={{ fontSize: 11, color: colors.muted }}>schon im Jahr</span>
+                  {r.alreadyInYear ? (
+                    <span style={{ fontSize: 11, color: colors.muted, fontStyle: 'italic' }}>ist bereits eingefügt</span>
                   ) : r.matches.length ? (
                     <select
                       value={r.action}
