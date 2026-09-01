@@ -30,6 +30,18 @@ const TILE_GAP = 9;
 const unitEnd = (l) => l.end_date || l.date;
 const isMultiDay = (l) => unitEnd(l) !== l.date;
 
+// Day distance from `today` (ISO) to a unit's span: 0 while today falls inside
+// von…bis, otherwise the whole-day gap to the nearer edge. Drives the "unit
+// closest to the current date" default selection when the tab opens.
+const MS_PER_DAY = 86400000;
+const daysApart = (aIso, bIso) => Math.round(Math.abs(new Date(aIso) - new Date(bIso)) / MS_PER_DAY);
+const dayDistanceToToday = (l, today) => {
+  if (today < l.date) return daysApart(today, l.date);
+  const end = unitEnd(l);
+  if (today > end) return daysApart(today, end);
+  return 0;
+};
+
 // One labelled field in the unit detail panel (small mono caption above the
 // value). `multiline` lets the Kommentar wrap; everything else ellipsises.
 function DetailRow({ label, value, multiline }) {
@@ -105,7 +117,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
 
   useEffect(() => {
     // Arriving here from a grade clicked in the Notenübersicht jumps
-    // straight to that lesson, ahead of the usual "today, else most recent"
+    // straight to that lesson, ahead of the usual "closest to today"
     // default — checked first and, if present, short-circuits that default
     // entirely (the token in initialLesson changes on every click, even
     // clicking the same lesson again, so this always re-fires).
@@ -115,9 +127,17 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
       return;
     }
     if (!allLessons.some((l) => l.id === activeLessonId)) {
+      // Default to the unit nearest the current date (today itself counts as
+      // distance 0, so a lesson happening now wins). allLessons is sorted
+      // ascending, so a past/future tie keeps the earlier one. The chosen
+      // tile is then centred in the row via pendingScrollRef below.
       const today = todayISO();
-      const byToday = allLessons.find((l) => l.date === today);
-      setActiveLessonId(byToday ? byToday.id : allLessons.length ? allLessons[allLessons.length - 1].id : null);
+      const closest = allLessons.reduce(
+        (best, l) => (best == null || dayDistanceToToday(l, today) < dayDistanceToToday(best, today) ? l : best),
+        null
+      );
+      setActiveLessonId(closest ? closest.id : null);
+      if (closest) pendingScrollRef.current = closest.id;
     }
   }, [initialLesson, allLessons.map((l) => l.id).join(',')]);
 
@@ -258,14 +278,18 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const scrollToLesson = (id) => {
     const vp = tileViewportRef.current;
     const el = tileRefs.current[id];
-    if (!vp || !el) return;
+    // scrollTo is missing in jsdom (and any non-browser host); the centring is
+    // a nicety, so skip it rather than throw where it isn't supported.
+    if (!vp || !el || typeof vp.scrollTo !== 'function') return;
     const delta = el.getBoundingClientRect().left - vp.getBoundingClientRect().left;
     const target = vp.scrollLeft + delta - (vp.clientWidth - el.offsetWidth) / 2;
     vp.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
   };
 
-  // Once a newly created unit's tile has actually rendered (its ref is
-  // registered), scroll it into view and forget the pending id.
+  // Once the tile flagged in pendingScrollRef has actually rendered (its ref
+  // is registered), centre it in the row and forget the pending id. Set both
+  // when a unit is freshly created and when the tab opens on its default
+  // "closest to today" unit, so that unit is visible without a manual swipe.
   useEffect(() => {
     const id = pendingScrollRef.current;
     if (id != null && tileRefs.current[id]) {
