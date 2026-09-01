@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, subscribeSync } from './api.js';
 import { colors, fonts } from './theme.js';
 import { useViewport } from './lib/useViewport.js';
-import Popover from './components/Popover.jsx';
 import Stundenerfassung from './screens/Stundenerfassung.jsx';
 import SchriftlicheLeistungen from './screens/SchriftlicheLeistungen.jsx';
 import Notenuebersicht from './screens/Notenuebersicht.jsx';
@@ -13,17 +12,13 @@ import KursEditor from './screens/KursEditor.jsx';
 import Export from './screens/Export.jsx';
 import Backup from './screens/Backup.jsx';
 
-const menuPanel = {
-  background: '#fff',
-  border: `1px solid ${colors.borderStrong}`,
-  borderRadius: 12,
-  boxShadow: '0 12px 32px rgba(0,0,0,.18)',
-  padding: 14,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 10,
-};
-const menuOptionBtn = { textAlign: 'left', padding: '9px 10px', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, fontSize: 12.5 };
+// The Verwaltung submenu options, expanded inline inside the sidebar.
+const VERWALTUNG_OPTIONS = [
+  ['schuelerverwaltung', 'Schülerdaten'],
+  ['quartalsdaten', 'Quartalsdaten'],
+  ['export', 'Export'],
+  ['backup', 'Backup'],
+];
 
 const TABS = [
   ['stunde', 'Mitarbeit'],
@@ -31,7 +26,7 @@ const TABS = [
   ['matrix', 'Notenübersicht'],
 ];
 
-const VERWALTUNG_SCREENS = ['schuelerverwaltung', 'quartalsdaten', 'export', 'backup'];
+const VERWALTUNG_SCREENS = VERWALTUNG_OPTIONS.map(([key]) => key);
 const NO_HEADER_SCREENS = [...VERWALTUNG_SCREENS, 'kurs-editor'];
 
 export default function App({ onLogout }) {
@@ -78,7 +73,6 @@ export default function App({ onLogout }) {
   // its internal state. See openCourseCreator/openCourseEditor below.
   const [courseEditorNonce, setCourseEditorNonce] = useState(0);
 
-  const verwaltungBtnRef = useRef(null);
   const [verwaltungMenuOpen, setVerwaltungMenuOpen] = useState(false);
 
   const refreshCourses = useCallback(async () => {
@@ -434,21 +428,72 @@ export default function App({ onLogout }) {
           }}
         >
           <button
-            ref={verwaltungBtnRef}
             onClick={() => setVerwaltungMenuOpen((v) => !v)}
+            aria-expanded={verwaltungMenuOpen}
             style={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: 9,
               padding: '8px 10px',
               borderRadius: 7,
-              color: VERWALTUNG_SCREENS.includes(screen) ? '#fff' : '#9fb0ab',
+              color: verwaltungMenuOpen || VERWALTUNG_SCREENS.includes(screen) ? '#fff' : '#9fb0ab',
               background: VERWALTUNG_SCREENS.includes(screen) ? 'rgba(255,255,255,.06)' : 'transparent',
               fontSize: 12.5,
             }}
           >
-            Verwaltung
+            <span>Verwaltung</span>
+            <span
+              aria-hidden
+              style={{
+                fontSize: 9,
+                color: '#7f918c',
+                transition: 'transform 180ms ease',
+                transform: verwaltungMenuOpen ? 'rotate(-180deg)' : 'rotate(0deg)',
+              }}
+            >
+              ▾
+            </span>
           </button>
+
+          {/* Opens inline within the sidebar (not a floating popup), in the same
+              dark nav style; a nested left rule signals the hierarchy. */}
+          <div
+            style={{
+              overflow: 'hidden',
+              maxHeight: verwaltungMenuOpen ? 200 : 0,
+              opacity: verwaltungMenuOpen ? 1 : 0,
+              transition: 'max-height 220ms ease, opacity 160ms ease',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                margin: '2px 0 2px 10px',
+                paddingLeft: 8,
+                borderLeft: '1px solid rgba(255,255,255,.10)',
+              }}
+            >
+              {VERWALTUNG_OPTIONS.map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => openVerwaltungScreen(key)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '7px 10px',
+                    borderRadius: 7,
+                    fontSize: 12.5,
+                    color: screen === key ? '#fff' : '#9fb0ab',
+                    background: screen === key ? 'rgba(255,255,255,.10)' : 'transparent',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={onLogout}
             style={{
@@ -465,23 +510,6 @@ export default function App({ onLogout }) {
           </button>
         </div>
       </aside>
-
-      <Popover open={verwaltungMenuOpen} anchorRef={verwaltungBtnRef} onClose={() => setVerwaltungMenuOpen(false)} align="left" width={200}>
-        <div style={menuPanel}>
-          <button onClick={() => openVerwaltungScreen('schuelerverwaltung')} style={menuOptionBtn}>
-            Schülerdaten
-          </button>
-          <button onClick={() => openVerwaltungScreen('quartalsdaten')} style={menuOptionBtn}>
-            Quartalsdaten
-          </button>
-          <button onClick={() => openVerwaltungScreen('export')} style={menuOptionBtn}>
-            Export
-          </button>
-          <button onClick={() => openVerwaltungScreen('backup')} style={menuOptionBtn}>
-            Backup
-          </button>
-        </div>
-      </Popover>
 
       <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* The top strip only exists when it actually carries something: the
