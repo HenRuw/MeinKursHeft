@@ -109,6 +109,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   // just leaves this at its null default instead of reapplying a stale one.
   const [highlightedStudentId, setHighlightedStudentId] = useState(null);
   const addBtnRef = useRef(null);
+  // The compact "+" shown in the collapsed bar; anchors the same add popover
+  // when the full picker (with its own "+") isn't on screen.
+  const addBtnCollapsedRef = useRef(null);
   const rosterScrollRef = useRef(null);
   const tileViewportRef = useRef(null);
   const tileRefs = useRef({});
@@ -326,15 +329,38 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
       {confirmDialog}
-      {/* Pinned to the top-right corner, outside both bar variants, so the
+      {/* Pinned to the top-left corner, outside both bar variants, so the
           toggle stays put whether the picker is open or collapsed. */}
-      <div style={{ position: 'absolute', top: 8, right: 24, zIndex: 5 }}>
+      <div style={{ position: 'absolute', top: 8, left: 24, zIndex: 5 }}>
         <CollapseArrow collapsed={barCollapsed} onClick={() => setBarCollapsed((v) => !v)} size={20} fontSize={11} />
       </div>
       {barCollapsed ? (
         // Collapsed bar: a slim strip with the course name and the selected
         // unit's date only, plus the arrow to fold the full picker back open.
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px', borderBottom: `1px solid ${colors.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px 8px 52px', borderBottom: `1px solid ${colors.border}` }}>
+          {/* Compact "+" mirroring the picker's own — same add popover, so a
+              new unit can be created without opening the full bar. */}
+          <button
+            ref={addBtnCollapsedRef}
+            onClick={() => setAddOpen((v) => !v)}
+            title="Neue Einheit"
+            style={{
+              width: 28,
+              height: 28,
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `1px dashed ${addOpen ? colors.teal : colors.borderStrong}`,
+              borderRadius: 8,
+              fontSize: 18,
+              fontWeight: 300,
+              color: addOpen ? colors.teal : colors.muted,
+              background: addOpen ? colors.tealTint : 'transparent',
+            }}
+          >
+            +
+          </button>
           {lesson && (
             <span style={{ font: `600 15px ${fonts.mono}`, color: colors.teal, whiteSpace: 'nowrap' }}>
               {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
@@ -342,7 +368,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           )}
         </div>
       ) : (
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 52px 16px 24px', borderBottom: `1px solid ${colors.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px 16px 52px', borderBottom: `1px solid ${colors.border}` }}>
         {/* Detail panel (left): the selected unit's Von…bis, Gewicht,
             Schulstunden, Thema and Kommentar. The date/Gewicht/Schulstunden
             fields sit on one wrapping row so the block stays short and wide
@@ -568,7 +594,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         </div>
       </Popover>
 
-      <Popover open={addOpen} anchorRef={addBtnRef} onClose={resetAddForm} align="left" width={296}>
+      <Popover open={addOpen} anchorRef={barCollapsed ? addBtnCollapsedRef : addBtnRef} onClose={resetAddForm} align="left" width={296}>
         <div
           style={{
             background: '#fff',
