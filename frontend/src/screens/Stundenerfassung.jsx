@@ -11,7 +11,9 @@ import RemarkPicker from '../components/RemarkPicker.jsx';
 import Popover from '../components/Popover.jsx';
 import ScrollWheel from '../components/ScrollWheel.jsx';
 import LockButton from '../components/LockButton.jsx';
+import CollapseArrow from '../components/CollapseArrow.jsx';
 import { useConfirm } from '../components/useConfirm.jsx';
+import { usePersisted } from '../lib/usePersisted.js';
 
 // Icons instead of letters: green check (present), clock (late), red X (absent).
 // The emoji carry their own colour, so selection is shown by the tinted
@@ -95,6 +97,11 @@ function Stepper({ value, onChange, min = 1, max = 30, suffix = '' }) {
 export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, presets, onRefreshPresets, initialLesson }) {
   const { confirm, confirmDialog } = useConfirm();
   const quarters = [...bundle.quarters].sort((a, b) => a.idx - b.idx);
+  // The unit-picker bar (detail panel + tile row) can be folded away to fit
+  // more students on screen; while collapsed only the course name and the
+  // selected unit's date remain. Persisted per course, so a teacher who
+  // prefers the compact view keeps it across reloads.
+  const [barCollapsed, setBarCollapsed] = usePersisted(`stundenerfassung:${bundle.course.id}:barCollapsed`, false);
   const [activeLessonId, setActiveLessonId] = useState(null);
   // The student row to highlight after arriving via a grade clicked in the
   // Notenübersicht — cleared by App itself (setFocusLesson(null)) the moment
@@ -319,6 +326,21 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {confirmDialog}
+      {barCollapsed ? (
+        // Collapsed bar: a slim strip with the course name and the selected
+        // unit's date only, plus the arrow to fold the full picker back open.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px', borderBottom: `1px solid ${colors.border}` }}>
+          <CollapseArrow collapsed onClick={() => setBarCollapsed(false)} size={20} fontSize={11} />
+          <span style={{ font: `500 15px ${fonts.serif}`, color: colors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {bundle.course.name}
+          </span>
+          {lesson && (
+            <span style={{ font: `600 15px ${fonts.mono}`, color: colors.teal, whiteSpace: 'nowrap' }}>
+              {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
+            </span>
+          )}
+        </div>
+      ) : (
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
         {/* Detail panel (left): the selected unit's Von…bis, Gewicht,
             Schulstunden, Thema and Kommentar. The date/Gewicht/Schulstunden
@@ -467,7 +489,13 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             <span style={{ alignSelf: 'center', fontSize: 12.5, color: colors.mutedStrong, paddingLeft: 4 }}>Noch keine Einheit — links über „+“ anlegen.</span>
           )}
         </div>
+
+        {/* Fold the whole picker away to make room for more student rows. */}
+        <div style={{ flex: 'none', display: 'flex', alignItems: 'center' }}>
+          <CollapseArrow collapsed={false} onClick={() => setBarCollapsed(true)} size={20} fontSize={11} />
+        </div>
       </div>
+      )}
 
       <Popover open={editLessonId != null} anchorRef={editAnchorRef} onClose={() => setEditLessonId(null)} width={280}>
         <div
