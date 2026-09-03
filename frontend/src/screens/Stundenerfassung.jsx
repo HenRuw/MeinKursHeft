@@ -335,9 +335,15 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         <CollapseArrow collapsed={barCollapsed} onClick={() => setBarCollapsed((v) => !v)} size={20} fontSize={11} />
       </div>
       {barCollapsed ? (
-        // Collapsed bar: a slim strip with the course name and the selected
-        // unit's date only, plus the arrow to fold the full picker back open.
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px 8px 52px', borderBottom: `1px solid ${colors.border}` }}>
+        // Collapsed bar: a shrunk version of the full picker — the selected
+        // unit's date, then the "+", then the other units as smaller tiles,
+        // so more student rows fit while everything stays reachable.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 24px 6px 52px', borderBottom: `1px solid ${colors.border}` }}>
+          {lesson && (
+            <span style={{ flex: 'none', font: `600 15px ${fonts.mono}`, color: colors.teal, whiteSpace: 'nowrap' }}>
+              {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
+            </span>
+          )}
           {/* Compact "+" mirroring the picker's own — same add popover, so a
               new unit can be created without opening the full bar. */}
           <button
@@ -345,8 +351,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
             onClick={() => setAddOpen((v) => !v)}
             title="Neue Einheit"
             style={{
-              width: 28,
-              height: 28,
+              width: 34,
+              minHeight: 34,
+              alignSelf: 'stretch',
               flex: 'none',
               display: 'flex',
               alignItems: 'center',
@@ -361,11 +368,36 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           >
             +
           </button>
-          {lesson && (
-            <span style={{ font: `600 15px ${fonts.mono}`, color: colors.teal, whiteSpace: 'nowrap' }}>
-              {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
-            </span>
-          )}
+          {/* Shrunk tile row: same units as the full bar, one line each. */}
+          <div className="scroll-panel" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'stretch', gap: 6, overflowX: 'auto', scrollSnapType: 'x proximity' }}>
+            {allLessons.map((l) => {
+              const on = l.id === activeLessonId;
+              const period = isMultiDay(l) ? formatDateRange(l.date, unitEnd(l)) : formatShortDate(l.date).label;
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => onTileClick(l)}
+                  style={{
+                    flex: 'none',
+                    scrollSnapAlign: 'start',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    gap: 1,
+                    padding: '4px 10px',
+                    borderRadius: 7,
+                    border: `1px solid ${on ? colors.teal : colors.borderCard}`,
+                    background: on ? colors.teal : '#fff',
+                    color: on ? '#fff' : colors.ink,
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ font: `600 12.5px ${fonts.mono}`, whiteSpace: 'nowrap' }}>{period}</span>
+                  <span style={{ fontSize: 9, whiteSpace: 'nowrap', color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>{l.duration_hours} Schulstd.</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px 16px 52px', borderBottom: `1px solid ${colors.border}` }}>
