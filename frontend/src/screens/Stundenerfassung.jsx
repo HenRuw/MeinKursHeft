@@ -330,9 +330,6 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         // Collapsed bar: a slim strip with the course name and the selected
         // unit's date only, plus the arrow to fold the full picker back open.
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px', borderBottom: `1px solid ${colors.border}` }}>
-          <span style={{ font: `500 15px ${fonts.serif}`, color: colors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {bundle.course.name}
-          </span>
           {lesson && (
             <span style={{ font: `600 15px ${fonts.mono}`, color: colors.teal, whiteSpace: 'nowrap' }}>
               {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
