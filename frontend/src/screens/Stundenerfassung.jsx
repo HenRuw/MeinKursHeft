@@ -344,6 +344,17 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
             </span>
           )}
+          {/* Same edit popover as the full bar's detail-panel pencil, so the
+              selected unit can be edited without expanding. */}
+          {lesson && (
+            <button
+              onClick={(e) => openEdit(lesson, e.currentTarget)}
+              title="Einheit bearbeiten"
+              style={{ flex: 'none', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 7, border: `1px solid ${colors.borderStrong}`, background: '#fff', color: colors.mutedStrong, fontSize: 13 }}
+            >
+              ✎
+            </button>
+          )}
           {/* Compact "+" mirroring the picker's own — same add popover, so a
               new unit can be created without opening the full bar. */}
           <button
