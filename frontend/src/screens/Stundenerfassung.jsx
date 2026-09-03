@@ -330,7 +330,6 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
         // Collapsed bar: a slim strip with the course name and the selected
         // unit's date only, plus the arrow to fold the full picker back open.
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px', borderBottom: `1px solid ${colors.border}` }}>
-          <CollapseArrow collapsed onClick={() => setBarCollapsed(false)} size={20} fontSize={11} />
           <span style={{ font: `500 15px ${fonts.serif}`, color: colors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {bundle.course.name}
           </span>
@@ -339,6 +338,10 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
             </span>
           )}
+          {/* Kept on the right, same side as the collapse arrow in the open
+              bar, so the toggle doesn't jump sides between the two states. */}
+          <span style={{ flex: 1 }} />
+          <CollapseArrow collapsed onClick={() => setBarCollapsed(false)} size={20} fontSize={11} />
         </div>
       ) : (
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
