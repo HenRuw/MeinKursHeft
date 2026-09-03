@@ -381,9 +381,7 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                     flex: 'none',
                     scrollSnapAlign: 'start',
                     display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    gap: 1,
+                    alignItems: 'center',
                     padding: '4px 10px',
                     borderRadius: 7,
                     border: `1px solid ${on ? colors.teal : colors.borderCard}`,
@@ -393,7 +391,6 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
                   }}
                 >
                   <span style={{ font: `600 12.5px ${fonts.mono}`, whiteSpace: 'nowrap' }}>{period}</span>
-                  <span style={{ fontSize: 9, whiteSpace: 'nowrap', color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>{l.duration_hours} Schulstd.</span>
                 </button>
               );
             })}
