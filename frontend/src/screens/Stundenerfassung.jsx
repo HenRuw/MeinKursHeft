@@ -324,8 +324,13 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
   const onTileClick = (l) => setActiveLessonId(l.id);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
       {confirmDialog}
+      {/* Pinned to the top-right corner, outside both bar variants, so the
+          toggle stays put whether the picker is open or collapsed. */}
+      <div style={{ position: 'absolute', top: 8, right: 24, zIndex: 5 }}>
+        <CollapseArrow collapsed={barCollapsed} onClick={() => setBarCollapsed((v) => !v)} size={20} fontSize={11} />
+      </div>
       {barCollapsed ? (
         // Collapsed bar: a slim strip with the course name and the selected
         // unit's date only, plus the arrow to fold the full picker back open.
@@ -335,13 +340,9 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
               {isMultiDay(lesson) ? formatDateRange(lesson.date, unitEnd(lesson)) : formatLongDate(lesson.date)}
             </span>
           )}
-          {/* Kept on the right, same side as the collapse arrow in the open
-              bar, so the toggle doesn't jump sides between the two states. */}
-          <span style={{ flex: 1 }} />
-          <CollapseArrow collapsed onClick={() => setBarCollapsed(false)} size={20} fontSize={11} />
         </div>
       ) : (
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 24px', borderBottom: `1px solid ${colors.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: '16px 52px 16px 24px', borderBottom: `1px solid ${colors.border}` }}>
         {/* Detail panel (left): the selected unit's Von…bis, Gewicht,
             Schulstunden, Thema and Kommentar. The date/Gewicht/Schulstunden
             fields sit on one wrapping row so the block stays short and wide
@@ -488,11 +489,6 @@ export default function Stundenerfassung({ bundle, onRefresh, onOpenStudent, pre
           {!allLessons.length && (
             <span style={{ alignSelf: 'center', fontSize: 12.5, color: colors.mutedStrong, paddingLeft: 4 }}>Noch keine Einheit — links über „+“ anlegen.</span>
           )}
-        </div>
-
-        {/* Fold the whole picker away to make room for more student rows. */}
-        <div style={{ flex: 'none', display: 'flex', alignItems: 'center' }}>
-          <CollapseArrow collapsed={false} onClick={() => setBarCollapsed(true)} size={20} fontSize={11} />
         </div>
       </div>
       )}
