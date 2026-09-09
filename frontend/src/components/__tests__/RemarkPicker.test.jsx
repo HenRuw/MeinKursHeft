@@ -41,16 +41,33 @@ describe('RemarkPicker', () => {
     expect(props.onAddPreset).toHaveBeenCalledWith(presets[0]);
   });
 
-  test('adding a custom remark calls onAddCustom with the typed text and remember flag', async () => {
+  test('checking "merken" makes onAddCustom pass remember=true', async () => {
     const user = userEvent.setup();
     const { props } = setup();
 
     await user.click(screen.getByTitle('Bemerkung hinzufügen'));
     await user.click(screen.getByText('Neue Bemerkung'));
     await user.type(screen.getByPlaceholderText('Beschreibung …'), 'Sehr gute Mitarbeit');
+    await user.click(screen.getByLabelText('merken'));
     await user.click(screen.getByText('Hinzufügen'));
 
     expect(props.onAddCustom).toHaveBeenCalledWith({ emoji: '', text: 'Sehr gute Mitarbeit' }, true);
+  });
+
+  test('"merken" is unchecked by default and the text field is focused on open', async () => {
+    const user = userEvent.setup();
+    const { props } = setup();
+
+    await user.click(screen.getByTitle('Bemerkung hinzufügen'));
+    await user.click(screen.getByText('Neue Bemerkung'));
+
+    expect(screen.getByLabelText('merken')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByPlaceholderText('Beschreibung …')).toHaveFocus();
+
+    await user.type(screen.getByPlaceholderText('Beschreibung …'), 'Sehr gute Mitarbeit');
+    await user.click(screen.getByText('Hinzufügen'));
+
+    expect(props.onAddCustom).toHaveBeenCalledWith({ emoji: '', text: 'Sehr gute Mitarbeit' }, false);
   });
 
   test('the "Hinzufügen" button stays disabled (no-op) until text is entered', async () => {
@@ -64,14 +81,15 @@ describe('RemarkPicker', () => {
     expect(props.onAddCustom).not.toHaveBeenCalled();
   });
 
-  test('unchecking "merken" passes remember=false', async () => {
+  test('toggling "merken" on then off again passes remember=false', async () => {
     const user = userEvent.setup();
     const { props } = setup();
 
     await user.click(screen.getByTitle('Bemerkung hinzufügen'));
     await user.click(screen.getByText('Neue Bemerkung'));
     await user.type(screen.getByPlaceholderText('Beschreibung …'), 'Testeintrag');
-    await user.click(screen.getByRole('button', { name: '✓', exact: true }));
+    await user.click(screen.getByLabelText('merken'));
+    await user.click(screen.getByLabelText('merken'));
     await user.click(screen.getByText('Hinzufügen'));
 
     expect(props.onAddCustom).toHaveBeenCalledWith({ emoji: '', text: 'Testeintrag' }, false);

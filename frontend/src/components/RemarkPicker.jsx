@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Popover from './Popover.jsx';
 import { submitOnEnter } from '../lib/keys.js';
 
@@ -56,6 +56,7 @@ function EmojiGrid({ onPick }) {
 export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCustom, onUpdateRemark, onDeleteRemark, onDeletePreset }) {
   const menuBtnRef = useRef(null);
   const draftEmojiBtnRef = useRef(null);
+  const draftTextRef = useRef(null);
   const editAnchorRef = useRef(null);
   const editEmojiBtnRef = useRef(null);
 
@@ -64,11 +65,20 @@ export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCusto
   const [draftEmoji, setDraftEmoji] = useState('');
   const [draftText, setDraftText] = useState('');
   const [draftPickerOpen, setDraftPickerOpen] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editEmoji, setEditEmoji] = useState('');
   const [editText, setEditText] = useState('');
   const [editPickerOpen, setEditPickerOpen] = useState(false);
+
+  // When the "Neue Bemerkung" draft opens, start with "merken" unchecked and
+  // put the cursor straight into the text field so you can type right away.
+  useEffect(() => {
+    if (newOpen) {
+      setRemember(false);
+      draftTextRef.current?.focus();
+    }
+  }, [newOpen]);
 
   const closeAll = () => {
     setMenuOpen(false);
@@ -237,6 +247,7 @@ export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCusto
                   {draftEmoji || 'Emoji'}
                 </button>
                 <input
+                  ref={draftTextRef}
                   value={draftText}
                   onChange={(e) => setDraftText(e.target.value)}
                   onKeyDown={submitOnEnter(submitDraft)}
@@ -248,6 +259,8 @@ export default function RemarkPicker({ remarks, presets, onAddPreset, onAddCusto
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button
                     onClick={() => setRemember((v) => !v)}
+                    aria-label="merken"
+                    aria-pressed={remember}
                     style={{
                       width: 20,
                       height: 20,
