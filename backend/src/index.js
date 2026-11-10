@@ -20,7 +20,7 @@ async function main() {
     console.log(`MeinKursHeft: database ready for account ${id}`);
   }
 
-  httpServer.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, process.env.HOST || '127.0.0.1', () => {
     console.log(`MeinKursHeft backend listening on port ${PORT}`);
   });
 }
